@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HOD Console - PIMS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/hod.css">
+  <link rel="stylesheet" href="css/notifications.css">
+</head>
+
+<body>
+
+  <!-- Ambient background -->
+  <div class="ambient-bg">
+    <div class="amb-orb amb-orb-1"></div>
+    <div class="amb-orb amb-orb-2"></div>
+  </div>
+
+  <!-- Mobile top bar -->
+  <div class="mobile-topbar">
+    <button class="mob-menu-btn" id="mobMenuBtn" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="mob-brand">
+      <img src="images/eilround.gif" alt="EIL" class="mob-logo" />
+      <span class="mob-title">PIMS · HOD</span>
+    </div>
+    <button class="mob-back-btn" onclick="closeWindow()" title="Back to Dashboard">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+        <path d="M19 12H5M12 5l-7 7 7 7"/>
+      </svg>
+    </button>
+  </div>
+
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <!-- Shell -->
+  <div class="shell" id="shell">
+
+    <!-- ═══ SIDEBAR ═══ -->
+    <aside class="sidebar" id="sidebar">
+
+      <!-- Brand -->
+      <div class="sb-brand">
+        <div class="sb-logo-wrap">
+          <img src="images/eilround.gif" alt="EIL Logo" class="sb-logo" />
+          <div class="sb-logo-ring"></div>
+        </div>
+        <div class="sb-brand-text">
+          <span class="sb-name">PIMS</span>
+          <span class="sb-sub">HOD Console</span>
+        </div>
+        <button class="notif-bell" id="notifBell" title="Notifications">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          </svg>
+          <span class="notif-badge" id="notifBadge" style="display:none">0</span>
+        </button>
+        <button class="sb-collapse-btn" id="sbCollapseBtn" aria-label="Collapse sidebar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- User chip -->
+      <div class="sb-user">
+        <div class="sb-avatar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
+        </div>
+        <div class="sb-user-info">
+          <span class="sb-user-name" id="userInfo">—</span>
+          <span class="sb-user-role">Head of Department</span>
+        </div>
+        <div class="sb-user-dot"></div>
+      </div>
+
+      <!-- Navigation -->
+      <nav class="sb-nav">
+
+        <div class="sb-section-label">Actions</div>
+
+        <div class="nav-group">
+          <button class="nav-group-btn" onclick="scrollToSection('create-job-section')">
+            <span class="nav-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                <rect x="2" y="7" width="20" height="14" rx="2" />
+                <path d="M16 3H8a2 2 0 0 0-2 2v2h12V5a2 2 0 0 0-2-2z"/>
+                <line x1="12" y1="12" x2="12" y2="17"/>
+                <line x1="9.5" y1="14.5" x2="14.5" y2="14.5"/>
+              </svg>
+            </span>
+            <span class="nav-label">Create Job</span>
+          </button>
+        </div>
+
+        <div class="nav-group">
+          <button class="nav-group-btn" onclick="scrollToSection('assign-sgl-section')">
+            <span class="nav-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+            </span>
+            <span class="nav-label">Assign SGL</span>
+          </button>
+        </div>
+
+        <div class="nav-group">
+          <button class="nav-group-btn" onclick="scrollToSection('all-jobs-section')">
+            <span class="nav-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" y1="13" x2="8" y2="13"/>
+                <line x1="16" y1="17" x2="8" y2="17"/>
+                <polyline points="10 9 9 9 8 9"/>
+              </svg>
+            </span>
+            <span class="nav-label">All Jobs</span>
+          </button>
+        </div>
+
+        <div class="sb-section-label" style="margin-top:1rem;">System</div>
+
+        <div class="nav-group">
+          <button class="nav-group-btn" onclick="closeWindow()">
+            <span class="nav-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                <polyline points="9 22 9 12 15 12 15 22"/>
+              </svg>
+            </span>
+            <span class="nav-label">Dashboard</span>
+          </button>
+        </div>
+
+      </nav>
+
+      <!-- Footer -->
+      <div class="sb-footer">
+        <button class="sb-footer-btn sb-logout" onclick="doLogout()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+          <span>Sign Out</span>
+        </button>
+      </div>
+
+    </aside>
+
+    <!-- ═══ MAIN AREA ═══ -->
+    <div class="main-area">
+
+      <!-- Top command bar -->
+      <header class="command-bar">
+        <div class="cb-breadcrumb">
+          <span class="cb-crumb-root">PIMS</span>
+          <svg class="cb-crumb-sep" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 18l6-6-6-6"/>
+          </svg>
+          <span class="cb-crumb-current">HOD Console</span>
+        </div>
+      </header>
+
+      <!-- Scrollable content -->
+      <div class="content-area">
+
+        <!-- Create Job Section -->
+        <div id="create-job-section" class="content-section">
+          <h2 class="section-title">Create New Job</h2>
+          <div id="create-alert"></div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Project ID</label>
+              <input type="text" id="projectId" class="form-input" placeholder="e.g. B378" maxlength="10" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Project Name</label>
+              <input type="text" id="projectName" class="form-input" placeholder="Enter project name" maxlength="100" required>
+            </div>
+            <div class="form-group form-group-btn">
+              <button id="createJobBtn" class="btn btn-success">Create Job</button>
+            </div>
+          </div>
+          <div class="loading" id="create-loading">Creating project…</div>
+        </div>
+
+        <!-- Assign SGL Section -->
+        <div id="assign-sgl-section" class="content-section">
+          <h2 class="section-title">Assign SGL</h2>
+          <div id="assign-alert"></div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Project</label>
+              <select id="projectSelect" class="form-select">
+                <option value="">Select Project</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">SGL</label>
+              <select id="sglSelect" class="form-select">
+                <option value="">Select SGL</option>
+              </select>
+            </div>
+            <div class="form-group form-group-btn">
+              <button id="assignSglBtn" class="btn btn-primary">Assign SGL</button>
+            </div>
+          </div>
+
+          <div class="assigned-sgls" id="assignedSglsSection">
+            <h3>Assigned SGLs for Selected Project</h3>
+            <div class="sgls-list" id="sglsList">
+              <p class="empty-hint">Select a project to view assigned SGLs</p>
+            </div>
+            <div style="margin-top:14px;">
+              <button id="removeSglBtn" class="btn btn-danger">Remove Selected SGLs</button>
+            </div>
+          </div>
+
+          <div class="loading" id="assign-loading">Processing…</div>
+        </div>
+
+        <!-- All Jobs Section -->
+        <div id="all-jobs-section" class="content-section">
+          <h2 class="section-title">All Jobs</h2>
+          <div id="jobs-loading" class="loading" style="display:block;">Loading jobs…</div>
+          <div id="jobs-table-wrap">
+            <table id="jobs-table" style="display:none;">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Job No</th>
+                  <th>Project Name</th>
+                </tr>
+              </thead>
+              <tbody id="jobs-tbody"></tbody>
+            </table>
+            <p id="jobs-empty" style="display:none;" class="empty-hint">No jobs found.</p>
+          </div>
+        </div>
+
+      </div><!-- /content-area -->
+    </div><!-- /main-area -->
+  </div><!-- /shell -->
+
+  <!-- Success Modal -->
+  <div id="successModal" class="success-modal">
+    <div class="success-modal-content">
+      <h3>&#10003; Success</h3>
+      <p id="successMessage"></p>
+      <button onclick="closeSuccessModal()">OK</button>
+    </div>
+  </div>
+
+  <!-- Notification overlay + panel -->
+  <div class="notif-overlay" id="notifOverlay"></div>
+  <aside class="notif-panel" id="notifPanel">
+    <div class="notif-panel-header">
+      <span class="notif-panel-title">Notifications</span>
+      <button class="notif-mark-all" id="notifMarkAll">Mark all read</button>
+      <button class="notif-close" id="notifClose" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M18 6L6 18M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+    <div class="notif-list" id="notifList"></div>
+  </aside>
+
+  <script src="js/hod.js"></script>
+  <script>
+    // Sidebar collapse
+    const sidebar = document.getElementById('sidebar');
+    document.getElementById('sbCollapseBtn').addEventListener('click', function () {
+      sidebar.classList.toggle('collapsed');
+    });
+
+    // Mobile menu
+    const overlay = document.getElementById('sidebarOverlay');
+    document.getElementById('mobMenuBtn').addEventListener('click', function () {
+      sidebar.classList.toggle('mob-open');
+      overlay.classList.toggle('visible');
+    });
+    overlay.addEventListener('click', function () {
+      sidebar.classList.remove('mob-open');
+      overlay.classList.remove('visible');
+    });
+
+    function scrollToSection(id) {
+      const el = document.getElementById(id);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // Close mobile sidebar
+      sidebar.classList.remove('mob-open');
+      overlay.classList.remove('visible');
+    }
+
+    async function doLogout() {
+      await fetch('/api/logout', { method: 'POST' }).catch(() => {});
+      window.location.href = '/index.html';
+    }
+  </script>
+  <script src="js/notifications.js"></script>
+</body>
+
+</html>

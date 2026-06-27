@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Search Line Data — PIMS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="css/ll-suite.css"/>
+  <style>
+    .detail-drawer {
+      background:#fff; border:1px solid var(--border); border-radius:var(--radius-lg);
+      box-shadow:var(--shadow-lg); padding:1.5rem;
+      display:none; flex-direction:column; gap:1.25rem;
+      animation:slideUp 0.2s var(--ease) both;
+    }
+    .detail-drawer.open { display:flex; }
+    @keyframes slideUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:none; } }
+    .detail-grid {
+      display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:1rem;
+    }
+    .detail-field { display:flex; flex-direction:column; gap:4px; }
+    .detail-label { font-size:11px; font-weight:600; text-transform:uppercase;
+      letter-spacing:0.06em; color:var(--text-muted); }
+    .detail-value { font-size:13.5px; font-weight:500; color:var(--text-primary); }
+    .detail-value.mono { font-family:monospace; font-size:12.5px; }
+    .data-table tbody tr { cursor:pointer; }
+    .data-table tbody tr.selected { background:rgba(0,123,255,0.06) !important; }
+    .result-meta { font-size:12.5px; color:var(--text-muted); }
+    .result-meta strong { color:var(--text-primary); }
+  </style>
+</head>
+<body>
+<div class="ll-shell">
+
+  <!-- ═══ TOPBAR ═══ -->
+  <header class="ll-topbar">
+    <a class="ll-topbar-logo" href="user.html">
+      <img src="images/eilround.gif" alt="EIL"/>
+      <div class="ll-topbar-brand">
+        <span class="ll-topbar-name">PIMS</span>
+        <span class="ll-topbar-sub">Piping Isometrics</span>
+      </div>
+    </a>
+    <div class="ll-topbar-div"></div>
+    <div class="ll-topbar-module">
+      <div class="ll-topbar-module-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#007bff" stroke-width="1.8">
+          <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+        </svg>
+      </div>
+      <span class="ll-topbar-module-name">Search Line Data</span>
+      <span class="ll-topbar-module-badge">LIVE</span>
+    </div>
+    <div class="ll-topbar-spacer"></div>
+    <button class="btn btn-outline" style="background:rgba(255,255,255,0.07);border-color:rgba(255,255,255,0.12);color:rgba(255,255,255,0.7);font-size:12.5px;" onclick="window.open('ll-normalize.html','_blank')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+      Normalizer
+    </button>
+    <button class="ll-back-btn" onclick="window.close()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      Back to PIMS
+    </button>
+  </header>
+
+  <!-- ═══ BREADCRUMB ═══ -->
+  <div class="ll-breadbar">
+    <span class="ll-bc-item">PIMS</span>
+    <span class="ll-bc-sep">›</span>
+    <span class="ll-bc-item">Line Data Suite</span>
+    <span class="ll-bc-sep">›</span>
+    <span class="ll-bc-curr">Search Line Data</span>
+    <div class="ll-bc-spacer"></div>
+    <div class="ll-bc-tag" id="resultBadge">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:11px;height:11px;stroke:#007bff;"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      <span id="resultCount">0 results</span>
+    </div>
+  </div>
+
+  <!-- ═══ MAIN ═══ -->
+  <main class="ll-main">
+
+    <!-- Search controls -->
+    <div class="ll-card">
+      <div class="ll-card-body">
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <div class="search-row">
+            <div class="search-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+              <input class="search-input" id="searchInput" type="text"
+                     placeholder="Search by line no, service, from/to equipment, fluid…"
+                     oninput="filterTable()">
+            </div>
+            <select class="form-select" id="filterUnit" onchange="filterTable()" style="min-width:130px;">
+              <option value="">All Units</option>
+              <option>Unit 100</option><option>Unit 200</option><option>Unit 300</option>
+            </select>
+            <select class="form-select" id="filterSize" onchange="filterTable()" style="min-width:110px;">
+              <option value="">All Sizes</option>
+              <option>2"</option><option>4"</option><option>6"</option>
+              <option>8"</option><option>10"</option><option>12"</option>
+            </select>
+            <button class="btn btn-outline" onclick="clearSearch()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              Clear
+            </button>
+            <button class="btn btn-primary" onclick="exportResults()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Export
+            </button>
+          </div>
+
+          <div class="chip-row">
+            <span style="font-size:12px;color:var(--text-muted);font-weight:600;margin-right:4px;">Quick filter:</span>
+            <div class="chip active" onclick="setChip(this,'all')"><span class="chip-dot blue"></span>All Lines</div>
+            <div class="chip" onclick="setChip(this,'sc')"><span class="chip-dot red"></span>Stress Critical</div>
+            <div class="chip" onclick="setChip(this,'insulated')"><span class="chip-dot amber"></span>Insulated</div>
+            <div class="chip" onclick="setChip(this,'hitemp')"><span class="chip-dot red"></span>High Temp (&gt;200°C)</div>
+            <div class="chip" onclick="setChip(this,'hipress')"><span class="chip-dot amber"></span>High Press (&gt;50 kg)</div>
+            <div class="chip" onclick="setChip(this,'steam')"><span class="chip-dot blue"></span>Steam / H₂</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Results table -->
+    <div class="ll-card">
+      <div class="tbl-scroll">
+        <table class="data-table" id="searchTable">
+          <thead>
+            <tr>
+              <th>Line No</th>
+              <th>Size</th>
+              <th>Fluid Service</th>
+              <th>From</th>
+              <th>To</th>
+              <th>Design Temp (°C)</th>
+              <th>Design Press (kg/cm²)</th>
+              <th>Insulation</th>
+              <th>Stress Critical</th>
+              <th>Unit</th>
+            </tr>
+          </thead>
+          <tbody id="searchBody">
+            <tr><td colspan="10">
+              <div class="empty-state">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                <h3>No line list loaded</h3>
+                <p>Upload and normalize a line list first, then come back here to search.</p>
+                <button class="btn btn-primary" onclick="window.open('ll-normalize.html','_blank')">Open Normalizer</button>
+              </div>
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Line detail drawer -->
+    <div class="detail-drawer" id="detailDrawer">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+        <div>
+          <div style="font-size:12px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Line Detail</div>
+          <div style="font-size:18px;font-weight:800;color:var(--text-primary);margin-top:2px;" id="drawerLineNo">—</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="closeDrawer()">Close ×</button>
+      </div>
+      <hr class="divider" style="margin:0;">
+      <div class="detail-grid" id="drawerGrid"></div>
+    </div>
+
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ── Demo data ──
+  const LINE_DATA = [
+    { lineNo:'4"-P-1001-A1A', size:'4"', fluid:'Crude Oil',   from:'T-101', to:'P-101A', temp:120, press:18.5, insul:'HOT', sc:false, unit:'Unit 100' },
+    { lineNo:'6"-P-1002-B2B', size:'6"', fluid:'Naphtha',     from:'E-201', to:'V-201',  temp:85,  press:8.2,  insul:'None',sc:false, unit:'Unit 100' },
+    { lineNo:'2"-P-2001-C1A', size:'2"', fluid:'Steam (HS)',  from:'BFW',   to:'E-301',  temp:310, press:52.0, insul:'HOT', sc:true,  unit:'Unit 200' },
+    { lineNo:'8"-P-2002-A1A', size:'8"', fluid:'Fuel Gas',    from:'V-401', to:'Flare',  temp:45,  press:6.0,  insul:'None',sc:false, unit:'Unit 200' },
+    { lineNo:'4"-P-3001-D1A', size:'4"', fluid:'H₂',         from:'C-101', to:'R-101',  temp:280, press:68.0, insul:'HOT', sc:true,  unit:'Unit 300' },
+    { lineNo:'3"-P-3002-A2A', size:'3"', fluid:'Diesel',      from:'T-501', to:'P-501',  temp:90,  press:12.0, insul:'CW',  sc:false, unit:'Unit 300' },
+    { lineNo:'10"-P-1003-A1A',size:'10"',fluid:'Residue',     from:'H-101', to:'T-601',  temp:380, press:35.0, insul:'HOT', sc:true,  unit:'Unit 100' },
+    { lineNo:'6"-P-2003-B1B', size:'6"', fluid:'Lean Amine',  from:'A-201', to:'E-201',  temp:55,  press:5.5,  insul:'None',sc:false, unit:'Unit 200' },
+    { lineNo:'2"-P-1004-C2A', size:'2"', fluid:'HF Acid',     from:'R-201', to:'N-201',  temp:42,  press:4.5,  insul:'None',sc:true,  unit:'Unit 100' },
+    { lineNo:'12"-P-3003-A1A',size:'12"',fluid:'Feed Water',   from:'Tank', to:'BFW',    temp:30,  press:3.0,  insul:'None',sc:false, unit:'Unit 300' },
+  ];
+
+  let activeChip = 'all';
+  let selectedRow = null;
+
+  function renderTable(data) {
+    const tbody = document.getElementById('searchBody');
+    document.getElementById('resultCount').textContent = data.length + ' result' + (data.length !== 1 ? 's' : '');
+    if (!data.length) {
+      tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg><h3>No matches</h3><p>Try adjusting your search or filters.</p></div></td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.map((r,i) => `
+      <tr onclick="openDrawer(${i})" data-idx="${i}">
+        <td><strong>${r.lineNo}</strong></td>
+        <td>${r.size}</td>
+        <td>${r.fluid}</td>
+        <td class="muted">${r.from}</td>
+        <td class="muted">${r.to}</td>
+        <td>${r.temp}</td>
+        <td>${r.press}</td>
+        <td>${r.insul === 'None' ? '<span class="muted">—</span>' : r.insul}</td>
+        <td>${r.sc ? '<span class="badge badge-red">SC</span>' : '<span class="badge badge-gray">No</span>'}</td>
+        <td class="muted">${r.unit}</td>
+      </tr>`).join('');
+  }
+
+  function filterTable() {
+    const q    = document.getElementById('searchInput').value.toLowerCase();
+    const unit = document.getElementById('filterUnit').value;
+    const size = document.getElementById('filterSize').value;
+    let data = LINE_DATA.filter(r => {
+      const text = (r.lineNo+r.fluid+r.from+r.to+r.unit).toLowerCase();
+      if (q && !text.includes(q)) return false;
+      if (unit && r.unit !== unit) return false;
+      if (size && r.size !== size) return false;
+      if (activeChip === 'sc' && !r.sc) return false;
+      if (activeChip === 'insulated' && r.insul === 'None') return false;
+      if (activeChip === 'hitemp' && r.temp <= 200) return false;
+      if (activeChip === 'hipress' && r.press <= 50) return false;
+      if (activeChip === 'steam' && !/steam|h₂|h2/i.test(r.fluid)) return false;
+      return true;
+    });
+    renderTable(data);
+    closeDrawer();
+  }
+
+  function clearSearch() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('filterUnit').value  = '';
+    document.getElementById('filterSize').value  = '';
+    setChip(document.querySelector('.chip.active'), 'all');
+  }
+
+  function setChip(el, key) {
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+    activeChip = key;
+    filterTable();
+  }
+
+  function openDrawer(idx) {
+    const filteredRows = Array.from(document.querySelectorAll('#searchBody tr[data-idx]'));
+    filteredRows.forEach(r => r.classList.remove('selected'));
+    const clickedRow = document.querySelector(`#searchBody tr[data-idx="${idx}"]`);
+    if (clickedRow) clickedRow.classList.add('selected');
+
+    const r = LINE_DATA[idx];
+    document.getElementById('drawerLineNo').textContent = r.lineNo;
+    const fields = [
+      { label:'Size (inch)',          value:r.size },
+      { label:'Fluid Service',        value:r.fluid },
+      { label:'From (Equipment)',     value:r.from },
+      { label:'To (Equipment)',       value:r.to },
+      { label:'Design Temp (°C)',     value:r.temp + ' °C' },
+      { label:'Design Press (kg/cm²)',value:r.press + ' kg/cm²' },
+      { label:'Insulation',           value:r.insul },
+      { label:'Stress Critical',      value:r.sc ? 'Yes' : 'No' },
+      { label:'Unit',                 value:r.unit },
+    ];
+    document.getElementById('drawerGrid').innerHTML = fields.map(f =>
+      `<div class="detail-field">
+        <span class="detail-label">${f.label}</span>
+        <span class="detail-value">${f.value}</span>
+      </div>`
+    ).join('');
+    document.getElementById('detailDrawer').classList.add('open');
+    document.getElementById('detailDrawer').scrollIntoView({ behavior:'smooth', block:'nearest' });
+  }
+
+  function closeDrawer() {
+    document.getElementById('detailDrawer').classList.remove('open');
+    document.querySelectorAll('#searchBody tr').forEach(r => r.classList.remove('selected'));
+  }
+
+  function exportResults() {
+    showToast('Export to Excel — available after backend integration', 'info');
+  }
+
+  function showToast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (type && type !== 'info' ? ' ' + type : '');
+    clearTimeout(t._tmr);
+    t._tmr = setTimeout(() => t.classList.remove('show'), 3200);
+  }
+
+  // Initial render
+  renderTable(LINE_DATA);
+</script>
+</body>
+</html>

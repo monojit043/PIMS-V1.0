@@ -1,0 +1,595 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>PDF Annotator — PIMS</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0f1117; color: #cdd6f4; height: 100vh; display: flex; flex-direction: column; overflow: hidden; user-select: none; }
+
+    /* ── Toolbar ── */
+    #toolbar {
+      background: #1e2433;
+      border-bottom: 1px solid #2e3650;
+      padding: 6px 10px;
+      display: flex;
+      align-items: center;
+      gap: 0;
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+    .tb-sep { width: 1px; height: 28px; background: #2e3650; margin: 0 6px; flex-shrink: 0; }
+    .tb-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 5px;
+      color: #8892b0;
+      cursor: pointer;
+      padding: 5px 9px;
+      font-size: 12.5px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.12s;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .tb-btn:hover { background: #2e3650; color: #cdd6f4; }
+    .tb-btn.active { background: #2a3050; color: #f5c518; border-color: #f5c5188a; }
+    .tb-btn.danger:hover { background: rgba(224,108,117,.12); color: #e06c75; }
+    .tb-btn.save-btn { background: #a6e22e; color: #111; border-color: #a6e22e; font-weight: 700; margin-left: 4px; }
+    .tb-btn.save-btn:hover { background: #b8f040; border-color: #b8f040; }
+    .tb-btn.save-btn:disabled { background: #555; color: #999; border-color: #555; cursor: not-allowed; }
+
+    .page-info { font-size: 12px; color: #8892b0; padding: 0 6px; white-space: nowrap; }
+
+    /* Color swatches */
+    .color-swatch {
+      width: 18px; height: 18px; border-radius: 50%;
+      cursor: pointer; border: 2px solid transparent;
+      transition: border-color .12s, transform .12s; flex-shrink: 0;
+      display: inline-block;
+    }
+    .color-swatch.active { border-color: #fff; transform: scale(1.25); }
+    .color-swatch:hover { transform: scale(1.15); }
+
+    /* Thickness */
+    .sz-btn {
+      cursor: pointer; background: transparent; border: 1px solid transparent;
+      border-radius: 4px; padding: 4px 7px; color: #8892b0;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 13px; transition: all .12s;
+    }
+    .sz-btn.active { border-color: #f5c518; color: #f5c518; }
+    .sz-btn:hover { color: #cdd6f4; }
+
+    /* Zoom label */
+    #zoomLabel { font-size: 12px; color: #8892b0; min-width: 38px; text-align: center; }
+
+    /* ── Viewer ── */
+    #viewer-wrap {
+      flex: 1; overflow: auto;
+      display: flex; justify-content: center; align-items: flex-start;
+      padding: 20px; background: #0a0d14;
+    }
+    #canvas-container { position: relative; display: inline-block; flex-shrink: 0; }
+    canvas#pdfCanvas { display: block; box-shadow: 0 4px 32px rgba(0,0,0,.55); }
+    canvas#overlayCanvas { position: absolute; left: 0; top: 0; }
+
+    /* Inline text input */
+    #text-cursor-box {
+      position: absolute; display: none;
+      background: rgba(10,13,20,0.82);
+      border: 1.5px solid #f5c518;
+      border-radius: 4px;
+      outline: none;
+      color: #ffffff;
+      font-family: Arial, sans-serif;
+      padding: 3px 7px; min-width: 80px;
+      white-space: nowrap; resize: none; overflow: hidden;
+      z-index: 20; line-height: 1.35;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.6);
+    }
+
+    /* ── Status bar ── */
+    #statusbar {
+      background: #1e2433; border-top: 1px solid #2e3650;
+      padding: 3px 12px; font-size: 11px; color: #8892b0;
+      flex-shrink: 0; display: flex; align-items: center; gap: 12px;
+    }
+    #statusbar span { color: #cdd6f4; }
+
+    /* Cursor classes */
+    .cur-cross  { cursor: crosshair; }
+    .cur-text   { cursor: text; }
+    .cur-erase  { cursor: cell; }
+  </style>
+</head>
+<body>
+
+<div id="toolbar">
+
+  <!-- Navigation -->
+  <button class="tb-btn" id="prevBtn" title="Previous page  ←">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg> Prev
+  </button>
+  <span class="page-info">Page <span id="pageNum">1</span> / <span id="pageCount">—</span></span>
+  <button class="tb-btn" id="nextBtn" title="Next page  →">
+    Next <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+  </button>
+
+  <div class="tb-sep"></div>
+
+  <!-- Zoom -->
+  <button class="tb-btn" id="zoomOutBtn" title="Zoom out  −" style="padding:5px 7px; font-size:16px; font-weight:700;">−</button>
+  <span id="zoomLabel">130%</span>
+  <button class="tb-btn" id="zoomInBtn"  title="Zoom in  +"  style="padding:5px 7px; font-size:16px; font-weight:700;">+</button>
+  <button class="tb-btn" id="fitBtn" title="Fit width">Fit</button>
+
+  <div class="tb-sep"></div>
+
+  <!-- Drawing tools -->
+  <button class="tb-btn active" id="penBtn"    data-tool="pen"    title="Freehand pen  [P]">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg> Pen
+  </button>
+  <button class="tb-btn" id="arrowBtn"  data-tool="arrow"  title="Arrow  [A]">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="8 5 19 5 19 16"/></svg> Arrow
+  </button>
+  <button class="tb-btn" id="rectBtn"   data-tool="rect"   title="Rectangle  [R]">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg> Rect
+  </button>
+  <button class="tb-btn" id="circleBtn" data-tool="circle" title="Circle  [C]">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg> Circle
+  </button>
+  <button class="tb-btn" id="textBtn"   data-tool="text"   title="Text label  [T]">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg> Text
+  </button>
+  <button class="tb-btn" id="eraseBtn"  data-tool="erase"  title="Eraser  [E]">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 20H7L3 16l13-13 6 6-2 11z"/><line x1="6" y1="20" x2="14" y2="12"/></svg> Erase
+  </button>
+
+  <div class="tb-sep"></div>
+
+  <!-- Colors -->
+  <div class="color-swatch active" data-color="#e53935" style="background:#e53935;" title="Red"></div>
+  <div class="color-swatch" data-color="#1e88e5" style="background:#1e88e5; margin-left:5px;" title="Blue"></div>
+  <div class="color-swatch" data-color="#111111" style="background:#111111; margin-left:5px;" title="Black"></div>
+  <div class="color-swatch" data-color="#f5c518" style="background:#f5c518; margin-left:5px;" title="Yellow"></div>
+  <div class="color-swatch" data-color="#43a047" style="background:#43a047; margin-left:5px;" title="Green"></div>
+  <div class="color-swatch" data-color="#f57c00" style="background:#f57c00; margin-left:5px;" title="Orange"></div>
+
+  <div class="tb-sep"></div>
+
+  <!-- Thickness -->
+  <button class="sz-btn active" data-size="2"  title="Thin">─</button>
+  <button class="sz-btn" data-size="4"  title="Medium" style="margin-left:3px;">━</button>
+  <button class="sz-btn" data-size="8"  title="Thick"  style="margin-left:3px;">▬</button>
+
+  <div class="tb-sep"></div>
+
+  <!-- Actions -->
+  <button class="tb-btn" id="undoBtn"  title="Undo  Ctrl+Z">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg> Undo
+  </button>
+  <button class="tb-btn danger" id="clearBtn" title="Clear page annotations">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Clear
+  </button>
+
+  <div class="tb-sep"></div>
+
+  <!-- Save & Download -->
+  <button class="tb-btn save-btn" id="saveBtn">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+    Save &amp; Submit
+  </button>
+  <a id="downloadOrig" style="text-decoration:none;" title="Download original PDF">
+    <button class="tb-btn" type="button" style="margin-left:4px;">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Original
+    </button>
+  </a>
+</div>
+
+<div id="viewer-wrap">
+  <div id="canvas-container">
+    <canvas id="pdfCanvas"></canvas>
+    <canvas id="overlayCanvas" class="cur-cross"></canvas>
+    <textarea id="text-cursor-box" rows="1" spellcheck="false"></textarea>
+  </div>
+</div>
+
+<div id="statusbar">
+  <span id="st-tool">Tool: Pen</span>
+  <span id="st-msg">Loading…</span>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+
+<script>
+(async () => {
+  if (!window.pdfjsLib) { alert('PDF.js not loaded — check network/CDN.'); return; }
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+  // ── Elements ──
+  const pdfCanvas     = document.getElementById('pdfCanvas');
+  const overlayCanvas = document.getElementById('overlayCanvas');
+  const ctx  = pdfCanvas.getContext('2d');
+  const octx = overlayCanvas.getContext('2d');
+  const textBox = document.getElementById('text-cursor-box');
+  const stMsg   = document.getElementById('st-msg');
+  const stTool  = document.getElementById('st-tool');
+
+  // ── URL params ──
+  const params   = new URLSearchParams(window.location.search);
+  const urlParam = params.get('file');
+  const rolesParam = params.get('roles') || '';
+  if (!urlParam) { stMsg.textContent = 'No file specified.'; return; }
+  document.getElementById('downloadOrig').href = urlParam;
+
+  // ── Fetch PDF ──
+  let fetchPath = urlParam;
+  if (!fetchPath.startsWith('/uploads')) {
+    fetchPath = '/uploads' + (fetchPath.startsWith('/') ? fetchPath : '/' + fetchPath);
+  }
+  stMsg.textContent = 'Loading PDF…';
+  const resp = await fetch(fetchPath, { credentials: 'same-origin' });
+  if (!resp.ok) { stMsg.textContent = 'Failed to load: HTTP ' + resp.status; return; }
+  const origArrayBuffer = await resp.arrayBuffer();
+
+  const pdfDoc    = await pdfjsLib.getDocument({ data: origArrayBuffer }).promise;
+  const totalPages = pdfDoc.numPages;
+  document.getElementById('pageCount').textContent = totalPages;
+
+  // ── State ──
+  let currentPage = 1;
+  let scale       = 1.3;
+  const overlays     = {};      // page → dataURL
+  const undoStacks   = {};      // page → [ImageData, ...]
+  let tool       = 'pen';
+  let color      = '#e53935';
+  let lineWidth  = 2;
+  let drawing    = false;
+  let startX = 0, startY = 0;
+  let shapeSnap  = null;        // ImageData snapshot before shape drag
+
+  // ── Render ──
+  async function renderPage(n) {
+    const page = await pdfDoc.getPage(n);
+    const vp   = page.getViewport({ scale });
+    const W = Math.round(vp.width), H = Math.round(vp.height);
+
+    pdfCanvas.width  = overlayCanvas.width  = W;
+    pdfCanvas.height = overlayCanvas.height = H;
+    pdfCanvas.style.width  = overlayCanvas.style.width  = W + 'px';
+    pdfCanvas.style.height = overlayCanvas.style.height = H + 'px';
+
+    await page.render({ canvasContext: ctx, viewport: vp }).promise;
+
+    octx.clearRect(0, 0, W, H);
+    const ov = overlays[n];
+    if (ov) {
+      const img = new Image();
+      await new Promise(r => { img.onload = r; img.src = ov; });
+      octx.drawImage(img, 0, 0, W, H);
+    }
+    document.getElementById('pageNum').textContent  = n;
+    document.getElementById('zoomLabel').textContent = Math.round(scale * 100) + '%';
+    stMsg.textContent = 'Page ' + n + ' of ' + totalPages;
+  }
+
+  function saveOverlay()  { overlays[currentPage] = overlayCanvas.toDataURL('image/png'); }
+
+  function pushUndo() {
+    if (!undoStacks[currentPage]) undoStacks[currentPage] = [];
+    undoStacks[currentPage].push(octx.getImageData(0, 0, overlayCanvas.width, overlayCanvas.height));
+    if (undoStacks[currentPage].length > 40) undoStacks[currentPage].shift();
+  }
+
+  function undo() {
+    const stack = undoStacks[currentPage];
+    if (!stack || !stack.length) return;
+    const prev = stack.pop();
+    octx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+    if (prev) octx.putImageData(prev, 0, 0);
+    saveOverlay();
+  }
+
+  // ── Navigation ──
+  async function changePage(n) {
+    commitText();
+    saveOverlay();
+    currentPage = Math.max(1, Math.min(n, totalPages));
+    await renderPage(currentPage);
+  }
+  document.getElementById('prevBtn').addEventListener('click', () => changePage(currentPage - 1));
+  document.getElementById('nextBtn').addEventListener('click', () => changePage(currentPage + 1));
+
+  // ── Zoom ──
+  async function setScale(s) {
+    commitText(); saveOverlay();
+    scale = Math.max(0.4, Math.min(4, s));
+    await renderPage(currentPage);
+  }
+  document.getElementById('zoomInBtn') .addEventListener('click', () => setScale(scale + 0.15));
+  document.getElementById('zoomOutBtn').addEventListener('click', () => setScale(scale - 0.15));
+  document.getElementById('fitBtn').addEventListener('click', () => {
+    const wrap = document.getElementById('viewer-wrap');
+    const natural = pdfCanvas.width / scale;
+    setScale((wrap.clientWidth - 40) / natural);
+  });
+  document.getElementById('viewer-wrap').addEventListener('wheel', e => {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    setScale(scale + (e.deltaY < 0 ? 0.1 : -0.1));
+  }, { passive: false });
+
+  // ── Tool selection ──
+  const toolNames = { pen: 'Pen', arrow: 'Arrow', rect: 'Rectangle', circle: 'Circle', text: 'Text', erase: 'Eraser' };
+  const cursorMap = { pen: 'cur-cross', arrow: 'cur-cross', rect: 'cur-cross', circle: 'cur-cross', text: 'cur-text', erase: 'cur-erase' };
+
+  function setTool(t) {
+    commitText();
+    tool = t;
+    document.querySelectorAll('.tb-btn[data-tool]').forEach(b => b.classList.toggle('active', b.dataset.tool === t));
+    overlayCanvas.className = cursorMap[t] || 'cur-cross';
+    stTool.textContent = 'Tool: ' + (toolNames[t] || t);
+  }
+  document.querySelectorAll('.tb-btn[data-tool]').forEach(b => b.addEventListener('click', () => setTool(b.dataset.tool)));
+
+  // ── Colors ──
+  document.querySelectorAll('.color-swatch').forEach(sw => {
+    sw.addEventListener('click', () => {
+      document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+      sw.classList.add('active');
+      color = sw.dataset.color;
+      textBox.style.color = color;
+    });
+  });
+
+  // ── Thickness ──
+  document.querySelectorAll('.sz-btn').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.sz-btn').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      lineWidth = parseInt(b.dataset.size);
+    });
+  });
+
+  // ── Clear / Undo ──
+  document.getElementById('clearBtn').addEventListener('click', () => {
+    if (!confirm('Clear all annotations on this page?')) return;
+    pushUndo();
+    octx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+    overlays[currentPage] = null;
+  });
+  document.getElementById('undoBtn').addEventListener('click', undo);
+
+  // ── Keyboard shortcuts ──
+  document.addEventListener('keydown', e => {
+    if (e.target === textBox) return;
+    if (e.ctrlKey && (e.key === 'z' || e.key === 'Z')) { e.preventDefault(); undo(); return; }
+    if (e.key === 'ArrowLeft')  { changePage(currentPage - 1); return; }
+    if (e.key === 'ArrowRight') { changePage(currentPage + 1); return; }
+    if (e.ctrlKey || e.altKey || e.metaKey) return;
+    const shortcuts = { p: 'pen', a: 'arrow', r: 'rect', c: 'circle', t: 'text', e: 'erase' };
+    if (shortcuts[e.key]) setTool(shortcuts[e.key]);
+  });
+
+  // ── Canvas coordinates ──
+  function toCanvas(e) {
+    const rect = overlayCanvas.getBoundingClientRect();
+    return {
+      x: (e.clientX - rect.left) * (overlayCanvas.width  / rect.width),
+      y: (e.clientY - rect.top)  * (overlayCanvas.height / rect.height),
+    };
+  }
+
+  // ── Arrow helper ──
+  function drawArrow(c, x1, y1, x2, y2, lw, col) {
+    const headLen = Math.max(14, lw * 5);
+    const ang = Math.atan2(y2 - y1, x2 - x1);
+    c.save();
+    c.strokeStyle = col; c.fillStyle = col;
+    c.lineWidth = lw; c.lineCap = 'round'; c.lineJoin = 'round';
+    c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke();
+    c.beginPath();
+    c.moveTo(x2, y2);
+    c.lineTo(x2 - headLen * Math.cos(ang - Math.PI / 6), y2 - headLen * Math.sin(ang - Math.PI / 6));
+    c.lineTo(x2 - headLen * Math.cos(ang + Math.PI / 6), y2 - headLen * Math.sin(ang + Math.PI / 6));
+    c.closePath(); c.fill();
+    c.restore();
+  }
+
+  // ── Pointer events ──
+  overlayCanvas.addEventListener('pointerdown', e => {
+    overlayCanvas.setPointerCapture(e.pointerId);
+    const { x, y } = toCanvas(e);
+
+    if (tool === 'text') { placeText(x, y); return; }
+
+    drawing = true; startX = x; startY = y;
+
+    if (tool === 'pen' || tool === 'erase') {
+      pushUndo();
+      if (tool === 'pen') {
+        octx.beginPath(); octx.moveTo(x, y);
+        octx.lineJoin = octx.lineCap = 'round';
+        octx.lineWidth = lineWidth; octx.strokeStyle = color;
+      }
+    } else {
+      // shapes — snapshot current state for live preview
+      shapeSnap = octx.getImageData(0, 0, overlayCanvas.width, overlayCanvas.height);
+      pushUndo();
+    }
+  });
+
+  overlayCanvas.addEventListener('pointermove', e => {
+    if (!drawing) return;
+    const { x, y } = toCanvas(e);
+
+    if (tool === 'pen') {
+      octx.lineTo(x, y); octx.stroke();
+    } else if (tool === 'erase') {
+      const r = Math.max(10, lineWidth * 4);
+      octx.save();
+      octx.globalCompositeOperation = 'destination-out';
+      octx.beginPath(); octx.arc(x, y, r, 0, Math.PI * 2); octx.fill();
+      octx.restore();
+    } else if (shapeSnap) {
+      octx.putImageData(shapeSnap, 0, 0);
+      if (tool === 'arrow') {
+        drawArrow(octx, startX, startY, x, y, lineWidth, color);
+      } else if (tool === 'rect') {
+        octx.save();
+        octx.strokeStyle = color; octx.lineWidth = lineWidth; octx.lineJoin = 'round';
+        octx.strokeRect(startX, startY, x - startX, y - startY);
+        octx.restore();
+      } else if (tool === 'circle') {
+        const rx = Math.abs(x - startX) / 2, ry = Math.abs(y - startY) / 2;
+        const cx = startX + (x - startX) / 2, cy = startY + (y - startY) / 2;
+        octx.save();
+        octx.strokeStyle = color; octx.lineWidth = lineWidth;
+        octx.beginPath(); octx.ellipse(cx, cy, Math.max(rx, 1), Math.max(ry, 1), 0, 0, Math.PI * 2); octx.stroke();
+        octx.restore();
+      }
+    }
+  });
+
+  overlayCanvas.addEventListener('pointerup', e => {
+    if (!drawing) return;
+    drawing = false; shapeSnap = null;
+    saveOverlay();
+    overlayCanvas.releasePointerCapture?.(e.pointerId);
+  });
+
+  // ── Inline text tool ──
+  function placeText(cx, cy) {
+    commitText();   // commit any in-progress text before starting a new one
+    const scaleX = parseFloat(overlayCanvas.style.width)  / overlayCanvas.width  || 1;
+    const scaleY = parseFloat(overlayCanvas.style.height) / overlayCanvas.height || 1;
+    const fs = Math.max(14, lineWidth * 5);
+
+    textBox.style.left     = (cx * scaleX) + 'px';
+    textBox.style.top      = ((cy - fs * 1.1) * scaleY) + 'px';
+    textBox.style.fontSize = fs + 'px';
+    textBox.style.color    = color;
+    textBox.style.display  = 'block';
+    textBox.style.width    = 'auto';
+    textBox.dataset.cx = cx;
+    textBox.dataset.cy = cy;
+    textBox.dataset.fs = fs;
+    textBox.value = '';
+    setTimeout(() => textBox.focus(), 0);  // defer focus so pointer capture doesn't interfere
+  }
+
+  function commitText() {
+    if (textBox.style.display === 'none') return;
+    const text  = textBox.value;
+    const tCol  = textBox.style.color || color;  // capture color at commit time
+    textBox.style.display = 'none';
+    if (!text.trim()) return;
+    const cx = parseFloat(textBox.dataset.cx);
+    const cy = parseFloat(textBox.dataset.cy);
+    const fs = parseFloat(textBox.dataset.fs);
+    pushUndo();
+    octx.save();
+    octx.font      = `bold ${fs}px Arial, sans-serif`;
+    octx.fillStyle = tCol;
+    // thin dark shadow for readability on both light and dark backgrounds
+    octx.shadowColor   = 'rgba(0,0,0,0.7)';
+    octx.shadowBlur    = 3;
+    octx.shadowOffsetX = 1;
+    octx.shadowOffsetY = 1;
+    octx.fillText(text, cx, cy);
+    octx.restore();
+    saveOverlay();
+  }
+
+  textBox.addEventListener('input', () => { textBox.style.width = (textBox.scrollWidth + 4) + 'px'; });
+  textBox.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitText(); }
+    if (e.key === 'Escape') { textBox.style.display = 'none'; }
+    e.stopPropagation();
+  });
+  textBox.addEventListener('blur', () => setTimeout(commitText, 80));
+
+  // ── Save & upload (preserves original rotation logic) ──
+  document.getElementById('saveBtn').addEventListener('click', async () => {
+    commitText(); saveOverlay();
+    const saveBtn = document.getElementById('saveBtn');
+    saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
+    stMsg.textContent = 'Preparing annotated PDF…';
+    try {
+      const pdfLib    = window.PDFLib;
+      const pdfDocLib = await pdfLib.PDFDocument.load(origArrayBuffer);
+      const count     = pdfDocLib.getPageCount();
+
+      for (let i = 0; i < count; i++) {
+        const ov = overlays[i + 1];
+        if (!ov) continue;
+        const res      = await fetch(ov);
+        let pngBytes   = await res.arrayBuffer();
+        const page     = pdfDocLib.getPage(i);
+        const { width: pW, height: pH } = page.getSize();
+        const rotation = page.getRotation().angle;
+
+        if (rotation === 90 || rotation === 270) {
+          const tmp = document.createElement('canvas');
+          const tc  = tmp.getContext('2d');
+          const img = new Image();
+          await new Promise(r => { img.onload = r; img.src = ov; });
+          if (rotation === 90) {
+            tmp.width = img.height; tmp.height = img.width;
+            tc.translate(0, tmp.height); tc.rotate(-Math.PI / 2);
+          } else {
+            tmp.width = img.height; tmp.height = img.width;
+            tc.translate(tmp.width, 0); tc.rotate(Math.PI / 2);
+          }
+          tc.drawImage(img, 0, 0);
+          const r2 = await fetch(tmp.toDataURL('image/png'));
+          pngBytes = await r2.arrayBuffer();
+        }
+
+        const pngImg = await pdfDocLib.embedPng(pngBytes);
+        const sX = pW / pngImg.width, sY = pH / pngImg.height;
+        page.drawImage(pngImg, { x: 0, y: pH - pngImg.height * sY, width: pngImg.width * sX, height: pngImg.height * sY });
+      }
+
+      const bytes = await pdfDocLib.save();
+      const fd    = new FormData();
+      const blob  = new Blob([bytes], { type: 'application/pdf' });
+      const base  = urlParam.split('/').pop().replace(/\.pdf$/i, '');
+      fd.append('annotatedFile', blob, base + '_temp.pdf');
+      fd.append('originalPath', urlParam.startsWith('/') ? urlParam.slice(1) : urlParam);
+      if (rolesParam) fd.append('roles', rolesParam);
+
+      stMsg.textContent = 'Uploading…';
+      const up   = await fetch('/api/save-annotated', { method: 'POST', body: fd });
+      const upJs = await up.json();
+
+      if (upJs.ok) {
+        stMsg.textContent = 'Saved ✓  ' + upJs.savedPath;
+        if (window.opener && !window.opener.closed) {
+          window.opener.postMessage({ type: 'ANNOTATION_SAVED', savedPath: upJs.savedPath }, '*');
+        }
+        setTimeout(() => window.close(), 800);
+      } else {
+        stMsg.textContent = 'Save failed: ' + (upJs.message || up.status);
+        saveBtn.disabled = false; saveBtn.textContent = '💾 Save & Submit';
+        alert('Save failed — check status bar.');
+      }
+    } catch (err) {
+      console.error(err);
+      stMsg.textContent = 'Error: ' + err.message;
+      saveBtn.disabled = false; saveBtn.textContent = '💾 Save & Submit';
+    }
+  });
+
+  // ── Initial render ──
+  await renderPage(currentPage);
+})();
+</script>
+</body>
+</html>

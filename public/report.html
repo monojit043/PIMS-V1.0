@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>PIMS · Report Module</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/report.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+
+<!-- Ambient -->
+<div class="ambient-bg" aria-hidden="true">
+  <div class="amb-orb amb-orb-1"></div>
+  <div class="amb-orb amb-orb-2"></div>
+  <div class="amb-orb amb-orb-3"></div>
+</div>
+
+<!-- Mobile topbar -->
+<div class="mobile-topbar">
+  <button class="mob-menu-btn" id="mobMenuBtn" aria-label="Open menu">
+    <span></span><span></span><span></span>
+  </button>
+  <span class="mob-title">PIMS · Reports</span>
+</div>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<!-- Shell -->
+<div class="shell">
+
+  <!-- ══ SIDEBAR ══ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-brand">
+      <div class="sb-logo-wrap">
+        <img src="images/eilround.gif" alt="EIL Logo" class="sb-logo" />
+        <div class="sb-logo-ring"></div>
+      </div>
+      <div class="sb-brand-text">
+        <span class="sb-name">PIMS</span>
+        <span class="sb-sub">Report Module</span>
+      </div>
+      <button class="sb-collapse-btn" id="collapseBtn" title="Toggle sidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="sb-user">
+      <div class="sb-avatar" id="sbAvatar">?</div>
+      <div class="sb-user-info">
+        <div class="sb-user-name" id="sbUserName">Loading…</div>
+        <div class="sb-user-role" id="sbUserRole">—</div>
+      </div>
+    </div>
+
+    <nav class="sb-nav">
+      <div class="sb-section-label">Report Sections</div>
+
+      <button class="nav-btn active" onclick="scrollToSection('sec-kpi')">
+        <span class="nb-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+            <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+            <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+          </svg>
+        </span>
+        <span class="nb-label">Summary KPIs</span>
+      </button>
+
+      <button class="nav-btn" onclick="scrollToSection('sec-charts')">
+        <span class="nb-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+            <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>
+            <line x1="6" y1="20" x2="6" y2="14"/>
+          </svg>
+        </span>
+        <span class="nb-label">Charts &amp; Trends</span>
+      </button>
+
+      <button class="nav-btn" onclick="scrollToSection('sec-register')">
+        <span class="nb-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+            <polyline points="10 9 9 9 8 9"/>
+          </svg>
+        </span>
+        <span class="nb-label">Line Register</span>
+      </button>
+
+      <button class="nav-btn" onclick="scrollToSection('sec-activity')">
+        <span class="nb-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+        </span>
+        <span class="nb-label">Checker Activity</span>
+      </button>
+
+      <div class="sb-section-label" style="margin-top:10px">Quick Export</div>
+
+      <button class="nav-btn" onclick="exportAllLines()">
+        <span class="nb-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+        </span>
+        <span class="nb-label">Export All Lines</span>
+      </button>
+
+      <button class="nav-btn" onclick="exportInProgress()">
+        <span class="nb-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+        </span>
+        <span class="nb-label">Export In-Progress</span>
+      </button>
+
+      <button class="nav-btn nav-btn-batch" onclick="showBatchQuery()">
+        <span class="nb-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+            <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+            <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+          </svg>
+        </span>
+        <span class="nb-label">Batch Query</span>
+      </button>
+    </nav>
+
+    <div class="sb-footer">
+      <button class="sb-back-btn" onclick="window.close(); window.location.href='/user.html'">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+        <span class="sb-back-label">Back to PIMS</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ══ MAIN AREA ══ -->
+  <div class="main-area">
+
+    <!-- Command bar / filter -->
+    <div class="cmd-bar">
+      <span class="cmd-bar-title">
+        <svg style="width:14px;height:14px;vertical-align:-2px;margin-right:5px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+        </svg>Filters
+      </span>
+
+      <select class="cmd-select" id="jobSelect">
+        <option value="">— Select Job No —</option>
+      </select>
+
+      <!-- Unit multi-select -->
+      <div class="unit-picker" id="unitPicker">
+        <div class="unit-trigger" id="unitTrigger">
+          <span id="unitTriggerLabel">— Select Units —</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </div>
+        <div class="unit-dropdown" id="unitDropdown">
+          <div class="unit-search">
+            <input type="text" id="unitSearchInput" placeholder="Search units…">
+          </div>
+          <div class="unit-list" id="unitList"></div>
+          <div class="unit-footer">
+            <button class="unit-clear-btn" id="unitClearBtn">Clear</button>
+            <button class="unit-ok-btn" id="unitOkBtn">Apply</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="cmd-spacer"></div>
+
+      <button class="cmd-btn btn-fetch" id="fetchBtn" onclick="fetchReport()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        Fetch Report
+      </button>
+      <button class="cmd-btn btn-export-xl" onclick="exportAllLines()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        All Lines ↓
+      </button>
+      <button class="cmd-btn btn-export-prog" onclick="exportInProgress()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+        </svg>
+        In-Progress ↓
+      </button>
+    </div>
+
+    <!-- Scrollable content -->
+    <div class="content-scroll" id="contentScroll">
+
+      <!-- ── KPI Section ── -->
+      <section class="report-section" id="sec-kpi">
+        <div class="section-head">
+          <h2>Project Summary</h2>
+          <span class="section-chip" id="kpiJobLabel">No project selected</span>
+          <span class="section-spacer"></span>
+          <span style="font-size:11px;color:var(--bark-muted)" id="kpiGenTime"></span>
+        </div>
+
+        <div class="kpi-grid">
+          <!-- Total Lines -->
+          <div class="kpi-tile gold">
+            <div class="kpi-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/>
+                <line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/>
+              </svg>
+            </div>
+            <div class="kpi-value" id="kpiTotal">—</div>
+            <div class="kpi-label">Total Isometrics</div>
+            <div class="kpi-sub" id="kpiTotalSub">Select a project</div>
+          </div>
+
+          <!-- Completed -->
+          <div class="kpi-tile green">
+            <div class="kpi-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </div>
+            <div class="kpi-value" id="kpiCompleted">—</div>
+            <div class="kpi-label">Completed / Final</div>
+            <div class="kpi-sub" id="kpiCompletedSub">Final + Ready for EDMS</div>
+            <div class="kpi-bar"><div class="kpi-bar-fill" id="kpiCompletedBar" style="width:0%"></div></div>
+          </div>
+
+          <!-- In Progress -->
+          <div class="kpi-tile amber">
+            <div class="kpi-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+            </div>
+            <div class="kpi-value" id="kpiInProgress">—</div>
+            <div class="kpi-label">In Progress</div>
+            <div class="kpi-sub" id="kpiInProgressSub">Under active review</div>
+            <div class="kpi-bar"><div class="kpi-bar-fill" id="kpiInProgressBar" style="width:0%"></div></div>
+          </div>
+
+          <!-- Pending -->
+          <div class="kpi-tile blue">
+            <div class="kpi-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+            </div>
+            <div class="kpi-value" id="kpiPending">—</div>
+            <div class="kpi-label">Awaiting Claim</div>
+            <div class="kpi-sub">Uploaded, not yet claimed</div>
+            <div class="kpi-bar"><div class="kpi-bar-fill" id="kpiPendingBar" style="width:0%"></div></div>
+          </div>
+
+          <!-- Stress Critical -->
+          <div class="kpi-tile red">
+            <div class="kpi-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+              </svg>
+            </div>
+            <div class="kpi-value" id="kpiCritical">—</div>
+            <div class="kpi-label">Stress Critical</div>
+            <div class="kpi-sub">Lines marked critical</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Charts Section ── -->
+      <section class="report-section" id="sec-charts">
+        <div class="section-head">
+          <h2>Charts &amp; Analysis</h2>
+        </div>
+
+        <div class="charts-grid">
+
+          <!-- Status Distribution donut -->
+          <div class="chart-card">
+            <div class="chart-card-head">
+              <div>
+                <div class="chart-card-title">Workflow Status Distribution</div>
+                <div class="chart-card-sub">All lines by current status</div>
+              </div>
+            </div>
+            <div class="chart-wrap"><canvas id="chartStatus"></canvas></div>
+            <div class="chart-legend" id="legendStatus"></div>
+          </div>
+
+          <!-- Rev Distribution -->
+          <div class="chart-card">
+            <div class="chart-card-head">
+              <div>
+                <div class="chart-card-title">Revision Distribution</div>
+                <div class="chart-card-sub">Lines by isometric revision</div>
+              </div>
+            </div>
+            <div class="chart-wrap"><canvas id="chartRev"></canvas></div>
+            <div class="chart-legend" id="legendRev"></div>
+          </div>
+
+          <!-- Checker Funnel — wide -->
+          <div class="chart-card wide">
+            <div class="chart-card-head">
+              <div>
+                <div class="chart-card-title">Workflow Funnel — Lines at Each Stage</div>
+                <div class="chart-card-sub">Completed actions per workflow role</div>
+              </div>
+            </div>
+            <div class="chart-wrap" style="height:220px"><canvas id="chartFunnel"></canvas></div>
+          </div>
+
+          <!-- Unit-wise progress — wide -->
+          <div class="chart-card wide">
+            <div class="chart-card-head">
+              <div>
+                <div class="chart-card-title">Unit-Wise Progress</div>
+                <div class="chart-card-sub">Completed vs In-Progress vs Pending per unit</div>
+              </div>
+            </div>
+            <div class="chart-wrap" style="height:240px"><canvas id="chartUnits"></canvas></div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ── Line Register ── -->
+      <section class="report-section" id="sec-register">
+        <div class="section-head">
+          <h2>Line Register</h2>
+          <span class="section-chip" id="registerCount">0 lines</span>
+          <span class="section-spacer"></span>
+        </div>
+
+        <div class="table-toolbar">
+          <input type="text" class="table-search" id="tableSearch" placeholder="Search line no, zone, status…">
+          <select class="table-filter-select" id="filterStatus">
+            <option value="">All Statuses</option>
+            <option value="Uploaded">Uploaded</option>
+            <option value="Under Review">Under Review</option>
+            <option value="Sent for Supporting Check">Sent for Supporting Check</option>
+            <option value="Comments Received">Comments Received</option>
+            <option value="GL Commented">GL Commented</option>
+            <option value="SGL Commented">SGL Commented</option>
+            <option value="Ready for GL">Ready for GL</option>
+            <option value="Ready for SGL">Ready for SGL</option>
+            <option value="Ready for EDMS">Ready for EDMS</option>
+            <option value="Final">Final</option>
+          </select>
+          <select class="table-filter-select" id="filterCritical">
+            <option value="">All Lines</option>
+            <option value="YES">Stress Critical Only</option>
+            <option value="NO">Non-Critical Only</option>
+          </select>
+          <select class="table-filter-select" id="filterUnit">
+            <option value="">All Units</option>
+          </select>
+          <span class="section-spacer"></span>
+          <button class="tbl-export-btn xl" onclick="exportTable('all')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>Export Excel
+          </button>
+        </div>
+
+        <div class="table-wrap">
+          <table class="data-table" id="lineTable">
+            <thead>
+              <tr>
+                <th data-col="slNo">Sl&nbsp;No<span class="sort-icon"></span></th>
+                <th data-col="unitNo">Unit<span class="sort-icon"></span></th>
+                <th data-col="zone">Zone<span class="sort-icon"></span></th>
+                <th data-col="lineId">Line No<span class="sort-icon"></span></th>
+                <th data-col="revNo">Rev<span class="sort-icon"></span></th>
+                <th data-col="critical">Critical<span class="sort-icon"></span></th>
+                <th data-col="status">Status<span class="sort-icon"></span></th>
+                <th data-col="uploadedBy">Modeller<span class="sort-icon"></span></th>
+                <th data-col="uploadedOn">Upload Date<span class="sort-icon"></span></th>
+                <th data-col="processCheckBy">PC By<span class="sort-icon"></span></th>
+                <th data-col="processCheckDate">PC Date<span class="sort-icon"></span></th>
+                <th data-col="materialCheckBy">MC By<span class="sort-icon"></span></th>
+                <th data-col="materialCheckDate">MC Date<span class="sort-icon"></span></th>
+                <th data-col="supportBy">SC By<span class="sort-icon"></span></th>
+                <th data-col="supportDate">SC Date<span class="sort-icon"></span></th>
+                <th data-col="modellerIncorporation">Incorp. By<span class="sort-icon"></span></th>
+                <th data-col="incorporatedDate">Incorp. Date<span class="sort-icon"></span></th>
+                <th data-col="glCheck">GL By<span class="sort-icon"></span></th>
+                <th data-col="glCheckDate">GL Date<span class="sort-icon"></span></th>
+                <th data-col="sglCheck">SGL By<span class="sort-icon"></span></th>
+                <th data-col="sglCheckDate">SGL Date<span class="sort-icon"></span></th>
+                <th data-col="pending">Pending Action<span class="sort-icon"></span></th>
+              </tr>
+            </thead>
+            <tbody id="lineTableBody">
+              <tr><td colspan="22">
+                <div class="empty-state">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+                    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                  </svg>
+                  <p>Select a project and click <strong>Fetch Report</strong></p>
+                  <small>Line-by-line data will appear here</small>
+                </div>
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="table-pagination">
+          <span class="pag-info" id="pagInfo">—</span>
+          <div style="display:flex;align-items:center;gap:10px">
+            <select class="pag-per-page" id="perPageSelect">
+              <option value="25">25 / page</option>
+              <option value="50" selected>50 / page</option>
+              <option value="100">100 / page</option>
+              <option value="250">250 / page</option>
+            </select>
+            <div class="pag-btns" id="pagBtns"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Checker Activity ── -->
+      <section class="report-section" id="sec-activity">
+        <div class="section-head">
+          <h2>Checker &amp; Reviewer Activity</h2>
+          <span class="section-chip" id="activityCount">—</span>
+        </div>
+
+        <div class="activity-grid">
+          <!-- Workflow stage summary -->
+          <div class="activity-card">
+            <div class="activity-card-head">
+              <span class="activity-card-title">Workflow Stage Summary</span>
+            </div>
+            <table class="act-table" id="stageSummaryTable">
+              <thead>
+                <tr>
+                  <th>Stage</th>
+                  <th style="text-align:right">Lines</th>
+                  <th style="min-width:100px">Progress</th>
+                </tr>
+              </thead>
+              <tbody id="stageSummaryBody">
+                <tr><td colspan="3" style="text-align:center;padding:24px;color:var(--bark-muted)">No data</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Per-user activity -->
+          <div class="activity-card">
+            <div class="activity-card-head">
+              <span class="activity-card-title">Engineer Activity Report</span>
+            </div>
+            <div style="overflow-x:auto">
+              <table class="act-table" id="userActivityTable">
+                <thead>
+                  <tr>
+                    <th>Engineer</th>
+                    <th>Roles</th>
+                    <th style="text-align:right">Handled</th>
+                    <th style="text-align:right">Completed</th>
+                    <th>Last Active</th>
+                  </tr>
+                </thead>
+                <tbody id="userActivityBody">
+                  <tr><td colspan="5" style="text-align:center;padding:24px;color:var(--bark-muted)">No data</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Batch Query Section ── -->
+      <section class="report-section" id="sec-batch" style="display:none;">
+        <div class="section-head">
+          <h2>Batch Query</h2>
+          <span class="section-chip" id="batchChip">0 lines</span>
+          <span class="section-spacer"></span>
+          <button class="cmd-btn btn-export-xl" id="batchExportBtn" onclick="exportBatchResults()" style="display:none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Export Results
+          </button>
+        </div>
+
+        <!-- Upload zone -->
+        <div class="bq-upload-zone" id="bqUploadZone">
+          <div class="bq-upload-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>
+            </svg>
+          </div>
+          <p class="bq-upload-title">Drop your Excel file here</p>
+          <p class="bq-upload-sub">File must have a column with line IDs — first column is used by default</p>
+          <label class="bq-browse-btn">
+            Browse File
+            <input type="file" id="bqFileInput" accept=".xlsx,.xls,.csv" style="display:none;" onchange="handleBatchFile(this.files[0])">
+          </label>
+          <p class="bq-upload-hint" id="bqUploadHint"></p>
+        </div>
+
+        <!-- Summary KPI tiles (hidden until results load) -->
+        <div class="bq-summary" id="bqSummary" style="display:none;">
+          <div class="bq-tile bq-tile-total">
+            <span class="bq-tile-val" id="bqTotal">0</span>
+            <span class="bq-tile-lbl">Total Queried</span>
+          </div>
+          <div class="bq-tile bq-tile-done">
+            <span class="bq-tile-val" id="bqCompleted">0</span>
+            <span class="bq-tile-lbl">Completed</span>
+          </div>
+          <div class="bq-tile bq-tile-progress">
+            <span class="bq-tile-val" id="bqInProgress">0</span>
+            <span class="bq-tile-lbl">In Progress</span>
+          </div>
+          <div class="bq-tile bq-tile-missing">
+            <span class="bq-tile-val" id="bqNotFound">0</span>
+            <span class="bq-tile-lbl">Not Found</span>
+          </div>
+        </div>
+
+        <!-- Live results table -->
+        <div class="table-wrap" id="bqTableWrap" style="display:none;">
+          <table class="data-table" id="bqTable">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Line ID</th>
+                <th>Job No</th>
+                <th>Unit</th>
+                <th>Rev</th>
+                <th>Stress Crit.</th>
+                <th>Status</th>
+                <th>Stage</th>
+                <th>Pending With</th>
+                <th>Role</th>
+              </tr>
+            </thead>
+            <tbody id="bqTableBody"></tbody>
+          </table>
+        </div>
+
+      </section>
+
+    </div><!-- /content-scroll -->
+  </div><!-- /main-area -->
+</div><!-- /shell -->
+
+<script src="js/report.js"></script>
+</body>
+</html>

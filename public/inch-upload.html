@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>INCH Data Upload — PIMS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="css/ll-suite.css"/>
+  <style>
+    /* ── Orange accent overrides for INCH module ── */
+    :root { --accent: #f97316; --accent-light: rgba(249,115,22,0.1); --accent-border: rgba(249,115,22,0.25); }
+
+    .ll-topbar-module-icon { background: var(--accent-light); border-color: var(--accent-border); }
+    .ll-topbar-module-icon svg { stroke: var(--accent); }
+    .ll-topbar-module-badge { background: var(--accent-light); color: var(--accent); border-color: var(--accent-border); }
+
+    .ll-bc-curr { color: var(--accent); }
+    .ll-bc-tag  { background: var(--accent-light); border-color: var(--accent-border); color: var(--accent); }
+    .ll-bc-tag svg { stroke: var(--accent); }
+
+    .ll-card-icon.orange { background: var(--accent-light); border-color: var(--accent-border); }
+    .ll-card-icon.orange svg { stroke: var(--accent); }
+
+    .upload-zone:hover, .upload-zone.drag-over {
+      border-color: var(--accent); background: var(--accent-light);
+    }
+
+    .btn-accent {
+      background: var(--accent); color: #fff;
+      box-shadow: 0 2px 8px rgba(249,115,22,0.3);
+    }
+    .btn-accent:hover { background: #ea6c0a; }
+    .btn-accent:disabled { opacity: 0.45; cursor: default; box-shadow: none; }
+
+    /* ── Job/Unit selector bar ── */
+    .sel-bar {
+      display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end;
+    }
+    .sel-bar .form-group { min-width: 180px; flex: 1; max-width: 260px; }
+
+    /* ── Upload zone file name ── */
+    .zone-file-name {
+      display: inline-block; margin-top: 10px;
+      font-size: 13px; font-weight: 600; color: var(--accent);
+    }
+
+    /* ── Result area ── */
+    #resultArea { display: none; }
+    .result-banner {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 18px; border-radius: var(--radius);
+      font-size: 13.5px; font-weight: 600;
+    }
+    .result-banner.success { background: rgba(40,167,69,0.1); color: #1a7a33; border: 1px solid rgba(40,167,69,0.25); }
+    .result-banner.error   { background: rgba(229,57,53,0.1);  color: #b71c1c; border: 1px solid rgba(229,57,53,0.25); }
+    .result-banner svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+    /* ── Preview table wrapper ── */
+    #previewWrap { display: none; }
+    .preview-scroll { overflow-x: auto; max-height: 420px; overflow-y: auto; border-radius: var(--radius); }
+    .preview-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
+    .preview-scroll::-webkit-scrollbar-thumb { background: var(--gray-300); border-radius: 3px; }
+    .num-cell { text-align: right; font-variant-numeric: tabular-nums; }
+
+    /* History summary table */
+    .hist-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .hist-table th {
+      padding: 9px 14px; font-size: 11.5px; font-weight: 600; text-align: left;
+      background: var(--gray-100); color: var(--text-muted); border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    .hist-table td { padding: 10px 14px; border-bottom: 1px solid var(--gray-100); }
+    .hist-table tbody tr:last-child td { border-bottom: none; }
+    .hist-table tbody tr:hover { background: rgba(249,115,22,0.03); }
+    .empty-hint { text-align: center; padding: 40px; color: var(--text-muted); font-size: 13px; }
+  </style>
+</head>
+<body>
+<div class="ll-shell">
+
+  <!-- ═══ TOPBAR ═══ -->
+  <header class="ll-topbar">
+    <a class="ll-topbar-logo" href="dashboard.html">
+      <div class="ll-topbar-brand">
+        <span class="ll-topbar-name">PIMS</span>
+        <span class="ll-topbar-sub">Piping Isometrics</span>
+      </div>
+    </a>
+    <div class="ll-topbar-div"></div>
+    <div class="ll-topbar-module">
+      <div class="ll-topbar-module-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <rect x="2" y="7" width="20" height="10" rx="2"/>
+          <path d="M7 7V5M10 7V6M14 7V6M17 7V5M7 17v2M17 17v2"/>
+        </svg>
+      </div>
+      <span class="ll-topbar-module-name">INCH Data Upload</span>
+      <span class="ll-topbar-module-badge">REPLACE</span>
+    </div>
+    <div class="ll-topbar-spacer"></div>
+    <button class="ll-back-btn" onclick="window.close()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      Back to Dashboard
+    </button>
+  </header>
+
+  <!-- ═══ BREADBAR ═══ -->
+  <div class="ll-breadbar">
+    <span class="ll-bc-item">PIMS</span>
+    <span class="ll-bc-sep">›</span>
+    <span class="ll-bc-item">Engineering Intelligence</span>
+    <span class="ll-bc-sep">›</span>
+    <span class="ll-bc-curr">INCH Data Upload</span>
+    <div class="ll-bc-spacer"></div>
+    <div class="ll-bc-tag" id="bcTag">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:11px;height:11px;">
+        <rect x="2" y="7" width="20" height="10" rx="2"/>
+        <path d="M7 7V5M17 7V5"/>
+      </svg>
+      No file selected
+    </div>
+  </div>
+
+  <!-- ═══ MAIN ═══ -->
+  <main class="ll-main">
+
+    <!-- ── Card 1: Select project + upload ── -->
+    <div class="ll-card">
+      <div class="ll-card-header">
+        <div class="ll-card-icon orange">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
+            <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+          </svg>
+        </div>
+        <div>
+          <div class="ll-card-title">Upload INCH / Inch Meter Report</div>
+          <div class="ll-card-sub">Select project and unit, then drop your Excel file. Existing data for that unit is replaced on every upload.</div>
+        </div>
+      </div>
+      <div class="ll-card-body">
+
+        <!-- Selectors -->
+        <div class="sel-bar" style="margin-bottom:1.25rem">
+          <div class="form-group">
+            <label class="form-label">Job No.</label>
+            <select class="form-select" id="jobSel">
+              <option value="">— select —</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Unit No.</label>
+            <select class="form-select" id="unitSel" disabled>
+              <option value="">— select —</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Drop zone -->
+        <div class="upload-zone" id="dropZone" onclick="document.getElementById('filePicker').click()">
+          <svg class="upload-zone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
+            <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+          </svg>
+          <div class="upload-zone-title">Drop Excel file here or click to browse</div>
+          <div class="upload-zone-sub">Supported formats: .xlsx · .xls · .csv&nbsp; — &nbsp;All columns are stored as-is</div>
+          <span class="zone-file-name" id="zoneFileName" style="display:none"></span>
+          <input type="file" id="filePicker" accept=".xlsx,.xls,.csv" style="display:none"/>
+        </div>
+
+        <!-- Actions -->
+        <div style="margin-top:1.25rem; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <button class="btn btn-accent" id="uploadBtn" disabled onclick="doUpload()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
+              <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+            </svg>
+            Upload to PIMS
+          </button>
+          <button class="btn btn-outline" id="clearBtn" onclick="clearForm()">✕ Clear</button>
+          <span id="uploadSpinner" style="display:none;font-size:12.5px;color:var(--text-muted)">⏳ Uploading…</span>
+        </div>
+
+        <!-- Result banner -->
+        <div id="resultArea" style="margin-top:1rem"></div>
+
+      </div>
+    </div>
+
+    <!-- ── Card 2: Stored INCH data summary ── -->
+    <div class="ll-card" id="historyCard">
+      <div class="ll-card-header">
+        <div class="ll-card-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/>
+          </svg>
+        </div>
+        <div>
+          <div class="ll-card-title">Stored INCH Data</div>
+          <div class="ll-card-sub">Latest upload per job / unit</div>
+        </div>
+        <div class="ll-card-actions">
+          <button class="btn btn-outline btn-sm" onclick="loadHistory()">↺ Refresh</button>
+        </div>
+      </div>
+      <div class="ll-card-body no-pad">
+        <table class="hist-table" id="histTable">
+          <thead>
+            <tr>
+              <th>Job No.</th>
+              <th>Unit No.</th>
+              <th>Rows</th>
+              <th>Uploaded</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="histBody">
+            <tr><td colspan="5" class="empty-hint">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── Card 3: Row preview (after upload) ── -->
+    <div class="ll-card" id="previewWrap">
+      <div class="ll-card-header">
+        <div class="ll-card-icon green">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </div>
+        <div>
+          <div class="ll-card-title">Uploaded Data Preview</div>
+          <div class="ll-card-sub" id="previewSub">Showing first 50 rows</div>
+        </div>
+      </div>
+      <div class="ll-card-body no-pad">
+        <div class="preview-scroll">
+          <table class="data-table" id="previewTable">
+            <thead id="previewThead"></thead>
+            <tbody id="previewTbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+/* ── Auth check ── */
+(async () => {
+  try {
+    const r = await fetch('/api/me');
+    if (!r.ok) { window.location.href = '/index.html'; }
+  } catch { window.location.href = '/index.html'; }
+})();
+
+/* ── State ── */
+let projectsList = [];
+let pickedFile   = null;
+
+/* ── Init ── */
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadProjects();
+  loadHistory();
+  setupDragDrop();
+});
+
+/* ── Load projects into Job No. selector ── */
+async function loadProjects() {
+  const jobSel = document.getElementById('jobSel');
+  try {
+    const r = await fetch('/api/projects/assigned');
+    const d = await r.json();
+    projectsList = d.projects ?? [];
+    projectsList.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value       = p.id;
+      opt.textContent = p.name;
+      jobSel.appendChild(opt);
+    });
+  } catch { /* silent */ }
+
+  jobSel.addEventListener('change', () => {
+    const unitSel = document.getElementById('unitSel');
+    unitSel.innerHTML = '<option value="">— select —</option>';
+    unitSel.disabled = true;
+    checkReady();
+    const proj = projectsList.find(p => String(p.id) === jobSel.value);
+    if (!proj || !Array.isArray(proj.units) || !proj.units.length) return;
+    [...proj.units].sort().forEach(u => {
+      const opt = document.createElement('option');
+      opt.value = u; opt.textContent = u;
+      unitSel.appendChild(opt);
+    });
+    unitSel.disabled = false;
+  });
+
+  document.getElementById('unitSel').addEventListener('change', checkReady);
+}
+
+/* ── File picker ── */
+document.getElementById('filePicker').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (f) setFile(f);
+});
+
+function setFile(f) {
+  pickedFile = f;
+  const nameEl = document.getElementById('zoneFileName');
+  nameEl.textContent = f.name;
+  nameEl.style.display = 'inline-block';
+  document.getElementById('bcTag').lastChild.textContent = f.name;
+  checkReady();
+}
+
+/* ── Drag & drop ── */
+function setupDragDrop() {
+  const zone = document.getElementById('dropZone');
+  zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', ()  => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    const f = e.dataTransfer.files[0];
+    if (f) setFile(f);
+  });
+}
+
+/* ── Enable Upload button only when all three are set ── */
+function checkReady() {
+  const jobSel  = document.getElementById('jobSel');
+  const unitSel = document.getElementById('unitSel');
+  const btn     = document.getElementById('uploadBtn');
+  btn.disabled  = !(jobSel.value && unitSel.value && pickedFile);
+}
+
+/* ── Upload ── */
+async function doUpload() {
+  const jobSel  = document.getElementById('jobSel');
+  const unitSel = document.getElementById('unitSel');
+  const proj = projectsList.find(p => String(p.id) === jobSel.value);
+  if (!proj || !unitSel.value || !pickedFile) return;
+
+  const uploadBtn     = document.getElementById('uploadBtn');
+  const spinner       = document.getElementById('uploadSpinner');
+  const resultArea    = document.getElementById('resultArea');
+
+  uploadBtn.disabled  = true;
+  spinner.style.display = 'inline';
+  resultArea.style.display = 'none';
+
+  try {
+    const fd = new FormData();
+    fd.append('jobNo',  proj.id);
+    fd.append('unitNo', unitSel.value);
+    fd.append('file',   pickedFile);
+
+    const r = await fetch('/api/inch/upload', { method: 'POST', body: fd });
+    const d = await r.json();
+
+    resultArea.style.display = 'block';
+    if (d.ok) {
+      const hl = d.headerLabels || {};
+      const colNote = [
+        hl.pipeline  ? `<span style="background:#f0fdf4;color:#166534;padding:1px 7px;border-radius:4px;font-size:12px;">"${escHtml(hl.pipeline)}"</span>` : '',
+        hl.inchDia   ? `<span style="background:#eff6ff;color:#1d4ed8;padding:1px 7px;border-radius:4px;font-size:12px;">"${escHtml(hl.inchDia)}"</span>` : '<span style="color:#b45309;font-size:12px;">⚠ INCH DIA not found</span>',
+        hl.inchMeter ? `<span style="background:#eff6ff;color:#1d4ed8;padding:1px 7px;border-radius:4px;font-size:12px;">"${escHtml(hl.inchMeter)}"</span>` : '<span style="color:#b45309;font-size:12px;">⚠ INCH METER not found</span>',
+      ].filter(Boolean).join(' &nbsp;');
+      resultArea.innerHTML = `
+        <div class="result-banner success">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          <div>
+            <div>✓ <strong>${d.inserted.toLocaleString()}</strong> rows saved for <strong>${escHtml(proj.id)}</strong> / <strong>${escHtml(unitSel.value)}</strong>
+              &nbsp;·&nbsp; headers found on row <strong>${d.headerRow}</strong></div>
+            <div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">Columns: ${colNote}</div>
+          </div>
+        </div>`;
+      loadHistory();
+      loadPreview(proj.id, unitSel.value, d.inserted);
+    } else {
+      resultArea.innerHTML = `
+        <div class="result-banner error">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          ${escHtml(d.error || 'Upload failed')}
+        </div>`;
+    }
+  } catch {
+    resultArea.style.display = 'block';
+    resultArea.innerHTML = `<div class="result-banner error">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      Network error — please try again
+    </div>`;
+  } finally {
+    spinner.style.display = 'none';
+    checkReady();
+  }
+}
+
+/* ── Load history table ── */
+async function loadHistory() {
+  const tbody = document.getElementById('histBody');
+  try {
+    const r = await fetch('/api/inch/summary');
+    const d = await r.json();
+    if (!d.ok || !d.data.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="empty-hint">No INCH data stored yet.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = d.data.map(row => {
+      const date = row.uploaded_at
+        ? new Date(row.uploaded_at).toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })
+        : '—';
+      return `<tr>
+        <td><strong>${escHtml(row.job_no)}</strong></td>
+        <td>${escHtml(row.unit_no)}</td>
+        <td>${Number(row.row_count).toLocaleString()} <span class="muted" style="font-size:11px">(${Number(row.matched_count).toLocaleString()} linked)</span></td>
+        <td class="muted">${date}</td>
+        <td>
+          <button class="btn btn-outline btn-sm inch-dl-btn"
+                  data-job="${escHtml(row.job_no)}"
+                  data-unit="${escHtml(row.unit_no)}"
+                  title="Download as Excel"
+                  style="display:inline-flex;align-items:center;gap:5px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Download
+          </button>
+        </td>
+      </tr>`;
+    }).join('');
+  } catch {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-hint">Failed to load.</td></tr>';
+  }
+}
+
+/* ── Load preview after upload ── */
+async function loadPreview(jobNo, unitNo, totalRows) {
+  const wrap  = document.getElementById('previewWrap');
+  const sub   = document.getElementById('previewSub');
+  const thead = document.getElementById('previewThead');
+  const tbody = document.getElementById('previewTbody');
+
+  wrap.style.display = 'block';
+  sub.textContent = `Showing first 50 of ${totalRows.toLocaleString()} rows`;
+  thead.innerHTML = `<tr><th>#</th><th>Pipeline Name</th><th>Inch Dia</th><th>Inch Meter</th></tr>`;
+  tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-muted)">Loading preview…</td></tr>';
+
+  try {
+    const r = await fetch(`/api/inch/data?project=${encodeURIComponent(jobNo)}&unit=${encodeURIComponent(unitNo)}`);
+    const d = await r.json();
+    if (!d.ok || !d.rows.length) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-muted)">No rows to preview.</td></tr>';
+      return;
+    }
+
+    const fmt = v => v != null ? Number(v).toLocaleString(undefined, { maximumFractionDigits: 3 }) : '—';
+    tbody.innerHTML = d.rows.slice(0, 50).map((row, i) =>
+      `<tr>
+        <td class="muted">${i + 1}</td>
+        <td>${escHtml(row.lineNo || '')}</td>
+        <td class="num-cell">${fmt(row.inchDia)}</td>
+        <td class="num-cell" style="font-weight:600;color:var(--blue-600)">${fmt(row.inchMeter)}</td>
+      </tr>`
+    ).join('');
+
+    wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--text-muted)">Preview failed.</td></tr>';
+  }
+}
+
+/* ── Clear form ── */
+function clearForm() {
+  document.getElementById('jobSel').value  = '';
+  const unitSel = document.getElementById('unitSel');
+  unitSel.innerHTML = '<option value="">— select —</option>';
+  unitSel.disabled = true;
+  document.getElementById('filePicker').value = '';
+  document.getElementById('zoneFileName').style.display = 'none';
+  document.getElementById('bcTag').lastChild.textContent = ' No file selected';
+  pickedFile = null;
+  document.getElementById('resultArea').style.display = 'none';
+  document.getElementById('previewWrap').style.display = 'none';
+  checkReady();
+}
+
+/* ── Download stored INCH data as Excel (fetch → blob → save) ── */
+document.addEventListener('click', async (e) => {
+  const btn = e.target.closest('.inch-dl-btn');
+  if (!btn) return;
+
+  const jobNo  = btn.dataset.job;
+  const unitNo = btn.dataset.unit;
+  if (!jobNo || !unitNo) return;
+
+  const origHtml = btn.innerHTML;
+  btn.disabled   = true;
+  btn.textContent = '…';
+
+  try {
+    const url = `/api/inch/export?project=${encodeURIComponent(jobNo)}&unit=${encodeURIComponent(unitNo)}`;
+    const r   = await fetch(url);
+
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({ error: `Server error ${r.status}` }));
+      alert(err.error || 'Download failed');
+      return;
+    }
+
+    const blob     = await r.blob();
+    const cd       = r.headers.get('Content-Disposition') || '';
+    const match    = cd.match(/filename="([^"]+)"/);
+    const filename = match ? match[1] : `INCH_${jobNo}_${unitNo}.xlsx`;
+
+    const objUrl = URL.createObjectURL(blob);
+    const a      = document.createElement('a');
+    a.href       = objUrl;
+    a.download   = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(objUrl);
+  } catch (err) {
+    alert('Download error: ' + err.message);
+  } finally {
+    btn.disabled  = false;
+    btn.innerHTML = origHtml;
+  }
+});
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>

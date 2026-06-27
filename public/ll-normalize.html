@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Line List Normalizer — PIMS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="css/ll-suite.css"/>
+  <link rel="stylesheet" href="css/ll-normalize.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+</head>
+<body>
+<div class="ll-shell">
+
+  <!-- ═══ TOPBAR ═══ -->
+  <header class="ll-topbar">
+    <a class="ll-topbar-logo" href="dashboard.html">
+      <div class="ll-topbar-brand">
+        <span class="ll-topbar-name">PIMS</span>
+        <span class="ll-topbar-sub">Piping Isometrics</span>
+      </div>
+    </a>
+    <div class="ll-topbar-div"></div>
+    <div class="ll-topbar-module">
+      <div class="ll-topbar-module-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#007bff" stroke-width="1.8">
+          <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
+        </svg>
+      </div>
+      <span class="ll-topbar-module-name">Line List Normalizer</span>
+      <span class="ll-topbar-module-badge">BULK</span>
+    </div>
+    <div class="ll-topbar-spacer"></div>
+    <button class="ll-back-btn" onclick="window.close()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      Back to Dashboard
+    </button>
+  </header>
+
+  <!-- ═══ BREADBAR ═══ -->
+  <div class="ll-breadbar">
+    <span class="ll-bc-item">PIMS</span>
+    <span class="ll-bc-sep">›</span>
+    <span class="ll-bc-item">Engineering Intelligence</span>
+    <span class="ll-bc-sep">›</span>
+    <span class="ll-bc-curr">Line List Normalizer</span>
+    <div class="ll-bc-spacer"></div>
+    <div class="ll-bc-tag" id="bcTag">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:11px;height:11px;">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+      </svg>
+      No files loaded
+    </div>
+  </div>
+
+  <!-- ═══ MAIN ═══ -->
+  <main class="ll-main">
+
+    <!-- ── Step 1: Upload ── -->
+    <div class="ll-card" id="uploadCard">
+      <div class="ll-card-header">
+        <div class="ll-card-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
+            <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+          </svg>
+        </div>
+        <div>
+          <div class="ll-card-title">Upload Source Line List Files</div>
+          <div class="ll-card-sub">Drop any number of XLSX, XLSM or PDF files — all three formats are auto-detected and processed together</div>
+        </div>
+      </div>
+      <div class="ll-card-body">
+        <div class="norm-dropzone" id="dropZone">
+          <div class="norm-dz-icon">📂</div>
+          <div class="norm-dz-title">Drop files here or click to browse</div>
+          <div class="norm-dz-sub">XLSX · XLSM · PDF &nbsp;·&nbsp; 200+ files supported &nbsp;·&nbsp; All PDH / UOP / SmartPlant formats auto-detected</div>
+          <div class="norm-type-badges">
+            <span class="norm-badge norm-badge--green">✅ XLSX / XLSM</span>
+            <span class="norm-badge norm-badge--red">✅ PDF</span>
+          </div>
+        </div>
+        <input type="file" id="fileInput" accept=".xlsx,.xls,.xlsm,.pdf" multiple style="display:none"/>
+
+        <div class="norm-settings">
+          <label>Parallel workers: <strong id="concLabel">4</strong></label>
+          <input type="range" id="concSlider" min="1" max="8" value="4"/>
+          <span class="norm-settings-hint">Lower = safer for large files &nbsp;·&nbsp; Higher = faster for many small files</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Step 2: Processing ── -->
+    <div class="ll-card" id="processingCard" style="display:none;">
+      <div class="ll-card-header">
+        <div class="ll-card-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+          </svg>
+        </div>
+        <div>
+          <div class="ll-card-title">Processing Files</div>
+          <div class="ll-card-sub">Files are processed in your browser — nothing is uploaded until you click "Save to PIMS"</div>
+        </div>
+      </div>
+      <div class="ll-card-body">
+
+        <div class="norm-stats">
+          <div class="norm-stat"><div class="norm-stat-val nc-blue"   id="sv-total">0</div><div class="norm-stat-lbl">Total</div></div>
+          <div class="norm-stat"><div class="norm-stat-val nc-green"  id="sv-done">0</div><div class="norm-stat-lbl">Complete</div></div>
+          <div class="norm-stat"><div class="norm-stat-val nc-red"    id="sv-fail">0</div><div class="norm-stat-lbl">Failed</div></div>
+          <div class="norm-stat"><div class="norm-stat-val nc-purple" id="sv-rows">0</div><div class="norm-stat-lbl">Total Rows</div></div>
+          <div class="norm-stat"><div class="norm-stat-val nc-amber"  id="sv-warn">0</div><div class="norm-stat-lbl">Warnings</div></div>
+        </div>
+
+        <div class="norm-status-bar">
+          <div class="norm-status-label">
+            <span class="norm-dot norm-dot--idle" id="statusDot"></span>
+            <span id="statusLabel">Ready</span>
+          </div>
+          <span class="norm-eta" id="etaLabel"></span>
+        </div>
+
+        <div class="norm-progress-wrap">
+          <div class="norm-progress-fill" id="progressBar"></div>
+        </div>
+
+        <div class="norm-vlist" id="vlist"></div>
+        <div class="norm-fmt-row" id="fmtRow"></div>
+
+        <div class="ll-card-actions" style="justify-content:flex-start;padding:0;">
+          <button class="btn btn-primary" id="btnProcess" onclick="startBulkProcess()">🚀 Process All Files</button>
+          <button class="btn btn-green"   id="btnExport"  onclick="exportMaster()" style="display:none;">⬇ Download Excel</button>
+          <button class="btn btn-outline" id="btnClear"   onclick="clearAll()">✕ Clear</button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── Step 3: Save to PIMS ── -->
+    <div class="ll-card" id="saveCard" style="display:none;">
+      <div class="ll-card-header">
+        <div class="ll-card-icon green">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v14a2 2 0 0 1-2 2z"/>
+            <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+          </svg>
+        </div>
+        <div>
+          <div class="ll-card-title">Save to PIMS Database</div>
+          <div class="ll-card-sub">Select a job and revision number — existing data for this job will be superseded (revision history preserved)</div>
+        </div>
+      </div>
+      <div class="ll-card-body" id="saveFormBody">
+
+        <div class="norm-save-grid">
+          <div class="norm-field">
+            <label>Job / Project</label>
+            <select id="jobSelect">
+              <option value="">— Select Job —</option>
+            </select>
+          </div>
+          <div class="norm-field">
+            <label>Revision No</label>
+            <input type="number" id="revInput" min="0" value="0" placeholder="e.g. 0"/>
+            <div class="norm-rev-hint" id="revHint" style="display:none;"></div>
+          </div>
+          <div class="norm-field">
+            <label>&nbsp;</label>
+            <button class="btn btn-primary" id="btnSave" onclick="saveToPims()" style="width:100%;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v14a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+              Save to PIMS
+            </button>
+          </div>
+        </div>
+
+        <!-- Preview -->
+        <div class="norm-save-preview" id="savePreview">
+          <div class="norm-preview-chip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg>
+            <span><strong id="previewRows">0</strong> lines</span>
+          </div>
+          <div class="norm-preview-chip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/></svg>
+            <span><strong id="previewUnits">0</strong> units</span>
+          </div>
+          <div class="norm-preview-chip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <span><strong id="previewFiles">0</strong> source files</span>
+          </div>
+          <div class="norm-preview-chip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+            <span><strong id="previewErrors">0</strong> warnings</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── Step 4: Success ── -->
+    <div class="ll-card" id="successCard" style="display:none;">
+      <div class="ll-card-body">
+        <div class="norm-success">
+          <div class="norm-success-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div>
+            <div class="norm-success-title">Saved to PIMS Successfully</div>
+            <div class="norm-success-sub" id="successMsg">Line list data has been stored in the database.</div>
+            <div class="norm-success-actions">
+              <button class="btn btn-primary" onclick="window.close()">← Back to Dashboard</button>
+              <button class="btn btn-outline" onclick="resetAll()">Normalize Another File</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/ll-normalize.js"></script>
+</body>
+</html>

@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Line Mounted Summary — PIMS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="css/ll-suite.css"/>
+  <style>
+    /* ── Teal accent overrides for LMS module ── */
+    :root {
+      --accent: #0891b2;
+      --accent-light: rgba(8,145,178,0.08);
+      --accent-border: rgba(8,145,178,0.22);
+    }
+    .ll-topbar-module-icon { background: var(--accent-light); border-color: var(--accent-border); }
+    .ll-topbar-module-icon svg { stroke: var(--accent); }
+    .ll-topbar-module-badge { background: var(--accent-light); color: var(--accent); border-color: var(--accent-border); }
+    .ll-bc-curr { color: var(--accent); }
+    .ll-bc-tag  { background: var(--accent-light); border-color: var(--accent-border); color: var(--accent); }
+    .ll-bc-tag svg { stroke: var(--accent); }
+    .ll-card-icon.teal { background: var(--accent-light); border-color: var(--accent-border); }
+    .ll-card-icon.teal svg { stroke: var(--accent); }
+    .btn-accent {
+      background: var(--accent); color: #fff;
+      box-shadow: 0 2px 8px rgba(8,145,178,0.3);
+    }
+    .btn-accent:hover { background: #0e7490; }
+    .btn-accent:disabled { opacity: 0.45; cursor: default; box-shadow: none; }
+
+    /* ── Two-column layout ── */
+    .two-col { display: grid; grid-template-columns: 400px 1fr; gap: 1.5rem; align-items: start; }
+    @media(max-width: 960px) { .two-col { grid-template-columns: 1fr; } }
+    .entry-card { position: sticky; top: 1rem; }
+
+    /* ── Stats row ── */
+    .lms-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-bottom: 1.5rem; }
+    @media(max-width: 600px) { .lms-stats { grid-template-columns: 1fr 1fr; } }
+    .lms-stat {
+      background: var(--accent-light); border: 1px solid var(--accent-border);
+      border-radius: var(--radius); padding: 0.9rem 1rem;
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .lms-stat-val { font-size: 22px; font-weight: 800; color: var(--accent); }
+    .lms-stat-lbl { font-size: 11px; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.03em; }
+
+    /* ── Tabs ── */
+    .tab-bar { display: flex; gap: 0; border-bottom: 2px solid var(--border); margin-bottom: 1.25rem; }
+    .tab-btn {
+      padding: 9px 16px; font-size: 13px; font-weight: 500; font-family: inherit;
+      background: none; border: none; cursor: pointer; color: var(--text-muted);
+      border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s;
+    }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    /* ── Job/Unit selector bar ── */
+    .sel-bar { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+    .sel-bar .form-group { min-width: 160px; flex: 1; max-width: 240px; }
+
+    /* ── Upload zone ── */
+    .upload-zone {
+      border: 2px dashed var(--border); border-radius: var(--radius);
+      padding: 2rem 1.5rem; text-align: center; cursor: pointer;
+      transition: border-color 0.15s, background 0.15s; margin-top: 1rem;
+    }
+    .upload-zone:hover, .upload-zone.drag-over {
+      border-color: var(--accent); background: var(--accent-light);
+    }
+    .upload-zone-icon { width: 36px; height: 36px; stroke: var(--text-muted); margin: 0 auto 0.75rem; display: block; }
+    .upload-zone-title { font-size: 13.5px; font-weight: 600; color: var(--text-secondary); }
+    .upload-zone-sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+    .zone-file-name { display: inline-block; margin-top: 10px; font-size: 13px; font-weight: 600; color: var(--accent); }
+
+    /* ── Result banner ── */
+    #resultArea { display: none; margin-top: 1rem; }
+    .result-banner {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 14px 18px; border-radius: var(--radius);
+      font-size: 13px; font-weight: 500;
+    }
+    .result-banner.success { background: rgba(40,167,69,0.09); color: #1a7a33; border: 1px solid rgba(40,167,69,0.22); }
+    .result-banner.error   { background: rgba(229,57,53,0.09); color: #b71c1c; border: 1px solid rgba(229,57,53,0.22); }
+    .result-banner svg { width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px; }
+
+    /* ── Manual entry form ── */
+    .manual-note {
+      font-size: 11.5px; color: var(--text-muted); background: var(--gray-50);
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: 7px 12px; margin-top: 0.75rem;
+    }
+
+    /* ── Right-side: preview table wrapper ── */
+    .tbl-outer { overflow-x: auto; border-radius: var(--radius); }
+    .tbl-outer::-webkit-scrollbar { width: 5px; height: 5px; }
+    .tbl-outer::-webkit-scrollbar-thumb { background: var(--gray-300); border-radius: 3px; }
+    .lms-table { width: 100%; border-collapse: collapse; font-size: 12.5px; white-space: nowrap; }
+    .lms-table th {
+      padding: 8px 12px; font-size: 11.5px; font-weight: 600; text-align: left;
+      background: var(--gray-100); color: var(--text-muted); border-bottom: 1px solid var(--border);
+      white-space: nowrap; position: sticky; top: 0; z-index: 1;
+    }
+    .lms-table td { padding: 8px 12px; border-bottom: 1px solid var(--gray-100); }
+    .lms-table tbody tr:last-child td { border-bottom: none; }
+    .lms-table tbody tr:hover { background: var(--accent-light); }
+    .lms-line-no { font-weight: 700; color: var(--accent); font-family: monospace; font-size: 12px; }
+    .lms-muted { color: var(--text-muted); }
+    .lms-num { text-align: right; font-variant-numeric: tabular-nums; }
+
+    /* ── History summary card ── */
+    .hist-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .hist-table th {
+      padding: 9px 14px; font-size: 11.5px; font-weight: 600; text-align: left;
+      background: var(--gray-100); color: var(--text-muted); border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    .hist-table td { padding: 10px 14px; border-bottom: 1px solid var(--gray-100); }
+    .hist-table tbody tr:last-child td { border-bottom: none; }
+    .hist-table tbody tr:hover { background: var(--accent-light); }
+    .empty-hint { text-align: center; padding: 40px; color: var(--text-muted); font-size: 13px; }
+  </style>
+</head>
+<body>
+<div class="ll-shell">
+
+  <!-- ═══ TOPBAR ═══ -->
+  <header class="ll-topbar">
+    <a class="ll-topbar-logo" href="dashboard.html">
+      <div class="ll-topbar-brand">
+        <span class="ll-topbar-name">PIMS</span>
+        <span class="ll-topbar-sub">Piping Isometrics</span>
+      </div>
+    </a>
+    <div class="ll-topbar-div"></div>
+    <div class="ll-topbar-module">
+      <div class="ll-topbar-module-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <ellipse cx="12" cy="5" rx="9" ry="3"/>
+          <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+          <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+        </svg>
+      </div>
+      <span class="ll-topbar-module-name">Line Mounted Summary</span>
+      <span class="ll-topbar-module-badge" id="topBadge">No data</span>
+    </div>
+    <div class="ll-topbar-spacer"></div>
+    <button class="btn btn-outline" id="exportBtn" disabled
+      style="background:rgba(255,255,255,0.07);border-color:rgba(255,255,255,0.12);color:rgba(255,255,255,0.7);font-size:12.5px;"
+      onclick="doExport()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      Export Excel
+    </button>
+    <button class="ll-back-btn" onclick="window.close()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      Back to PIMS
+    </button>
+  </header>
+
+  <!-- ═══ BREADCRUMB ═══ -->
+  <div class="ll-breadbar">
+    <span class="ll-bc-item">PIMS</span>
+    <span class="ll-bc-sep">›</span>
+    <span class="ll-bc-item">Line Data Suite</span>
+    <span class="ll-bc-sep">›</span>
+    <span class="ll-bc-curr">Line Mounted Summary</span>
+    <div class="ll-bc-spacer"></div>
+    <div class="ll-bc-tag">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:11px;height:11px;">
+        <ellipse cx="12" cy="5" rx="9" ry="3"/>
+        <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+      </svg>
+      <span id="countTag">No project selected</span>
+    </div>
+  </div>
+
+  <!-- ═══ MAIN ═══ -->
+  <main class="ll-main">
+
+    <!-- ── Stats row ── -->
+    <div class="lms-stats">
+      <div class="lms-stat">
+        <span class="lms-stat-val" id="statTotal">—</span>
+        <span class="lms-stat-lbl">Total Records</span>
+      </div>
+      <div class="lms-stat">
+        <span class="lms-stat-val" id="statMatched">—</span>
+        <span class="lms-stat-lbl">Matched Lines</span>
+      </div>
+      <div class="lms-stat">
+        <span class="lms-stat-val" id="statDate">—</span>
+        <span class="lms-stat-lbl">Last Upload</span>
+      </div>
+    </div>
+
+    <div class="two-col">
+
+      <!-- ══ LEFT: Entry / Import card ══ -->
+      <div class="ll-card entry-card">
+        <div class="ll-card-header">
+          <div class="ll-card-icon teal">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <polyline points="16 16 12 12 8 16"/>
+              <line x1="12" y1="12" x2="12" y2="21"/>
+              <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+            </svg>
+          </div>
+          <div>
+            <div class="ll-card-title">LMS Data</div>
+            <div class="ll-card-sub">Import from Excel or add manual entries</div>
+          </div>
+        </div>
+        <div class="ll-card-body">
+
+          <!-- Tabs -->
+          <div class="tab-bar">
+            <button class="tab-btn active" onclick="switchTab('import', this)">Import Excel</button>
+            <button class="tab-btn" onclick="switchTab('manual', this)">Manual Entry</button>
+          </div>
+
+          <!-- ── Import tab ── -->
+          <div class="tab-pane active" id="tab-import">
+
+            <!-- Project + Unit selectors -->
+            <div class="sel-bar">
+              <div class="form-group">
+                <label class="form-label">Job No.</label>
+                <select class="form-select" id="jobSel">
+                  <option value="">— select —</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Unit No.</label>
+                <select class="form-select" id="unitSel" disabled>
+                  <option value="">— select —</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- LMS Category -->
+            <div class="form-group" style="margin-top:0.75rem;">
+              <label class="form-label">LMS Category <span style="color:#b91c1c;font-weight:700;">*</span></label>
+              <input class="form-control" id="lmsTypeSel" list="lmsCategoryList"
+                placeholder="e.g. CV, PSV, Instruments…" oninput="checkReady()" autocomplete="off">
+              <datalist id="lmsCategoryList">
+                <option value="General">
+                <option value="CV">
+                <option value="PSV">
+                <option value="Control Valve">
+                <option value="Instruments">
+                <option value="Safety Valve">
+                <option value="Strainer">
+                <option value="Spectacle Blind">
+                <option value="Check Valve">
+                <option value="Orifice Plate">
+              </datalist>
+            </div>
+
+            <!-- Drop zone -->
+            <div class="upload-zone" id="dropZone" onclick="document.getElementById('filePicker').click()">
+              <svg class="upload-zone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <polyline points="16 16 12 12 8 16"/>
+                <line x1="12" y1="12" x2="12" y2="21"/>
+                <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+              </svg>
+              <div class="upload-zone-title">Drop LMS Excel file here or click to browse</div>
+              <div class="upload-zone-sub">Header row searched in first 6 rows &nbsp;·&nbsp; Column: "Equipment no. / Line no."</div>
+              <span class="zone-file-name" id="zoneFileName" style="display:none"></span>
+              <input type="file" id="filePicker" accept=".xlsx,.xls,.csv" style="display:none"/>
+            </div>
+
+            <!-- Actions -->
+            <div style="margin-top:1rem;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+              <button class="btn btn-accent" id="uploadBtn" disabled onclick="doUpload()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;">
+                  <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
+                  <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+                </svg>
+                Upload to PIMS
+              </button>
+              <button class="btn btn-outline" onclick="clearImport()">✕ Clear</button>
+              <span id="uploadSpinner" style="display:none;font-size:12.5px;color:var(--text-muted)">⏳ Uploading…</span>
+            </div>
+
+            <!-- Result banner -->
+            <div id="resultArea"></div>
+
+          </div><!-- /tab-import -->
+
+          <!-- ── Manual tab ── -->
+          <div class="tab-pane" id="tab-manual">
+            <div class="form-grid" style="grid-template-columns:1fr 1fr;gap:0.75rem;">
+              <div class="form-group" style="grid-column:1/-1;">
+                <label class="form-label">Line No *</label>
+                <input class="form-control" id="fLineNo" type="text" placeholder='e.g. P-1001-12345'>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Tag No *</label>
+                <input class="form-control" id="fTagNo" type="text" placeholder="e.g. FCV-101">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Item Type *</label>
+                <select class="form-select" id="fItemType">
+                  <option value="">Select…</option>
+                  <option>Control Valve</option>
+                  <option>Safety Valve</option>
+                  <option>Flow Meter</option>
+                  <option>Pressure Gauge</option>
+                  <option>Temperature Element</option>
+                  <option>Isolation Valve</option>
+                  <option>Spectacle Blind</option>
+                  <option>Strainer</option>
+                  <option>Check Valve</option>
+                  <option>Orifice Plate</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Size (inch)</label>
+                <input class="form-control" id="fSize" type="text" placeholder="e.g. 4">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Rating / Class</label>
+                <input class="form-control" id="fRating" type="text" placeholder="e.g. 300# RF">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Material</label>
+                <input class="form-control" id="fMaterial" type="text" placeholder="e.g. A105">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Quantity</label>
+                <input class="form-control" id="fQty" type="number" placeholder="1" min="1">
+              </div>
+              <div class="form-group" style="grid-column:1/-1;">
+                <label class="form-label">Notes</label>
+                <input class="form-control" id="fNotes" type="text" placeholder="Optional remarks">
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;justify-content:flex-end;padding-top:4px;">
+              <button class="btn btn-outline" onclick="clearForm()">Clear</button>
+              <button class="btn btn-primary" onclick="saveEntry()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;"><polyline points="9 11 12 14 22 4"/></svg>
+                Save Entry
+              </button>
+            </div>
+            <p class="manual-note">ℹ Manual entries are saved locally in this session only. Use Import Excel to store data in PIMS database.</p>
+          </div><!-- /tab-manual -->
+
+        </div>
+      </div>
+
+      <!-- ══ RIGHT: Data table ══ -->
+      <div style="display:flex;flex-direction:column;gap:1rem;">
+
+        <!-- Search bar -->
+        <div class="ll-card">
+          <div class="ll-card-body" style="padding:0.9rem 1.25rem;">
+            <div class="search-row">
+              <div class="search-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                <input class="search-input" id="lmsSearch" type="text"
+                  placeholder="Search by Line No, equipment tag, any column…"
+                  oninput="renderTable()">
+              </div>
+              <button class="btn btn-outline btn-sm" onclick="if(_currentJob&&_currentUnit)loadData(_currentJob,_currentUnit)" style="flex-shrink:0;">↺ Refresh</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Data table card -->
+        <div class="ll-card">
+          <div class="ll-card-body no-pad">
+            <div class="tbl-outer" style="max-height:60vh;">
+              <table class="lms-table" id="lmsTable">
+                <thead id="lmsThead">
+                  <tr><th colspan="3"><div class="empty-state" style="padding:2.5rem;">
+                    <h3 style="font-size:15px;">Select a project &amp; unit to load LMS data</h3>
+                    <p>Choose Job No. and Unit No. in the Import Excel tab, or upload a new LMS Excel file.</p>
+                  </div></th></tr>
+                </thead>
+                <tbody id="lmsTbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /right -->
+    </div><!-- /two-col -->
+
+    <!-- ── Upload History card ── -->
+    <div class="ll-card" style="margin-top:1.5rem;">
+      <div class="ll-card-header">
+        <div class="ll-card-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <path d="M3 9h18M3 15h18M9 3v18"/>
+          </svg>
+        </div>
+        <div>
+          <div class="ll-card-title">Upload History</div>
+          <div class="ll-card-sub">Latest LMS upload per job / unit — click Download to export as Excel</div>
+        </div>
+        <div class="ll-card-actions">
+          <button class="btn btn-outline btn-sm" onclick="loadHistory()">↺ Refresh</button>
+        </div>
+      </div>
+      <div class="ll-card-body no-pad">
+        <table class="hist-table">
+          <thead>
+            <tr>
+              <th>Job No.</th>
+              <th>Unit No.</th>
+              <th>Category</th>
+              <th>Rows</th>
+              <th>Matched Lines</th>
+              <th>Uploaded</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="histBody">
+            <tr><td colspan="6" class="empty-hint">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ── Auth check ── */
+(async () => {
+  try {
+    const r = await fetch('/api/me');
+    if (!r.ok) window.location.href = '/index.html';
+  } catch { window.location.href = '/index.html'; }
+})();
+
+/* ── State ── */
+let _projectsList = [];
+let _dbRows       = [];   // rows loaded from DB for current project+unit
+let _localRows    = [];   // manual-entry rows (session-only)
+let _currentJob   = null;
+let _currentUnit  = null;
+let _pickedFile   = null;
+let _dynHeaders   = [];   // dynamic column names extracted from row_data
+
+/* ── Escape helper ── */
+function escHtml(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ═══════════ INIT ═══════════ */
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadProjects();
+  loadHistory();
+  setupDragDrop();
+});
+
+/* ── Load projects ── */
+async function loadProjects() {
+  try {
+    const r = await fetch('/api/projects/assigned');
+    const d = await r.json();
+    _projectsList = d.projects ?? [];
+    const jobSel = document.getElementById('jobSel');
+    _projectsList.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value       = p.id;
+      opt.textContent = p.name;
+      jobSel.appendChild(opt);
+    });
+  } catch { /* silent */ }
+
+  document.getElementById('jobSel').addEventListener('change', onJobChange);
+  document.getElementById('unitSel').addEventListener('change', onUnitChange);
+}
+
+function onJobChange() {
+  const jobSel  = document.getElementById('jobSel');
+  const unitSel = document.getElementById('unitSel');
+  unitSel.innerHTML = '<option value="">— select —</option>';
+  unitSel.disabled  = true;
+  _currentJob  = jobSel.value || null;
+  _currentUnit = null;
+  _dbRows      = [];
+  _dynHeaders  = [];
+  checkReady();
+  renderTable();
+  updateStats();
+
+  const proj = _projectsList.find(p => String(p.id) === jobSel.value);
+  if (!proj || !Array.isArray(proj.units) || !proj.units.length) return;
+  [...proj.units].sort().forEach(u => {
+    const opt = document.createElement('option');
+    opt.value = u; opt.textContent = u;
+    unitSel.appendChild(opt);
+  });
+  unitSel.disabled = false;
+}
+
+function onUnitChange() {
+  _currentUnit = document.getElementById('unitSel').value || null;
+  checkReady();
+  if (_currentJob && _currentUnit) loadData(_currentJob, _currentUnit);
+}
+
+/* ── Load DB data for job+unit ── */
+async function loadData(jobNo, unitNo) {
+  const thead = document.getElementById('lmsThead');
+  const tbody = document.getElementById('lmsTbody');
+  thead.innerHTML = '<tr><th colspan="3" style="text-align:center;padding:20px;color:var(--text-muted)">Loading…</th></tr>';
+  tbody.innerHTML = '';
+
+  try {
+    const r = await fetch(`/api/lms/data?project=${encodeURIComponent(jobNo)}&unit=${encodeURIComponent(unitNo)}`);
+    const d = await r.json();
+    if (!d.ok) { showToast('Failed to load LMS data', 'error'); return; }
+
+    _dbRows = d.rows || [];
+
+    // Build dynamic header list from all row_data keys (preserve insertion order)
+    const keySet = new Set();
+    const keys   = [];
+    _dbRows.forEach(row => {
+      if (row.rowData) {
+        Object.keys(row.rowData).forEach(k => {
+          if (!keySet.has(k)) { keySet.add(k); keys.push(k); }
+        });
+      }
+    });
+    _dynHeaders = keys;
+
+    renderTable();
+    updateStats();
+
+    document.getElementById('exportBtn').disabled = (_dbRows.length === 0);
+  } catch {
+    showToast('Network error loading LMS data', 'error');
+  }
+}
+
+/* ── Render the dynamic table ── */
+function renderTable() {
+  const q      = (document.getElementById('lmsSearch').value || '').toLowerCase();
+  const thead  = document.getElementById('lmsThead');
+  const tbody  = document.getElementById('lmsTbody');
+
+  if (!_currentJob || !_currentUnit) {
+    thead.innerHTML = `<tr><th colspan="3"><div class="empty-state" style="padding:2.5rem;">
+      <h3 style="font-size:15px;">Select a project &amp; unit to load LMS data</h3>
+      <p>Choose Job No. and Unit No. in the Import Excel tab above.</p>
+    </div></th></tr>`;
+    tbody.innerHTML = '';
+    document.getElementById('countTag').textContent = 'No project selected';
+    return;
+  }
+
+  // Filter rows
+  const filtered = _dbRows.filter(row => {
+    if (!q) return true;
+    const haystack = [row.lineNo, row.equipRaw, ...Object.values(row.rowData || {})]
+      .join(' ').toLowerCase();
+    return haystack.includes(q);
+  });
+
+  document.getElementById('countTag').textContent = `${filtered.length} of ${_dbRows.length} record${_dbRows.length !== 1 ? 's' : ''}`;
+
+  // Render headers
+  thead.innerHTML = `<tr>
+    <th style="width:38px;">#</th>
+    <th style="min-width:70px;">Type</th>
+    <th style="min-width:130px;">Line No</th>
+    ${_dynHeaders.map(h => `<th>${escHtml(h)}</th>`).join('')}
+  </tr>`;
+
+  if (!filtered.length) {
+    const msg = _dbRows.length ? 'No matches — clear the search to see all records' : 'No LMS data stored for this project / unit yet. Upload an Excel file.';
+    tbody.innerHTML = `<tr><td colspan="${2 + _dynHeaders.length}"><div class="empty-state" style="padding:2.5rem;"><h3>${_dbRows.length ? 'No matches' : 'No records'}</h3><p>${msg}</p></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map((row, i) => {
+    const dataCells = _dynHeaders.map(h => {
+      const v = row.rowData?.[h];
+      if (v == null || v === '') return `<td class="lms-muted">—</td>`;
+      const s = String(v);
+      // right-align numbers
+      if (!isNaN(v) && v !== '') return `<td class="lms-num">${Number(v).toLocaleString(undefined, { maximumFractionDigits: 3 })}</td>`;
+      return `<td>${escHtml(s)}</td>`;
+    }).join('');
+
+    return `<tr>
+      <td class="lms-muted" style="font-size:11px;">${i + 1}</td>
+      <td><span style="background:#e0f2fe;color:#0369a1;font-size:11px;font-weight:600;padding:1px 7px;border-radius:4px;">${escHtml(row.lmsType || 'General')}</span></td>
+      <td><span class="lms-line-no">${escHtml(row.lineNo || '—')}</span></td>
+      ${dataCells}
+    </tr>`;
+  }).join('');
+}
+
+/* ── Update stats ── */
+function updateStats() {
+  if (!_dbRows.length) {
+    document.getElementById('statTotal').textContent   = '—';
+    document.getElementById('statMatched').textContent = '—';
+    document.getElementById('statDate').textContent    = '—';
+    document.getElementById('topBadge').textContent    = 'No data';
+    return;
+  }
+  const matched = _dbRows.filter(r => r.lineNo).length;
+  const latest  = _dbRows.reduce((d, r) => {
+    const t = r.uploadedAt ? new Date(r.uploadedAt) : null;
+    return (!d || (t && t > d)) ? t : d;
+  }, null);
+  const dateStr = latest
+    ? latest.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+    : '—';
+
+  document.getElementById('statTotal').textContent   = _dbRows.length.toLocaleString();
+  document.getElementById('statMatched').textContent = matched.toLocaleString();
+  document.getElementById('statDate').textContent    = dateStr;
+  document.getElementById('topBadge').textContent    = `${_dbRows.length} Record${_dbRows.length !== 1 ? 's' : ''}`;
+}
+
+/* ═══════════ FILE UPLOAD ═══════════ */
+
+/* ── Drag & drop ── */
+function setupDragDrop() {
+  const zone = document.getElementById('dropZone');
+  zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', ()  => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('drag-over');
+    const f = e.dataTransfer.files[0];
+    if (f) setFile(f);
+  });
+}
+
+document.getElementById('filePicker').addEventListener('change', e => {
+  if (e.target.files[0]) setFile(e.target.files[0]);
+});
+
+function setFile(f) {
+  _pickedFile = f;
+  const nameEl = document.getElementById('zoneFileName');
+  nameEl.textContent    = f.name;
+  nameEl.style.display  = 'inline-block';
+  checkReady();
+}
+
+function checkReady() {
+  const jobSel     = document.getElementById('jobSel');
+  const unitSel    = document.getElementById('unitSel');
+  const lmsTypeSel = document.getElementById('lmsTypeSel');
+  document.getElementById('uploadBtn').disabled =
+    !(jobSel.value && unitSel.value && _pickedFile && lmsTypeSel.value.trim());
+}
+
+/* ── Clear import form ── */
+function clearImport() {
+  document.getElementById('jobSel').value   = '';
+  const unitSel = document.getElementById('unitSel');
+  unitSel.innerHTML = '<option value="">— select —</option>';
+  unitSel.disabled  = true;
+  document.getElementById('filePicker').value    = '';
+  document.getElementById('zoneFileName').style.display = 'none';
+  document.getElementById('lmsTypeSel').value            = '';
+  document.getElementById('resultArea').style.display   = 'none';
+  document.getElementById('resultArea').innerHTML        = '';
+  _pickedFile  = null;
+  _currentJob  = null;
+  _currentUnit = null;
+  _dbRows      = [];
+  _dynHeaders  = [];
+  checkReady();
+  renderTable();
+  updateStats();
+  document.getElementById('exportBtn').disabled = true;
+}
+
+/* ── Do upload ── */
+async function doUpload() {
+  const jobSel  = document.getElementById('jobSel');
+  const unitSel = document.getElementById('unitSel');
+  const proj    = _projectsList.find(p => String(p.id) === jobSel.value);
+  if (!proj || !unitSel.value || !_pickedFile) return;
+
+  const uploadBtn     = document.getElementById('uploadBtn');
+  const spinner       = document.getElementById('uploadSpinner');
+  const resultArea    = document.getElementById('resultArea');
+
+  uploadBtn.disabled      = true;
+  spinner.style.display   = 'inline';
+  resultArea.style.display = 'none';
+  resultArea.innerHTML     = '';
+
+  try {
+    const lmsTypeSel = document.getElementById('lmsTypeSel');
+    const lmsType    = (lmsTypeSel && lmsTypeSel.value.trim()) || 'General';
+    const fd = new FormData();
+    fd.append('jobNo',   proj.id);
+    fd.append('unitNo',  unitSel.value);
+    fd.append('lmsType', lmsType);
+    fd.append('file',    _pickedFile);
+
+    const r = await fetch('/api/lms/upload', { method: 'POST', body: fd });
+    const d = await r.json();
+
+    resultArea.style.display = 'block';
+    if (d.ok) {
+      resultArea.innerHTML = `
+        <div class="result-banner success">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+          <div>
+            <div>✓ <strong>${Number(d.inserted).toLocaleString()}</strong> rows saved for
+              <strong>${escHtml(proj.id)}</strong> / <strong>${escHtml(unitSel.value)}</strong>
+              &nbsp;·&nbsp; Category: <strong>${escHtml(d.lmsType || lmsType)}</strong>
+              &nbsp;·&nbsp; header found on row <strong>${d.headerRow}</strong>
+            </div>
+            <div style="margin-top:5px;font-size:12px;">
+              Sheet: <span style="background:#f0fdf4;color:#166534;padding:1px 7px;border-radius:4px;">"${escHtml(d.sheetName)}"</span>
+              &nbsp;·&nbsp;
+              Column: <span style="background:#e0f2fe;color:#0369a1;padding:1px 7px;border-radius:4px;">"${escHtml(d.equipColumn)}"</span>
+              &nbsp;·&nbsp;
+              <span style="color:#0f766e;font-weight:600;">${Number(d.matched).toLocaleString()} line numbers extracted</span>
+              ${d.unmatched > 0 ? `&nbsp;·&nbsp; <span style="color:#92400e;">${d.unmatched} unmatched</span>` : ''}
+            </div>
+          </div>
+        </div>`;
+      _currentJob  = proj.id;
+      _currentUnit = unitSel.value;
+      loadData(_currentJob, _currentUnit);
+      loadHistory();
+    } else {
+      // Build debug section if server returned scanned rows
+      let debugHtml = '';
+      if (Array.isArray(d.scanned) && d.scanned.length) {
+        debugHtml = `
+          <div style="margin-top:10px;font-size:11.5px;color:#92400e;background:rgba(255,237,213,0.6);border:1px solid rgba(249,115,22,0.25);border-radius:6px;padding:10px 12px;">
+            <strong>What the server saw in the first 10 rows:</strong>
+            <ul style="margin:5px 0 0 0;padding-left:16px;line-height:1.8;">
+              ${d.scanned.map(s => `<li>${escHtml(s)}</li>`).join('')}
+            </ul>
+            <div style="margin-top:7px;color:#78350f;">
+              ↳ Make sure the column header reads <strong>exactly</strong>: Equipment no. / Line no.
+              &nbsp; (check for extra spaces, special characters, or merged cells)
+            </div>
+          </div>`;
+      }
+      resultArea.innerHTML = `
+        <div class="result-banner error">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <div>
+            <div>${escHtml(d.error || 'Upload failed')}</div>
+            ${debugHtml}
+          </div>
+        </div>`;
+    }
+  } catch {
+    resultArea.style.display = 'block';
+    resultArea.innerHTML = `
+      <div class="result-banner error">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        Network error — please try again
+      </div>`;
+  } finally {
+    spinner.style.display = 'none';
+    checkReady();
+  }
+}
+
+/* ═══════════ EXPORT ═══════════ */
+async function doExport() {
+  if (!_currentJob || !_currentUnit) return;
+  const btn = document.getElementById('exportBtn');
+  const orig = btn.innerHTML;
+  btn.disabled = true;
+  btn.textContent = '…';
+
+  try {
+    const url = `/api/lms/export?project=${encodeURIComponent(_currentJob)}&unit=${encodeURIComponent(_currentUnit)}`;
+    const r   = await fetch(url);
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({ error: `Server error ${r.status}` }));
+      showToast(err.error || 'Export failed', 'error'); return;
+    }
+    const blob     = await r.blob();
+    const cd       = r.headers.get('Content-Disposition') || '';
+    const match    = cd.match(/filename="([^"]+)"/);
+    const filename = match ? match[1] : `LMS_${_currentJob}_${_currentUnit}.xlsx`;
+
+    const objUrl = URL.createObjectURL(blob);
+    const a      = document.createElement('a');
+    a.href = objUrl; a.download = filename;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(objUrl);
+    showToast('Export downloaded', 'success');
+  } catch (err) {
+    showToast('Download error: ' + err.message, 'error');
+  } finally {
+    btn.disabled  = false;
+    btn.innerHTML = orig;
+  }
+}
+
+/* ═══════════ HISTORY TABLE ═══════════ */
+async function loadHistory() {
+  const tbody = document.getElementById('histBody');
+  try {
+    const r = await fetch('/api/lms/summary');
+    const d = await r.json();
+    if (!d.ok || !d.data.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="empty-hint">No LMS data stored yet.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = d.data.map(row => {
+      const date = row.uploaded_at
+        ? new Date(row.uploaded_at).toLocaleString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })
+        : '—';
+      return `<tr>
+        <td><strong>${escHtml(row.job_no)}</strong></td>
+        <td>${escHtml(row.unit_no)}</td>
+        <td><span style="background:#e0f2fe;color:#0369a1;font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;">${escHtml(row.lms_type || 'General')}</span></td>
+        <td>${Number(row.row_count).toLocaleString()}</td>
+        <td>${Number(row.matched_count).toLocaleString()}
+          <span class="muted" style="font-size:11px;">(${Math.round(100 * row.matched_count / (row.row_count || 1))}%)</span>
+        </td>
+        <td class="muted">${date}</td>
+        <td>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <button class="btn btn-outline btn-sm lms-dl-btn"
+                    data-job="${escHtml(row.job_no)}"
+                    data-unit="${escHtml(row.unit_no)}"
+                    title="Download as Excel"
+                    style="display:inline-flex;align-items:center;gap:5px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              Download
+            </button>
+            <button class="btn btn-outline btn-sm lms-view-btn"
+                    data-job="${escHtml(row.job_no)}"
+                    data-unit="${escHtml(row.unit_no)}"
+                    title="View data"
+                    style="display:inline-flex;align-items:center;gap:5px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+              View
+            </button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+  } catch {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-hint">Failed to load history.</td></tr>';
+  }
+}
+
+/* ── Delegated: Download from history ── */
+document.addEventListener('click', async (e) => {
+  // Download
+  const dlBtn = e.target.closest('.lms-dl-btn');
+  if (dlBtn) {
+    const jobNo  = dlBtn.dataset.job;
+    const unitNo = dlBtn.dataset.unit;
+    const orig   = dlBtn.innerHTML;
+    dlBtn.disabled = true; dlBtn.textContent = '…';
+    try {
+      const url = `/api/lms/export?project=${encodeURIComponent(jobNo)}&unit=${encodeURIComponent(unitNo)}`;
+      const r   = await fetch(url);
+      if (!r.ok) { const err = await r.json().catch(() => ({})); showToast(err.error || 'Export failed', 'error'); return; }
+      const blob     = await r.blob();
+      const cd       = r.headers.get('Content-Disposition') || '';
+      const match    = cd.match(/filename="([^"]+)"/);
+      const filename = match ? match[1] : `LMS_${jobNo}_${unitNo}.xlsx`;
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = objUrl; a.download = filename;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(objUrl);
+      showToast('Downloaded: ' + filename, 'success');
+    } catch (err) { showToast('Download error: ' + err.message, 'error'); }
+    finally { dlBtn.disabled = false; dlBtn.innerHTML = orig; }
+    return;
+  }
+
+  // View: load data into right-side table
+  const viewBtn = e.target.closest('.lms-view-btn');
+  if (viewBtn) {
+    const jobNo  = viewBtn.dataset.job;
+    const unitNo = viewBtn.dataset.unit;
+    _currentJob  = jobNo;
+    _currentUnit = unitNo;
+    // Sync selectors
+    const jobSel  = document.getElementById('jobSel');
+    const unitSel = document.getElementById('unitSel');
+    if (jobSel.value !== jobNo) {
+      jobSel.value = jobNo;
+      onJobChange();
+    }
+    setTimeout(() => {
+      unitSel.value = unitNo;
+      _currentUnit  = unitNo;
+      loadData(jobNo, unitNo);
+      document.getElementById('exportBtn').disabled = false;
+      // scroll to top table
+      document.querySelector('.two-col').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
+  }
+});
+
+/* ═══════════ MANUAL ENTRY (local) ═══════════ */
+function switchTab(tab, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+}
+
+function clearForm() {
+  ['fLineNo','fTagNo','fSize','fRating','fMaterial','fNotes'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('fItemType').value = '';
+  document.getElementById('fQty').value      = '';
+}
+
+function saveEntry() {
+  const lineNo   = document.getElementById('fLineNo').value.trim();
+  const tagNo    = document.getElementById('fTagNo').value.trim();
+  const itemType = document.getElementById('fItemType').value;
+  if (!lineNo || !tagNo || !itemType) {
+    showToast('Line No, Tag No, and Item Type are required', 'error'); return;
+  }
+  _localRows.push({
+    lineNo, tagNo, itemType,
+    size:     document.getElementById('fSize').value.trim()     || '—',
+    rating:   document.getElementById('fRating').value.trim()   || '—',
+    material: document.getElementById('fMaterial').value.trim() || '—',
+    qty:      parseInt(document.getElementById('fQty').value) || 1,
+    notes:    document.getElementById('fNotes').value.trim()    || '—',
+  });
+  clearForm();
+  showToast('Entry saved locally', 'success');
+}
+
+/* ═══════════ TOAST ═══════════ */
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className   = 'toast show' + (type && type !== 'info' ? ' ' + type : '');
+  clearTimeout(t._tmr);
+  t._tmr = setTimeout(() => t.classList.remove('show'), 3200);
+}
+</script>
+</body>
+</html>

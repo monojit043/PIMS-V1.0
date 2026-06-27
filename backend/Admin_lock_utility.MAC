@@ -1,0 +1,80 @@
+!lines = array()
+!linescount = 3
+
+!lines[1] = 
+!lines[2] =
+!lines[3] =
+!lines[4] =
+
+
+!ALLZON = ||
+!LOTN = |LOT-*|
+!REV= |REV-*|
+VAR !PRO PROJECT CODE
+
+VAR !ZON COLL ALL ZONE WITH MATCHW(NAMN,|PIZON*-$!PRO|)
+DO !Z VALUES !ZON
+!ALLZON = !ALLZON + | | + !Z.DBREF().NAME
+ENDDO
+Q VAR !ALLZON
+-------------------------------------------------------------------------------
+VAR !P COLL ALL PIP FOR $!ALLZON
+
+
+
+$(
+!inputfile  = !!alert.input('Give the path of Line list','C:\DATA\ISO.TXT')
+!input = object file ('$!inputfile')
+!input.open('read')
+!PIP = !input.readfile()
+$)
+
+!FILNAME = !!alert.input('Error file will be generated at','C:\DATA\Admin-lock-files.csv')
+!Output = object FILE(!FILNAME)
+!Output.Open('OVER')
+!Output.WriteRecord('PIPE,DUTY,UNIT,SERIAL-NO.,ISO-NO.')
+
+
+!n = 0
+    do !isofilename values !pip
+        !isopart=substring(!isofilename,-3)
+        !isoarea=substring(!isofilename,-1,1)
+        var !pipnam coll all pip with matchw(:eil_isono,!isopart) and matchw(:eil_area,!isoarea) and matchw(namn,'*$!isopart*') and matchw(namn,'*$!isoarea') for $!this.allzon
+        !n = !n + 1
+		$P $!n_$!isofilename
+		if (!pipnam.size() eq 1) then
+            !naam = name of $!pipnam[1]
+			!this.pipelist.append(!naam)
+            !output.writerecord('$!isofilename,$!naam')
+        else
+		    !flag = 1
+			if (!pipnam.size() eq 0) then
+			    !erroroutput.writerecord('$!isofilename,No line found Check :EIL_AREA/:EIL_ISONO make sure no space')
+			else
+			    !erroroutput.writerecord('$!isofilename,Multiple lines found')
+			endif
+		endif		
+    enddo
+    !output.close()
+
+$(
+do !A index !PIP
+
+ $!PIP[$!A]
+ !PIPNAME =!!CE.NAME
+ !DUTY = DUTY OF CE
+ !UNIT = :EIL_UNIT OF CE
+ !SERIALNO = :EIL_SERIALNO OF CE
+ !ISONO = :EIL_ISONO OF CE
+ !ISONAME = !DUTY & '-' & !UNIT & '-' & !SERIALNO
+ IF (NOT(MATCHW('$!ISONO','$!ISONAME') AND MATCHW('$!PIPNAME','*$!ISONO*') AND MATCHW('$!PIPNAME','*$!ISONAME*'))) THEN
+!Output.WriteRecord('$!PIPNAME'+ ',' + '$!DUTY' +','+ '$!UNIT' +','+ '$!SERIALNO' +','+ '$!ISONO')
+ ENDIF
+ 
+ENDDO 
+ !input.close()
+ !Output.CLOSE()
+ $P DONE!!!
+
+$)
+ 

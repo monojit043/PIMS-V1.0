@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PIMS – User Manual &amp; Workflow Guide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+      background: #f8fafc;
+      color: #1e293b;
+      line-height: 1.6;
+    }
+
+    /* ── Top Bar ── */
+    .top-bar {
+      position: sticky; top: 0; z-index: 200;
+      background: #1e40af;
+      padding: 0 32px;
+      height: 56px;
+      display: flex; align-items: center; justify-content: space-between;
+      box-shadow: 0 2px 12px rgba(30,64,175,0.3);
+    }
+    .top-bar-brand { display: flex; align-items: center; gap: 12px; }
+    .top-bar-brand .logo {
+      width: 32px; height: 32px; border-radius: 8px;
+      background: #fff; display: flex; align-items: center; justify-content: center;
+    }
+    .top-bar-brand .logo svg { width: 20px; height: 20px; stroke: #1e40af; }
+    .top-bar-brand .brand-text { font-size: 17px; font-weight: 700; color: #fff; letter-spacing: .01em; }
+    .top-bar-brand .brand-sub { font-size: 12px; color: rgba(255,255,255,0.7); margin-left: 4px; }
+    .top-bar-back {
+      display: flex; align-items: center; gap: 6px;
+      color: rgba(255,255,255,0.85); font-size: 13px; font-weight: 500;
+      text-decoration: none; padding: 6px 14px; border-radius: 7px;
+      border: 1px solid rgba(255,255,255,0.25);
+      transition: background .15s;
+    }
+    .top-bar-back:hover { background: rgba(255,255,255,0.12); }
+    .top-bar-back svg { width: 14px; height: 14px; stroke: currentColor; }
+
+    /* ── Layout ── */
+    .page-layout {
+      display: flex; align-items: flex-start;
+      max-width: 1200px; margin: 0 auto; padding: 32px 20px;
+      gap: 28px;
+    }
+
+    /* ── TOC Sidebar ── */
+    .toc {
+      width: 230px; flex-shrink: 0;
+      position: sticky; top: 72px;
+      background: #fff; border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      padding: 18px 0;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+    }
+    .toc-title {
+      font-size: 10px; font-weight: 700; color: #94a3b8;
+      text-transform: uppercase; letter-spacing: .08em;
+      padding: 0 18px 10px;
+      border-bottom: 1px solid #f1f5f9; margin-bottom: 8px;
+    }
+    .toc a {
+      display: block; padding: 7px 18px;
+      font-size: 13px; color: #475569; text-decoration: none;
+      transition: background .12s, color .12s;
+      border-left: 3px solid transparent;
+    }
+    .toc a:hover { background: #f8fafc; color: #1e40af; }
+    .toc a.active { color: #1e40af; font-weight: 600; border-left-color: #1e40af; background: #eff6ff; }
+    .toc-sub { padding-left: 28px !important; font-size: 12px !important; color: #64748b !important; }
+
+    /* ── Main Content ── */
+    .main { flex: 1; min-width: 0; }
+
+    /* ── Section ── */
+    .section {
+      background: #fff; border-radius: 14px;
+      border: 1px solid #e2e8f0;
+      padding: 32px 36px;
+      margin-bottom: 24px;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+      scroll-margin-top: 72px;
+    }
+    .section-eyebrow {
+      font-size: 11px; font-weight: 700; color: #94a3b8;
+      text-transform: uppercase; letter-spacing: .08em; margin-bottom: 6px;
+    }
+    .section-title {
+      font-size: 22px; font-weight: 700; color: #0f172a; margin-bottom: 14px;
+    }
+    .section-title span { color: #1e40af; }
+    .section-lead {
+      font-size: 14px; color: #475569; line-height: 1.75; margin-bottom: 20px;
+    }
+
+    h3.sub-heading {
+      font-size: 15px; font-weight: 700; color: #1e293b;
+      margin: 24px 0 10px; padding-bottom: 6px;
+      border-bottom: 2px solid #e2e8f0;
+    }
+    h3.sub-heading:first-child { margin-top: 0; }
+
+    p { font-size: 14px; color: #475569; line-height: 1.75; margin-bottom: 12px; }
+    p:last-child { margin-bottom: 0; }
+
+    /* ── Role Chips ── */
+    .chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 9px; border-radius: 5px;
+      font-size: 11.5px; font-weight: 700; letter-spacing: .02em;
+    }
+    .chip-pc  { background: #dbeafe; color: #1d4ed8; }
+    .chip-mc  { background: #ede9fe; color: #6d28d9; }
+    .chip-sc  { background: #fee2e2; color: #b91c1c; }
+    .chip-gl  { background: #e0f2fe; color: #0369a1; }
+    .chip-sgl { background: #f3e8ff; color: #9333ea; }
+    .chip-mod { background: #dcfce7; color: #15803d; }
+
+    /* ── Status Badges ── */
+    .badge {
+      display: inline-block; padding: 3px 10px; border-radius: 5px;
+      font-size: 11.5px; font-weight: 700; white-space: nowrap;
+    }
+    .badge-uploaded  { background: #dbeafe; color: #1d4ed8; }
+    .badge-review    { background: #fef3c7; color: #d97706; }
+    .badge-comments  { background: #fee2e2; color: #dc2626; }
+    .badge-gl        { background: #e0f2fe; color: #0369a1; }
+    .badge-glcomment { background: #fff7ed; color: #ea580c; }
+    .badge-sgl       { background: #ede9fe; color: #7c3aed; }
+    .badge-final     { background: #dcfce7; color: #16a34a; }
+    .badge-sgldelg   { background: #f3e8ff; color: #9333ea; }
+
+    /* ── Roles Table ── */
+    .roles-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+    .roles-table th {
+      padding: 10px 14px; background: #f8fafc;
+      font-size: 11px; font-weight: 700; color: #64748b;
+      text-transform: uppercase; letter-spacing: .06em;
+      border-bottom: 2px solid #e2e8f0; text-align: left;
+    }
+    .roles-table td {
+      padding: 12px 14px; border-bottom: 1px solid #f1f5f9;
+      color: #334155; vertical-align: top;
+    }
+    .roles-table tr:last-child td { border-bottom: none; }
+    .roles-table tr:hover td { background: #f8fafc; }
+
+    /* ── Workflow Steps ── */
+    .workflow { display: flex; flex-direction: column; gap: 0; }
+
+    .wf-step {
+      display: flex; gap: 18px; align-items: flex-start;
+      position: relative;
+    }
+    .wf-step::before {
+      content: '';
+      position: absolute; left: 19px; top: 44px;
+      width: 2px; height: calc(100% - 20px);
+      background: #e2e8f0;
+    }
+    .wf-step:last-child::before { display: none; }
+
+    .wf-num {
+      width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700; z-index: 1;
+    }
+    .wf-body {
+      flex: 1; padding: 0 0 32px;
+    }
+    .wf-title {
+      font-size: 15px; font-weight: 700; color: #0f172a; margin-bottom: 6px;
+    }
+    .wf-desc { font-size: 13.5px; color: #475569; line-height: 1.7; }
+    .wf-desc ul { margin: 8px 0 0 18px; }
+    .wf-desc li { margin-bottom: 5px; }
+    .wf-desc strong { color: #1e293b; }
+
+    .wf-branch {
+      margin-top: 12px; padding: 12px 16px;
+      background: #f8fafc; border-radius: 9px;
+      border: 1px solid #e2e8f0;
+    }
+    .wf-branch-title {
+      font-size: 11px; font-weight: 700; color: #94a3b8;
+      text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px;
+    }
+    .wf-branch-row {
+      display: flex; gap: 8px; align-items: flex-start;
+      padding: 6px 0; border-bottom: 1px solid #f1f5f9; font-size: 13px;
+    }
+    .wf-branch-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .wf-arrow { color: #94a3b8; flex-shrink: 0; padding-top: 1px; }
+
+    /* Colour themes for wf-num */
+    .wf-blue  { background: #dbeafe; color: #1d4ed8; }
+    .wf-amber { background: #fef3c7; color: #d97706; }
+    .wf-red   { background: #fee2e2; color: #dc2626; }
+    .wf-sky   { background: #e0f2fe; color: #0369a1; }
+    .wf-orange{ background: #fff7ed; color: #ea580c; }
+    .wf-purple{ background: #ede9fe; color: #7c3aed; }
+    .wf-green { background: #dcfce7; color: #16a34a; }
+    .wf-teal  { background: #ccfbf1; color: #0f766e; }
+
+    /* ── Role Guide Tabs ── */
+    .role-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 20px; }
+    .role-tab {
+      padding: 7px 16px; border-radius: 7px; font-size: 13px; font-weight: 600;
+      border: 1.5px solid #e2e8f0; background: #f8fafc; color: #64748b;
+      cursor: pointer; transition: all .15s;
+    }
+    .role-tab.active { border-color: #1e40af; background: #eff6ff; color: #1e40af; }
+    .role-panel { display: none; }
+    .role-panel.active { display: block; }
+
+    .step-list { list-style: none; padding: 0; }
+    .step-list li {
+      display: flex; gap: 12px; align-items: flex-start;
+      padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-size: 13.5px; color: #334155;
+    }
+    .step-list li:last-child { border-bottom: none; }
+    .step-num {
+      width: 24px; height: 24px; border-radius: 50%;
+      background: #eff6ff; color: #1e40af;
+      font-size: 11px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+
+    /* ── Block Diagram ── */
+    .bd-wrap { overflow-x: auto; padding: 8px 0 24px; }
+    .bd-diagram {
+      min-width: 680px; position: relative;
+      display: grid;
+      grid-template-columns: 260px 36px 1fr;
+      row-gap: 0;
+    }
+    /* Main column boxes */
+    .bd-box {
+      border-radius: 10px; border: 2px solid; padding: 12px 14px;
+      position: relative; font-size: 13px;
+    }
+    .bd-box-title { font-weight: 700; font-size: 13.5px; margin-bottom: 4px; }
+    .bd-box-note  { font-size: 11.5px; margin-top: 5px; opacity: .85; line-height: 1.5; }
+    .bd-tag {
+      display: inline-block; padding: 2px 8px; border-radius: 4px;
+      font-size: 10.5px; font-weight: 700; margin-top: 5px; letter-spacing: .03em;
+    }
+
+    /* Colour variants */
+    .bd-blue   { background:#dbeafe; border-color:#1d4ed8; color:#1e3a8a; }
+    .bd-blue   .bd-tag  { background:#1d4ed8; color:#fff; }
+    .bd-amber  { background:#fef3c7; border-color:#d97706; color:#78350f; }
+    .bd-amber  .bd-tag  { background:#d97706; color:#fff; }
+    .bd-red    { background:#fee2e2; border-color:#dc2626; color:#7f1d1d; }
+    .bd-red    .bd-tag  { background:#dc2626; color:#fff; }
+    .bd-sky    { background:#e0f2fe; border-color:#0369a1; color:#0c4a6e; }
+    .bd-sky    .bd-tag  { background:#0369a1; color:#fff; }
+    .bd-orange { background:#fff7ed; border-color:#ea580c; color:#7c2d12; }
+    .bd-orange .bd-tag  { background:#ea580c; color:#fff; }
+    .bd-purple { background:#ede9fe; border-color:#7c3aed; color:#3b0764; }
+    .bd-purple .bd-tag  { background:#7c3aed; color:#fff; }
+    .bd-green  { background:#dcfce7; border-color:#16a34a; color:#14532d; }
+    .bd-green  .bd-tag  { background:#16a34a; color:#fff; }
+    .bd-teal   { background:#ccfbf1; border-color:#0f766e; color:#134e4a; }
+    .bd-teal   .bd-tag  { background:#0f766e; color:#fff; }
+
+    /* Vertical connector in the middle column */
+    .bd-arrow-down {
+      grid-column: 1; display: flex; align-items: center; justify-content: center;
+      padding: 2px 0; color: #94a3b8; font-size: 22px; line-height: 1;
+    }
+    .bd-arrow-down-center {
+      display: flex; align-items: center; justify-content: center;
+      padding: 2px 0; color: #94a3b8; font-size: 22px; line-height: 1;
+    }
+
+    /* Branch connector column */
+    .bd-connector-col {
+      grid-column: 2;
+      display: flex; align-items: center; justify-content: center;
+      position: relative;
+    }
+    .bd-connector-col::before {
+      content:''; display: block;
+      width: 20px; height: 2px; background: #94a3b8;
+    }
+
+    /* Branch boxes (right column) */
+    .bd-branch-wrap { grid-column: 3; padding: 4px 0 4px 0; display: flex; flex-direction: column; gap: 8px; justify-content: center; }
+    .bd-branch-box { border-radius: 9px; border: 1.5px solid; padding: 10px 12px; font-size: 12.5px; }
+    .bd-branch-box .bd-box-title { font-size: 12.5px; }
+    .bd-branch-box .bd-box-note  { font-size: 11px; }
+    .bd-return {
+      font-size: 11px; font-style: italic; color: #64748b;
+      padding: 4px 6px; background: #f8fafc; border-radius: 5px;
+      border: 1px dashed #cbd5e1; margin-top: 4px; display: inline-block;
+    }
+
+    /* Decision diamond */
+    .bd-decision {
+      grid-column: 1;
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+      padding: 6px 0;
+    }
+    .bd-diamond {
+      width: 56px; height: 56px; flex-shrink: 0;
+      transform: rotate(45deg); border-radius: 6px;
+      border: 2px solid #0369a1; background: #e0f2fe;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .bd-diamond span {
+      transform: rotate(-45deg);
+      font-size: 10px; font-weight: 700; color: #0369a1;
+      text-align: center; line-height: 1.2; display: block; width: 52px;
+    }
+    .bd-decision-label {
+      font-size: 12px; font-weight: 700; color: #334155; line-height: 1.4;
+    }
+
+    /* Horizontal split row (GL decision 3-way) */
+    .bd-3way {
+      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin: 12px 0 4px;
+    }
+    .bd-3way-box {
+      border-radius: 9px; border: 2px solid; padding: 10px 12px; font-size: 12px;
+      text-align: center;
+    }
+    .bd-3way-box .bd-box-title { font-size: 12px; }
+    .bd-3way-arrow {
+      font-size: 18px; color: #94a3b8; text-align: center; padding: 2px 0;
+    }
+
+    /* GL 3-way section wrapper */
+    .bd-gl-section {
+      border: 1.5px dashed #0369a1; border-radius: 12px;
+      padding: 14px; margin: 8px 0 8px;
+      background: #f0f9ff;
+    }
+    .bd-gl-section-title {
+      font-size: 10.5px; font-weight: 700; color: #0369a1;
+      text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px;
+    }
+
+    /* Sub-branch indent */
+    .bd-sub-branch {
+      margin-left: 16px; padding-left: 12px;
+      border-left: 2px solid #e2e8f0;
+      margin-top: 6px;
+    }
+    .bd-sub-item {
+      font-size: 12px; color: #475569; padding: 4px 0;
+      display: flex; align-items: flex-start; gap: 6px;
+    }
+    .bd-sub-arrow { color: #94a3b8; flex-shrink: 0; }
+
+    /* ── Status Table ── */
+    .status-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+    .status-table th {
+      padding: 10px 14px; background: #f8fafc;
+      font-size: 11px; font-weight: 700; color: #64748b;
+      text-transform: uppercase; letter-spacing: .06em;
+      border-bottom: 2px solid #e2e8f0; text-align: left;
+    }
+    .status-table td {
+      padding: 12px 14px; border-bottom: 1px solid #f1f5f9;
+      color: #334155; vertical-align: middle;
+    }
+    .status-table tr:last-child td { border-bottom: none; }
+    .status-table tr:hover td { background: #f8fafc; }
+
+    /* ── FAQ ── */
+    .faq-item { margin-bottom: 18px; }
+    .faq-q {
+      font-size: 14px; font-weight: 700; color: #1e293b; margin-bottom: 6px;
+      display: flex; gap: 8px; align-items: flex-start;
+    }
+    .faq-q::before {
+      content: 'Q';
+      width: 22px; height: 22px; border-radius: 50%;
+      background: #1e40af; color: #fff;
+      font-size: 11px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .faq-a {
+      font-size: 13.5px; color: #475569; line-height: 1.75;
+      padding-left: 30px;
+    }
+
+    /* ── Info Box ── */
+    .info-box {
+      padding: 14px 16px; border-radius: 8px; margin: 14px 0;
+      display: flex; gap: 10px; align-items: flex-start; font-size: 13.5px;
+    }
+    .info-box svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 2px; }
+    .info-blue  { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
+    .info-amber { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+    .info-green { background: #f0fdf4; border: 1px solid #bbf7d0; color: #14532d; }
+
+    /* ── Print ── */
+    @media print {
+      .toc, .top-bar-back { display: none; }
+      .page-layout { padding: 0; }
+      .section { box-shadow: none; border: 1px solid #e2e8f0; break-inside: avoid; }
+    }
+    @media (max-width: 768px) {
+      .toc { display: none; }
+      .section { padding: 20px; }
+      .page-layout { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Bar -->
+  <header class="top-bar">
+    <div class="top-bar-brand">
+      <div class="logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="#1e40af"/>
+          <polyline points="14 2 14 8 20 8" stroke="#1e40af"/>
+        </svg>
+      </div>
+      <span class="brand-text">PIMS</span>
+      <span class="brand-sub">Piping Isometrics Management System</span>
+    </div>
+    <a class="top-bar-back" href="/user.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      Back to App
+    </a>
+  </header>
+
+  <div class="page-layout">
+
+    <!-- Table of Contents -->
+    <nav class="toc" id="toc">
+      <div class="toc-title">Contents</div>
+      <a href="#overview">1. System Overview</a>
+      <a href="#roles">2. Roles &amp; Responsibilities</a>
+      <a href="#workflow">3. Complete Workflow</a>
+      <a href="#role-guide">4. Role-by-Role Guide</a>
+      <a href="#status-ref">5. Status Reference</a>
+      <a href="#faq">6. FAQs</a>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main">
+
+      <!-- ══ 1. OVERVIEW ══ -->
+      <section class="section" id="overview">
+        <div class="section-eyebrow">Section 1</div>
+        <h2 class="section-title">System <span>Overview</span></h2>
+        <p class="section-lead">
+          PIMS (Piping Isometrics Management System) is a web-based platform that manages the complete
+          lifecycle of piping isometric drawings — from initial upload by the Modeller through multi-stage
+          engineering checks, Group Leader approval, and final lot issuance.
+        </p>
+        <p>
+          Every isometric drawing (ISO) follows a defined path through the system. Each role in the workflow
+          has a specific set of tasks. The system tracks who has a drawing, what actions have been taken,
+          and what the current status is at all times.
+        </p>
+        <div class="info-box info-blue">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <span>
+            <strong>Track any line at any time</strong> — use the purple search button (bottom-right of the screen)
+            to look up where any line currently is in the workflow.
+          </span>
+        </div>
+
+        <h3 class="sub-heading">Key Concepts</h3>
+        <p><strong>ISO / Drawing / Line:</strong> These terms are used interchangeably. Each line number (e.g., P-101-54322-A) corresponds to one isometric drawing file.</p>
+        <p><strong>Claim:</strong> When a user takes ownership of a line for review. A claimed line appears in "My Tasks".</p>
+        <p><strong>Lot:</strong> A batch of Final-approved lines grouped together for issuance. Once a lot is created, those lines are moved to the Issued Lots folder.</p>
+        <p><strong>Inch Dia / Inch Meter:</strong> Pipe diameter and length metrics uploaded separately via Excel and shown alongside the drawing in review screens.</p>
+      </section>
+
+      <!-- ══ 2. ROLES ══ -->
+      <section class="section" id="roles">
+        <div class="section-eyebrow">Section 2</div>
+        <h2 class="section-title">Roles &amp; <span>Responsibilities</span></h2>
+        <p class="section-lead">Each user is assigned one or more roles per project and unit. A single person can hold multiple roles (e.g., a senior engineer may be both PC and GL).</p>
+
+        <table class="roles-table">
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Full Name</th>
+              <th>Primary Responsibility</th>
+              <th>Key Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="chip chip-mod">Modeller</span></td>
+              <td>ISO Modeller</td>
+              <td>Uploads isometric drawing files into PIMS</td>
+              <td>Upload ISO, Re-upload revised ISO after comments</td>
+            </tr>
+            <tr>
+              <td><span class="chip chip-pc">PC</span></td>
+              <td>Process Checker</td>
+              <td>Reviews drawing for process engineering compliance</td>
+              <td>Add comment, Upload marked file, Annotate PDF, No Comments, Send to Modeller (GL Commented lines)</td>
+            </tr>
+            <tr>
+              <td><span class="chip chip-mc">MC</span></td>
+              <td>Material Checker</td>
+              <td>Reviews drawing for material specification compliance</td>
+              <td>Same as PC</td>
+            </tr>
+            <tr>
+              <td><span class="chip chip-sc">SC</span></td>
+              <td>Stress Checker</td>
+              <td>Reviews drawing for stress and structural compliance</td>
+              <td>Add comment, Upload file, Annotate, No Comments</td>
+            </tr>
+            <tr>
+              <td><span class="chip chip-gl">GL</span></td>
+              <td>Group Leader</td>
+              <td>Final technical approval authority for the unit</td>
+              <td>Approve → Final, Comment back to PC/SC, Escalate to SGL, Create and issue lots</td>
+            </tr>
+            <tr>
+              <td><span class="chip chip-sgl">SGL</span></td>
+              <td>Senior Group Leader</td>
+              <td>Handles escalated cases above GL authority</td>
+              <td>Approve → Final, Comment back to checkers (with delegation)</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="info-box info-amber" style="margin-top: 18px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span>
+            Role assignments are managed by the SGL via Admin → Projects → Assign Roles. A user who is not assigned to a project/unit will not see lines from that unit in their tasks.
+          </span>
+        </div>
+      </section>
+
+      <!-- ══ 3. WORKFLOW ══ -->
+      <section class="section" id="workflow">
+        <div class="section-eyebrow">Section 3</div>
+        <h2 class="section-title">Complete <span>Workflow</span></h2>
+        <p class="section-lead">
+          Below is the end-to-end lifecycle of a single isometric drawing from first upload to final lot issuance.
+          Every drawing follows this path. Some stages may repeat (e.g., if comments are raised and the drawing is revised multiple times).
+        </p>
+
+        <!-- ══ BLOCK DIAGRAM ══ -->
+        <h3 class="sub-heading">Workflow Block Diagram</h3>
+        <div class="bd-wrap">
+
+          <!-- ── MAIN VERTICAL FLOW with right branches ── -->
+          <div class="bd-diagram">
+
+            <!-- STEP 1: Modeller Upload -->
+            <div class="bd-box bd-blue" style="grid-column:1;">
+              <div class="bd-box-title">① Modeller Uploads ISO</div>
+              <div class="bd-tag">Status: Uploaded</div>
+              <div class="bd-box-note">System stores the PDF. All PC &amp; MC assigned to the unit receive a notification.</div>
+            </div>
+            <div style="grid-column:2;grid-row:2;"></div>
+            <div style="grid-column:3;grid-row:2;"></div>
+            <!-- arrow -->
+            <div class="bd-arrow-down" style="grid-column:1;grid-row:2;">▼</div>
+
+            <!-- STEP 2: Checker Review -->
+            <div class="bd-box bd-amber" style="grid-column:1;grid-row:3;">
+              <div class="bd-box-title">② PC / MC Claim &amp; Review</div>
+              <div class="bd-tag">Status: Under Review</div>
+              <div class="bd-box-note">Checker opens the line. Reviews ISO PDF, Line Engineering Data, Inch Dia/Mtr, LMS data.</div>
+              <div class="bd-box-note" style="margin-top:6px;">
+                <strong>4 comment options:</strong> Add Comment · Upload File · Annotate PDF · No Comments
+              </div>
+            </div>
+            <div class="bd-connector-col" style="grid-row:3;">
+              <div style="width:20px;height:2px;background:#d97706;"></div>
+            </div>
+            <div class="bd-branch-wrap" style="grid-row:3;">
+              <div class="bd-branch-box bd-red">
+                <div class="bd-box-title">Any checker raised a comment?</div>
+                <div class="bd-tag">Status: Comments Received</div>
+                <div class="bd-box-note">Modeller is notified to re-upload a revised drawing.</div>
+                <div class="bd-return">↩ Returns to Step ① after re-upload</div>
+              </div>
+            </div>
+
+            <!-- arrow -->
+            <div class="bd-arrow-down" style="grid-column:1;grid-row:4;">▼</div>
+            <div style="grid-column:2 / span 2;grid-row:4;display:flex;align-items:center;padding-left:6px;font-size:11.5px;color:#64748b;font-style:italic;">All checkers gave No Comments</div>
+
+            <!-- STEP 2b: SC Gate -->
+            <div class="bd-box bd-amber" style="grid-column:1;grid-row:5;border-style:dashed;">
+              <div class="bd-box-title">② SC Gate Check</div>
+              <div class="bd-box-note">
+                If Stress Checkers are assigned to the unit, the system waits for SC to also submit <strong>No Comments</strong> before advancing.
+              </div>
+              <div class="bd-box-note" style="margin-top:5px;">PC's "No Comments" automatically notifies SC pool or the previous SC reviewer.</div>
+            </div>
+            <div class="bd-connector-col" style="grid-row:5;">
+              <div style="width:20px;height:2px;background:#d97706;"></div>
+            </div>
+            <div class="bd-branch-wrap" style="grid-row:5;">
+              <div class="bd-branch-box bd-amber">
+                <div class="bd-box-title">If SC is assigned</div>
+                <div class="bd-box-note">SC claims the line. Reviews and submits <strong>No Comments</strong>. If SC raises a comment → <span style="color:#dc2626;font-weight:600;">Comments Received</span> and Modeller re-uploads.</div>
+                <div class="bd-return">↩ SC comments → Returns to Step ①</div>
+              </div>
+            </div>
+
+            <!-- arrow -->
+            <div class="bd-arrow-down" style="grid-column:1;grid-row:6;">▼</div>
+            <div style="grid-column:2 / span 2;grid-row:6;display:flex;align-items:center;padding-left:6px;font-size:11.5px;color:#64748b;font-style:italic;">SC done (or no SC in unit)</div>
+
+            <!-- STEP 3: Ready for GL -->
+            <div class="bd-box bd-sky" style="grid-column:1;grid-row:7;">
+              <div class="bd-box-title">③ Ready for GL Review</div>
+              <div class="bd-tag">Status: Ready for GL</div>
+              <div class="bd-box-note">GL is notified. Line appears in GL's My Tasks.</div>
+            </div>
+
+            <!-- arrow -->
+            <div class="bd-arrow-down" style="grid-column:1;grid-row:8;">▼</div>
+
+            <!-- STEP 4: GL Decision — 3-way split rendered as full-width -->
+            <div style="grid-column:1 / span 3;grid-row:9;">
+              <div class="bd-gl-section">
+                <div class="bd-gl-section-title">④ GL Reviews — Three Possible Actions</div>
+                <div class="bd-3way">
+
+                  <!-- Approve -->
+                  <div>
+                    <div class="bd-3way-arrow">✓</div>
+                    <div class="bd-3way-box bd-green">
+                      <div class="bd-box-title">Approve → Final</div>
+                      <div class="bd-tag">Status: Final</div>
+                      <div class="bd-box-note" style="margin-top:5px;">Drawing is technically correct. Moves to GL's Final Isometrics folder.</div>
+                    </div>
+                    <div class="bd-3way-arrow" style="margin-top:6px;">▼</div>
+                    <div class="bd-3way-box bd-teal" style="margin-top:0;">
+                      <div class="bd-box-title">Final Isometrics</div>
+                      <div class="bd-box-note">GL selects lines &amp; clicks<br><strong>+ Create Lot</strong></div>
+                    </div>
+                    <div class="bd-3way-arrow" style="margin-top:6px;">▼</div>
+                    <div class="bd-3way-box bd-teal" style="margin-top:0;">
+                      <div class="bd-box-title">Issued Lots</div>
+                      <div class="bd-box-note">Lines grouped in a lot. Visible in sidebar under Job → Unit → Lot N.</div>
+                    </div>
+                  </div>
+
+                  <!-- Comment -->
+                  <div>
+                    <div class="bd-3way-arrow">!</div>
+                    <div class="bd-3way-box bd-orange">
+                      <div class="bd-box-title">Add Comment</div>
+                      <div class="bd-tag">Status: GL Commented</div>
+                      <div class="bd-box-note" style="margin-top:5px;">GL routes comment to PC or SC.</div>
+                    </div>
+                    <div class="bd-3way-arrow" style="margin-top:6px;">▼</div>
+                    <div class="bd-3way-box bd-orange" style="margin-top:0;text-align:left;">
+                      <div class="bd-box-title">PC / SC Responds</div>
+                      <div class="bd-sub-branch" style="margin-left:0;">
+                        <div class="bd-sub-item"><span class="bd-sub-arrow">→</span><span><strong>Send to Modeller</strong> — routes directly for re-upload<div class="bd-return">↩ Returns to Step ①</div></span></div>
+                        <div class="bd-sub-item"><span class="bd-sub-arrow">→</span><span><strong>Edit &amp; Send</strong> — adds notes, then routes to Modeller<div class="bd-return">↩ Returns to Step ①</div></span></div>
+                        <div class="bd-sub-item"><span class="bd-sub-arrow">→</span><span><strong>No Comments / POST</strong> — pushes back toward GL<div class="bd-return">↩ Returns to Step ②</div></span></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- SGL -->
+                  <div>
+                    <div class="bd-3way-arrow">↑</div>
+                    <div class="bd-3way-box bd-purple">
+                      <div class="bd-box-title">Send to SGL</div>
+                      <div class="bd-tag">Status: Ready for SGL</div>
+                      <div class="bd-box-note" style="margin-top:5px;">GL escalates to Senior GL.</div>
+                    </div>
+                    <div class="bd-3way-arrow" style="margin-top:6px;">▼</div>
+                    <div class="bd-3way-box bd-purple" style="margin-top:0;text-align:left;">
+                      <div class="bd-box-title">SGL Reviews</div>
+                      <div class="bd-sub-branch" style="margin-left:0;">
+                        <div class="bd-sub-item"><span class="bd-sub-arrow">→</span><span><strong>Approve</strong> → Status: <span style="color:#16a34a;font-weight:600;">Final</span><br>→ Final Isometrics → Lot</span></div>
+                        <div class="bd-sub-item"><span class="bd-sub-arrow">→</span><span><strong>Comment + Delegate</strong><br>Status: SGL Commented<br>Chosen checker is notified<div class="bd-return">↩ Returns to Step ②</div></span></div>
+                      </div>
+                    </div>
+                  </div>
+
+                </div><!-- /bd-3way -->
+              </div><!-- /bd-gl-section -->
+            </div>
+
+          </div><!-- /bd-diagram -->
+
+          <!-- Legend -->
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:16px;padding:12px 16px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;">
+            <span style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-right:4px;align-self:center;">Status Legend:</span>
+            <span class="badge badge-uploaded">Uploaded</span>
+            <span class="badge badge-review">Under Review</span>
+            <span class="badge badge-comments">Comments Received</span>
+            <span class="badge badge-gl">Ready for GL</span>
+            <span class="badge badge-glcomment">GL Commented</span>
+            <span class="badge badge-sgl">Ready for SGL</span>
+            <span class="badge badge-sgldelg">SGL Commented – Delegated</span>
+            <span class="badge badge-final">Final</span>
+          </div>
+
+        </div><!-- /bd-wrap -->
+
+        <h3 class="sub-heading" style="margin-top:28px;">Step-by-Step Explanation</h3>
+
+        <div class="workflow">
+
+          <!-- Step 1 -->
+          <div class="wf-step">
+            <div class="wf-num wf-blue">1</div>
+            <div class="wf-body">
+              <div class="wf-title">Modeller Uploads ISO &nbsp;<span class="badge badge-uploaded">Uploaded</span></div>
+              <div class="wf-desc">
+                <p>The Modeller uploads the isometric drawing PDF through <strong>Upload ISO</strong>. The system stores the file and creates a drawing record. Status becomes <strong>Uploaded</strong>.</p>
+                <p>All checkers assigned to that project/unit receive a notification in their <strong>Checker Notifications</strong> inbox. The line appears as available to claim.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="wf-step">
+            <div class="wf-num wf-amber">2</div>
+            <div class="wf-body">
+              <div class="wf-title">Checkers Claim &amp; Review &nbsp;<span class="badge badge-review">Under Review</span></div>
+              <div class="wf-desc">
+                <p>
+                  <span class="chip chip-pc">PC</span> and <span class="chip chip-mc">MC</span> see the line in their notifications and claim it.
+                  Once claimed, it appears in their <strong>My Tasks</strong> inbox. Status becomes <strong>Under Review</strong>.
+                </p>
+                <p>When a checker opens a line, they see the drawing details, Line Engineering Data, Inch Dia/Meter, and LMS data. They choose one of four comment options:</p>
+              </div>
+              <div class="wf-branch">
+                <div class="wf-branch-title">Comment Options</div>
+                <div class="wf-branch-row">
+                  <span class="wf-arrow">→</span>
+                  <span><strong>Add Comment</strong> — types a text comment about an issue found</span>
+                </div>
+                <div class="wf-branch-row">
+                  <span class="wf-arrow">→</span>
+                  <span><strong>Upload Commented File</strong> — uploads a marked-up PDF with annotations</span>
+                </div>
+                <div class="wf-branch-row">
+                  <span class="wf-arrow">→</span>
+                  <span><strong>Annotate PDF In-Browser</strong> — opens the ISO in the built-in PDF annotator, saves markups, then posts</span>
+                </div>
+                <div class="wf-branch-row">
+                  <span class="wf-arrow">→</span>
+                  <span><strong>No Comments</strong> — drawing is correct; no changes needed. PC must verify a 6-point safety checklist before this option is accepted</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="wf-step">
+            <div class="wf-num wf-red">3</div>
+            <div class="wf-body">
+              <div class="wf-title">All Checker Claims Completed — Two Paths</div>
+              <div class="wf-desc">
+                <p>Once every checker (PC, MC, and any SC) has submitted their response, the system evaluates:</p>
+              </div>
+              <div class="wf-branch">
+                <div class="wf-branch-title">Path A — Any checker raised a comment</div>
+                <div class="wf-branch-row">
+                  <span class="wf-arrow">→</span>
+                  <span>Status becomes <span class="badge badge-comments">Comments Received</span>. The Modeller is notified to re-upload an incorporated revision. The cycle repeats from Step 1.</span>
+                </div>
+              </div>
+              <div class="wf-branch" style="margin-top: 10px;">
+                <div class="wf-branch-title">Path B — All checkers gave "No Comments"</div>
+                <div class="wf-branch-row">
+                  <span class="wf-arrow">→</span>
+                  <span>
+                    <strong>SC Gate:</strong> If Stress Checkers are assigned to the unit, the system waits for an <span class="chip chip-sc">SC</span> to also submit No Comments before advancing.
+                    PC's "No Comments" automatically notifies the SC pool (or the previous SC if they reviewed this line before).
+                  </span>
+                </div>
+                <div class="wf-branch-row">
+                  <span class="wf-arrow">→</span>
+                  <span>Once SC also submits No Comments (or if no SC is assigned), status becomes <span class="badge badge-gl">Ready for GL</span>. The GL is notified.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 4 -->
+          <div class="wf-step">
+            <div class="wf-num wf-sky">4</div>
+            <div class="wf-body">
+              <div class="wf-title">GL Reviews &nbsp;<span class="badge badge-gl">Ready for GL</span></div>
+              <div class="wf-desc">
+                <p>The <span class="chip chip-gl">GL</span> sees the line in their My Tasks. They open it, review the ISO file and all checker history, and choose one of three actions:</p>
+              </div>
+              <div class="wf-branch">
+                <div class="wf-branch-title">GL Options</div>
+                <div class="wf-branch-row">
+                  <span class="wf-arrow" style="color: #16a34a;">✓</span>
+                  <span><strong>Approve → Final</strong> — drawing is technically correct. Status becomes <span class="badge badge-final">Final</span>. Line moves to GL's Final Isometrics folder. Go to Step 7.</span>
+                </div>
+                <div class="wf-branch-row">
+                  <span class="wf-arrow" style="color: #ea580c;">!</span>
+                  <span><strong>Add Comment (Route to PC or SC)</strong> — GL has a concern. Status becomes <span class="badge badge-glcomment">GL Commented</span>. GL chooses whether to route back to PC or SC. Go to Step 5.</span>
+                </div>
+                <div class="wf-branch-row">
+                  <span class="wf-arrow" style="color: #7c3aed;">↑</span>
+                  <span><strong>Send to SGL</strong> — GL escalates the decision to the Senior Group Leader. Status becomes <span class="badge badge-sgl">Ready for SGL</span>. Go to Step 6.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 5 -->
+          <div class="wf-step">
+            <div class="wf-num wf-orange">5</div>
+            <div class="wf-body">
+              <div class="wf-title">GL Commented — PC or SC Responds &nbsp;<span class="badge badge-glcomment">GL Commented</span></div>
+              <div class="wf-desc">
+                <p>
+                  The PC or SC (whoever GL routed to) gets the line back in their My Tasks. They see the GL comment in the history. They have three options:
+                </p>
+              </div>
+              <div class="wf-branch">
+                <div class="wf-branch-title">PC / SC Response Options</div>
+                <div class="wf-branch-row">
+                  <span class="wf-arrow">→</span>
+                  <span>
+                    <strong>Send to Modeller (Direct)</strong> — PC/SC agrees with GL's comment. The line is routed immediately to the Modeller with status <span class="badge badge-comments">Comments Received</span> for re-upload. The Modeller incorporates all GL and checker comments. Cycle repeats from Step 1.
+                  </span>
+                </div>
+                <div class="wf-branch-row">
+                  <span class="wf-arrow">→</span>
+                  <span>
+                    <strong>Edit &amp; Send to Modeller</strong> — PC/SC adds their own notes (and optionally an edited PDF) before sending to the Modeller. Same outcome as above but with extra guidance for the Modeller.
+                  </span>
+                </div>
+                <div class="wf-branch-row">
+                  <span class="wf-arrow">→</span>
+                  <span>
+                    <strong>Add Comment / No Comments (POST button)</strong> — PC/SC disagrees with GL or has already resolved the concern. Posts their own comment back. If "No Comments" is used, the drawing goes back through the all-done check (Step 3) and may advance back to GL. This is the mechanism for PC/SC to push back to GL with reasoning.
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 6 -->
+          <div class="wf-step">
+            <div class="wf-num wf-purple">6</div>
+            <div class="wf-body">
+              <div class="wf-title">SGL Reviews &nbsp;<span class="badge badge-sgl">Ready for SGL</span></div>
+              <div class="wf-desc">
+                <p>The <span class="chip chip-sgl">SGL</span> sees the line in their My Tasks. They review the full history and choose:</p>
+              </div>
+              <div class="wf-branch">
+                <div class="wf-branch-title">SGL Options</div>
+                <div class="wf-branch-row">
+                  <span class="wf-arrow" style="color: #16a34a;">✓</span>
+                  <span><strong>Approve → Final</strong> — status becomes <span class="badge badge-final">Final</span>. Proceeds to Step 7.</span>
+                </div>
+                <div class="wf-branch-row">
+                  <span class="wf-arrow" style="color: #ea580c;">!</span>
+                  <span><strong>Add Comment</strong> — SGL delegates the comment back to PC, MC, or SC (selectable). Status becomes <span class="badge badge-sgldelg">SGL Commented – Delegated</span>. The chosen checker receives the line for action.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 7 -->
+          <div class="wf-step">
+            <div class="wf-num wf-green">7</div>
+            <div class="wf-body">
+              <div class="wf-title">Final Isometrics &nbsp;<span class="badge badge-final">Final</span></div>
+              <div class="wf-desc">
+                <p>Approved lines appear in the GL's <strong>Final Isometrics</strong> folder with Inch Dia and Inch Meter visible. The GL selects one or more lines (from the same Job/Unit) and clicks <strong>+ Create Lot from Selected</strong>.</p>
+                <p>A confirmation toast shows the lot number, total lines, total Inch Dia, and total Inch Meter. The lines immediately move into the Issued Lots folder.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 8 -->
+          <div class="wf-step">
+            <div class="wf-num wf-teal">8</div>
+            <div class="wf-body">
+              <div class="wf-title">Issued Lots</div>
+              <div class="wf-desc">
+                <p>Issued lots appear in the sidebar under <strong>Issued Lots → Job → Unit → Lot N</strong>. Clicking a lot opens its detail view showing all lines with Rev, Zone, Stress Critical, and date. Each line row is clickable to open the final ISO PDF directly.</p>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /workflow -->
+      </section>
+
+      <!-- ══ 4. ROLE GUIDE ══ -->
+      <section class="section" id="role-guide">
+        <div class="section-eyebrow">Section 4</div>
+        <h2 class="section-title">Role-by-Role <span>Guide</span></h2>
+        <p class="section-lead">Select your role below for a step-by-step guide on what to do when you log in.</p>
+
+        <div class="role-tabs">
+          <button class="role-tab active" onclick="showRolePanel('mod')">Modeller</button>
+          <button class="role-tab" onclick="showRolePanel('pc')">PC / MC</button>
+          <button class="role-tab" onclick="showRolePanel('sc')">Stress Checker</button>
+          <button class="role-tab" onclick="showRolePanel('gl')">Group Leader</button>
+          <button class="role-tab" onclick="showRolePanel('sgl')">Senior GL</button>
+        </div>
+
+        <!-- Modeller -->
+        <div class="role-panel active" id="panel-mod">
+          <h3 class="sub-heading">Modeller — What to do when you log in</h3>
+          <ul class="step-list">
+            <li><span class="step-num">1</span><span>Go to <strong>Inbox → My Tasks</strong>. Any lines showing <span class="badge badge-comments">Comments Received</span> are waiting for you to re-upload a revised drawing.</span></li>
+            <li><span class="step-num">2</span><span>Click the line to open it. Review the History table — all checker and GL comments are listed with their files.</span></li>
+            <li><span class="step-num">3</span><span>Incorporate all comments into your CAD model, produce a new ISO PDF.</span></li>
+            <li><span class="step-num">4</span><span>Go to <strong>Upload ISO</strong> in the left sidebar. Select the correct Job, Unit, Zone, and upload the new PDF. The system auto-increments the upload count (e.g., R0-1 → R0-2).</span></li>
+            <li><span class="step-num">5</span><span>The line returns to the checkers who previously reviewed it. They are notified automatically.</span></li>
+            <li><span class="step-num">6</span><span>To upload a brand-new line for the first time, also use <strong>Upload ISO</strong>. All available checkers will be notified.</span></li>
+          </ul>
+          <div class="info-box info-green" style="margin-top: 14px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            <span>Accepted file format: <strong>PDF only</strong>. Maximum file size: 50 MB.</span>
+          </div>
+        </div>
+
+        <!-- PC / MC -->
+        <div class="role-panel" id="panel-pc">
+          <h3 class="sub-heading">Process Checker / Material Checker — What to do when you log in</h3>
+          <ul class="step-list">
+            <li><span class="step-num">1</span><span>Check <strong>Checker Notifications</strong> in the sidebar for new lines available to claim. Click a line to claim it — it moves to your <strong>My Tasks</strong>.</span></li>
+            <li><span class="step-num">2</span><span>In <strong>My Tasks</strong>, click any claimed line to open the review screen. You will see: Line Engineering Data, Inch Dia/Meter, LMS data, History, and the comment options panel.</span></li>
+            <li><span class="step-num">3</span><span>Review the ISO PDF (click the line row in the task table to open it). Check it against the engineering data shown.</span></li>
+            <li><span class="step-num">4</span><span>If you found issues: select <strong>Add Comment</strong>, <strong>Upload Commented File</strong>, or <strong>Annotate PDF In-Browser</strong>. Select the target Modeller if known. Click <strong>POST</strong>.</span></li>
+            <li><span class="step-num">5</span><span>If the drawing is correct: select <strong>No Comments</strong>. A 6-point safety checklist will appear — tick all items to enable the POST button. Click <strong>POST</strong>.</span></li>
+            <li><span class="step-num">6</span><span>If you need a Stress Check: tick <strong>ISO is good for supporting</strong> and click <strong>Good for Supporting</strong> to notify the SC pool.</span></li>
+            <li><span class="step-num">7</span><span><strong>GL Commented lines:</strong> if a line comes back with <span class="badge badge-glcomment">GL Commented</span> status, you will see an orange action panel at the top. Choose: <em>Send to Modeller</em>, <em>Edit &amp; Send to Modeller</em>, or use the comment options to push back to GL.</span></li>
+          </ul>
+        </div>
+
+        <!-- SC -->
+        <div class="role-panel" id="panel-sc">
+          <h3 class="sub-heading">Stress Checker — What to do when you log in</h3>
+          <ul class="step-list">
+            <li><span class="step-num">1</span><span>Check <strong>Checker Notifications</strong> for lines available for stress check. These are lines where PC has already submitted "No Comments" and the drawing has been flagged for stress review.</span></li>
+            <li><span class="step-num">2</span><span>Claim the line. It appears in <strong>My Tasks</strong>.</span></li>
+            <li><span class="step-num">3</span><span>Open the line and review the ISO. Engineering data and LMS data are shown in the panel.</span></li>
+            <li><span class="step-num">4</span><span>If issues found: use Add Comment, Upload File, or Annotate. Click POST.</span></li>
+            <li><span class="step-num">5</span><span>If the drawing is correct from a stress perspective: select <strong>No Comments</strong>, complete the checklist, click POST. The line then advances to GL.</span></li>
+            <li><span class="step-num">6</span><span><strong>GL Commented lines routed to SC:</strong> same as PC — orange action panel appears. Send to Modeller directly or push back to GL.</span></li>
+          </ul>
+        </div>
+
+        <!-- GL -->
+        <div class="role-panel" id="panel-gl">
+          <h3 class="sub-heading">Group Leader — What to do when you log in</h3>
+          <ul class="step-list">
+            <li><span class="step-num">1</span><span>Check <strong>GL Notifications</strong> and <strong>My Tasks</strong> for lines with status <span class="badge badge-gl">Ready for GL</span>.</span></li>
+            <li><span class="step-num">2</span><span>Click a line to open the GL Review screen. Review the history table (all checker comments are visible), the ISO PDF, and the engineering data strip.</span></li>
+            <li><span class="step-num">3</span><span><strong>If the drawing is technically correct:</strong> click <strong>✓ Approve → Final</strong>. The line moves to your Final Isometrics folder.</span></li>
+            <li><span class="step-num">4</span><span><strong>If you have a comment:</strong> select Add Comment, Upload File, or Annotate PDF. Choose whether to route to <strong>Process Checker</strong> or <strong>Stress Checker</strong>. Click <strong>POST Comments → PC/SC</strong>.</span></li>
+            <li><span class="step-num">5</span><span><strong>If it requires SGL approval:</strong> click <strong>→ Send to SGL</strong>.</span></li>
+            <li><span class="step-num">6</span><span><strong>Creating a lot:</strong> click <strong>Final Isometrics</strong> in the sidebar. Select lines using the checkboxes. Click <strong>+ Create Lot from Selected</strong>. A toast confirms the lot number and inch totals. Lines move to Issued Lots.</span></li>
+            <li><span class="step-num">7</span><span><strong>Viewing issued lots:</strong> expand <strong>Issued Lots</strong> in the sidebar. Navigate to the correct Job → Unit → Lot. Click to view all lines and open their ISO files.</span></li>
+          </ul>
+        </div>
+
+        <!-- SGL -->
+        <div class="role-panel" id="panel-sgl">
+          <h3 class="sub-heading">Senior Group Leader — What to do when you log in</h3>
+          <ul class="step-list">
+            <li><span class="step-num">1</span><span>Check <strong>My Tasks</strong> for lines with status <span class="badge badge-sgl">Ready for SGL</span>. These have been escalated by the GL.</span></li>
+            <li><span class="step-num">2</span><span>Open the line. The full history including the GL's escalation reason is visible.</span></li>
+            <li><span class="step-num">3</span><span><strong>If approved:</strong> click <strong>✓ Approve → Final</strong>. Status becomes <span class="badge badge-final">Final</span>.</span></li>
+            <li><span class="step-num">4</span><span><strong>If comments needed:</strong> select Add Comment or Upload File. Use the <strong>Delegate to Roles</strong> section to choose which checker (PC, MC, or SC) should receive and action the comment. Click POST.</span></li>
+            <li><span class="step-num">5</span><span>The delegated checker is notified and the line appears in their My Tasks for action.</span></li>
+          </ul>
+        </div>
+
+      </section>
+
+      <!-- ══ 5. STATUS REFERENCE ══ -->
+      <section class="section" id="status-ref">
+        <div class="section-eyebrow">Section 5</div>
+        <h2 class="section-title">Status <span>Reference</span></h2>
+        <p class="section-lead">Every drawing has a status that reflects its current position in the workflow. The status is always visible in the task table and in the Track Line modal.</p>
+
+        <table class="status-table">
+          <thead>
+            <tr>
+              <th>Status</th>
+              <th>Meaning</th>
+              <th>Who acts next</th>
+              <th>How it gets here</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="badge badge-uploaded">Uploaded</span></td>
+              <td>Drawing has just been uploaded or re-uploaded</td>
+              <td><span class="chip chip-pc">PC</span> <span class="chip chip-mc">MC</span></td>
+              <td>Modeller uploads a new or revised ISO</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-review">Under Review</span></td>
+              <td>At least one checker has claimed the line</td>
+              <td><span class="chip chip-pc">PC</span> <span class="chip chip-mc">MC</span> <span class="chip chip-sc">SC</span></td>
+              <td>Checker claims from notification pool</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-comments">Comments Received</span></td>
+              <td>Checkers have posted comments; drawing needs revision</td>
+              <td><span class="chip chip-mod">Modeller</span></td>
+              <td>All checkers done; at least one raised a comment</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-gl">Ready for GL</span></td>
+              <td>All checkers gave No Comments; awaiting GL review</td>
+              <td><span class="chip chip-gl">GL</span></td>
+              <td>All active claims completed with No Comments (+ SC gate passed)</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-glcomment">GL Commented</span></td>
+              <td>GL has reviewed and raised a comment</td>
+              <td><span class="chip chip-pc">PC</span> or <span class="chip chip-sc">SC</span></td>
+              <td>GL posts a comment (routed to PC or SC)</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-sgl">Ready for SGL</span></td>
+              <td>GL has escalated the drawing to the SGL</td>
+              <td><span class="chip chip-sgl">SGL</span></td>
+              <td>GL clicks "Send to SGL"</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-sgldelg">SGL Commented – Delegated</span></td>
+              <td>SGL has commented and delegated action to a checker</td>
+              <td><span class="chip chip-pc">PC</span> / <span class="chip chip-mc">MC</span> / <span class="chip chip-sc">SC</span></td>
+              <td>SGL posts comment with delegation</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-final">Final</span></td>
+              <td>Drawing has been approved; ready for lot issuance</td>
+              <td><span class="chip chip-gl">GL</span> (lot creation)</td>
+              <td>GL or SGL clicks "Approve → Final"</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ══ 6. FAQ ══ -->
+      <section class="section" id="faq">
+        <div class="section-eyebrow">Section 6</div>
+        <h2 class="section-title">Frequently Asked <span>Questions</span></h2>
+
+        <div class="faq-item">
+          <div class="faq-q">I don't see any lines in My Tasks. What should I check?</div>
+          <div class="faq-a">
+            First check <strong>Checker Notifications</strong> or <strong>GL Notifications</strong> in the sidebar — new lines that are available to claim appear there, not directly in My Tasks. If you see nothing there either, your role may not be assigned to the relevant project/unit. Contact your SGL to confirm your role assignment under Admin → Projects.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-q">I posted comments but the line is still in my My Tasks.</div>
+          <div class="faq-a">
+            This happens when other checkers have not yet completed their review of the same line. The system waits for <em>all</em> active claims to be completed before advancing the status. Once every checker submits, the line will leave My Tasks automatically.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-q">Where is a specific line right now?</div>
+          <div class="faq-a">
+            Use the <strong>purple search button</strong> (magnifier icon, bottom-right of the screen). Type the Job No and Line No to see the current status, who holds it, lot information, and the last 5 activity entries.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-q">What is Inch Dia and Inch Meter?</div>
+          <div class="faq-a">
+            <strong>Inch Dia</strong> is the nominal pipe diameter expressed in inches. <strong>Inch Meter</strong> is the pipe length in meters weighted by diameter — a measure used for estimating scope and progress. These values are uploaded separately via an Excel file by the project admin. They are shown in the task review screens and in the Final Isometrics table.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-q">What is LMS data?</div>
+          <div class="faq-a">
+            <strong>Line Mounted Summary (LMS)</strong> data contains information about instruments, valves, and other equipment mounted on a specific line. It is uploaded via an Excel file and is visible in the review screen for checkers, GL, and SGL. It helps reviewers verify that all in-line items are correctly shown on the isometric.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-q">A GL Commented line is back in my inbox. What should I do?</div>
+          <div class="faq-a">
+            Open the line from My Tasks. An orange <strong>GL COMMENTED</strong> banner will appear at the top. Read the GL's comment in the History table. Then choose:
+            <ul style="margin: 8px 0 0 18px; font-size: 13.5px; color: #475569;">
+              <li><strong>Send to Modeller</strong> — if GL is right and the drawing needs to change, send it directly to the Modeller for re-upload.</li>
+              <li><strong>Edit &amp; Send to Modeller</strong> — same as above but you can add your own notes for the Modeller before sending.</li>
+              <li><strong>POST with No Comments</strong> — if you believe the drawing is already correct and GL's concern can be addressed without a redraw, post No Comments. This pushes the line back toward GL.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-q">What happens after a lot is created?</div>
+          <div class="faq-a">
+            The selected lines are immediately moved from the Final Isometrics table into the <strong>Issued Lots</strong> sidebar. The lot appears under the correct Job → Unit path. Clicking the lot shows all lines in it. Each line row is clickable to open the final approved ISO PDF directly.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-q">Can a line be in Final Isometrics more than once?</div>
+          <div class="faq-a">
+            No. Once a line is in an issued lot, it is removed from the Final Isometrics view. If the same line is later revised and goes through the workflow again (new revision), it will appear again in Final Isometrics after the new revision is approved.
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+  </div><!-- /page-layout -->
+
+  <script>
+    // Role tab switching
+    function showRolePanel(role) {
+      document.querySelectorAll('.role-tab').forEach(function(t) { t.classList.remove('active'); });
+      document.querySelectorAll('.role-panel').forEach(function(p) { p.classList.remove('active'); });
+      event.target.classList.add('active');
+      var panel = document.getElementById('panel-' + role);
+      if (panel) panel.classList.add('active');
+    }
+
+    // Highlight active TOC item on scroll
+    var sections = document.querySelectorAll('section.section');
+    var tocLinks  = document.querySelectorAll('.toc a');
+
+    function onScroll() {
+      var scrollY = window.scrollY + 100;
+      var active = null;
+      sections.forEach(function(s) {
+        if (s.offsetTop <= scrollY) active = s.id;
+      });
+      tocLinks.forEach(function(a) {
+        a.classList.toggle('active', a.getAttribute('href') === '#' + active);
+      });
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Bundled portable Node runtime (binary, not source)
+backend/node-v22.19.0-win-x64/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Runtime / generated data
+backend/uploads/
+backend/temp/
+backend/batch_input/
+backend/batch_logs/
+IDF/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db

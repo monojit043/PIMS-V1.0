@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Stress Critical Index — PIMS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="css/ll-suite.css"/>
+  <style>
+    :root { --accent:#b45309; --accent-light:rgba(180,83,9,0.08); --accent-border:rgba(180,83,9,0.22); }
+    .ll-topbar-module-icon { background:var(--accent-light); border-color:var(--accent-border); }
+    .ll-topbar-module-icon svg { stroke:var(--accent); }
+    .ll-topbar-module-badge { background:var(--accent-light); color:var(--accent); border-color:var(--accent-border); }
+    .ll-bc-curr { color:var(--accent); }
+    .ll-bc-tag  { background:var(--accent-light); border-color:var(--accent-border); color:var(--accent); }
+    .ll-bc-tag svg { stroke:var(--accent); }
+    .ll-card-icon.amber { background:var(--accent-light); border-color:var(--accent-border); }
+    .ll-card-icon.amber svg { stroke:var(--accent); }
+    .btn-accent { background:var(--accent); color:#fff; box-shadow:0 2px 8px rgba(180,83,9,0.3); }
+    .btn-accent:hover { background:#92400e; }
+    .btn-accent:disabled { opacity:.45; cursor:default; box-shadow:none; }
+
+    .two-col { display:grid; grid-template-columns:420px 1fr; gap:1.5rem; align-items:start; }
+    @media(max-width:960px){ .two-col { grid-template-columns:1fr; } }
+    .entry-card { position:sticky; top:1rem; }
+
+    .sc-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:.75rem; margin-bottom:1.5rem; }
+    @media(max-width:600px){ .sc-stats { grid-template-columns:1fr 1fr; } }
+    .sc-stat { background:var(--accent-light); border:1px solid var(--accent-border); border-radius:var(--radius); padding:.9rem 1rem; display:flex; flex-direction:column; gap:4px; }
+    .sc-stat-val { font-size:22px; font-weight:800; color:var(--accent); }
+    .sc-stat-lbl { font-size:11px; color:var(--text-muted); font-weight:500; text-transform:uppercase; letter-spacing:.03em; }
+
+    .upload-zone { border:2px dashed var(--border); border-radius:var(--radius); padding:1.8rem 1.5rem; text-align:center; cursor:pointer; transition:border-color .15s,background .15s; margin-top:1rem; }
+    .upload-zone:hover,.upload-zone.drag-over { border-color:var(--accent); background:var(--accent-light); }
+    .upload-zone-icon { width:34px; height:34px; stroke:var(--text-muted); margin:0 auto .65rem; display:block; }
+    .upload-zone-title { font-size:13px; font-weight:600; color:var(--text-secondary); }
+    .upload-zone-sub   { font-size:11.5px; color:var(--text-muted); margin-top:4px; }
+    .zone-file-name    { display:inline-block; margin-top:8px; font-size:13px; font-weight:600; color:var(--accent); }
+
+    #resultArea { display:none; margin-top:1rem; }
+    .result-banner { display:flex; align-items:flex-start; gap:12px; padding:13px 16px; border-radius:var(--radius); font-size:13px; font-weight:500; }
+    .result-banner.success { background:rgba(22,163,74,.09); color:#14532d; border:1px solid rgba(22,163,74,.22); }
+    .result-banner.error   { background:rgba(220,38,38,.09); color:#7f1d1d; border:1px solid rgba(220,38,38,.22); }
+    .result-banner svg { width:17px; height:17px; flex-shrink:0; margin-top:1px; }
+
+    .readonly-notice { background:#fffbeb; border:1px solid #fcd34d; border-radius:var(--radius); padding:10px 16px; font-size:13px; color:#78350f; margin-top:1rem; display:flex; align-items:center; gap:8px; }
+
+    #previewSection { display:none; margin-top:1.5rem; }
+    .preview-chips { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:1rem; }
+    .chip { display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:600; padding:4px 12px; border-radius:20px; border:1px solid; }
+    .chip-new       { background:#f0fdf4; color:#16a34a; border-color:#86efac; }
+    .chip-changed   { background:#fff7ed; color:#c2410c; border-color:#fdba74; }
+    .chip-unchanged { background:#f8fafc; color:#64748b; border-color:#e2e8f0; }
+    .chip-removed   { background:#fef2f2; color:#dc2626; border-color:#fca5a5; }
+    .chip-notfound  { background:#eff6ff; color:#2563eb; border-color:#93c5fd; }
+
+    .preview-table { width:100%; border-collapse:collapse; font-size:12.5px; }
+    .preview-table th { padding:8px 12px; font-size:11px; font-weight:600; text-align:left; background:var(--gray-100); color:var(--text-muted); border-bottom:1px solid var(--border); white-space:nowrap; position:sticky; top:0; z-index:1; }
+    .preview-table td { padding:8px 12px; border-bottom:1px solid var(--gray-100); }
+    .preview-table tbody tr:last-child td { border-bottom:none; }
+
+    .pr-new       { background:rgba(22,163,74,.04); }
+    .pr-changed   { background:rgba(234,88,12,.05); }
+    .pr-removed   { background:rgba(220,38,38,.04); }
+    .pr-unchanged { opacity:.65; }
+
+    .action-tag { display:inline-block; font-size:11px; font-weight:700; padding:2px 7px; border-radius:4px; white-space:nowrap; }
+    .at-new       { background:#dcfce7; color:#15803d; }
+    .at-changed   { background:#ffedd5; color:#c2410c; }
+    .at-removed   { background:#fee2e2; color:#dc2626; }
+    .at-unchanged { background:#f1f5f9; color:#64748b; }
+    .at-notfound  { background:#dbeafe; color:#1d4ed8; }
+
+    .sys-arrow { color:#94a3b8; margin:0 4px; font-size:11px; }
+    .sys-old   { text-decoration:line-through; color:#94a3b8; }
+    .sys-new   { color:#c2410c; font-weight:700; }
+
+    .tbl-outer { overflow-x:auto; border-radius:var(--radius); }
+    .tbl-outer::-webkit-scrollbar { width:4px; height:4px; }
+    .tbl-outer::-webkit-scrollbar-thumb { background:var(--gray-300); border-radius:2px; }
+    .sc-table { width:100%; border-collapse:collapse; font-size:12.5px; white-space:nowrap; }
+    .sc-table th { padding:8px 12px; font-size:11px; font-weight:600; text-align:left; background:var(--gray-100); color:var(--text-muted); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:1; }
+    .sc-table td { padding:8px 12px; border-bottom:1px solid var(--gray-100); }
+    .sc-table tbody tr:last-child td { border-bottom:none; }
+    .sc-table tbody tr:hover { background:var(--accent-light); }
+    .sc-line-no { font-weight:700; color:var(--accent); font-family:monospace; font-size:12px; }
+    .sc-sys-badge { display:inline-block; background:var(--accent-light); color:var(--accent); font-size:11px; font-weight:600; padding:1px 7px; border-radius:4px; border:1px solid var(--accent-border); }
+
+    .hist-table { width:100%; border-collapse:collapse; font-size:13px; }
+    .hist-table th { padding:9px 14px; font-size:11.5px; font-weight:600; text-align:left; background:var(--gray-100); color:var(--text-muted); border-bottom:1px solid var(--border); white-space:nowrap; }
+    .hist-table td { padding:10px 14px; border-bottom:1px solid var(--gray-100); }
+    .hist-table tbody tr:last-child td { border-bottom:none; }
+    .hist-table tbody tr:hover { background:var(--accent-light); }
+    .empty-hint { text-align:center; padding:36px; color:var(--text-muted); font-size:13px; }
+  </style>
+</head>
+<body>
+<div class="ll-shell">
+
+  <header class="ll-topbar">
+    <a class="ll-topbar-logo" href="dashboard.html">
+      <div class="ll-topbar-brand">
+        <span class="ll-topbar-name">PIMS</span>
+        <span class="ll-topbar-sub">Piping Isometrics</span>
+      </div>
+    </a>
+    <div class="ll-topbar-div"></div>
+    <div class="ll-topbar-module">
+      <div class="ll-topbar-module-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+      </div>
+      <span class="ll-topbar-module-name">Stress Critical Index</span>
+      <span class="ll-topbar-module-badge" id="topBadge">No data</span>
+    </div>
+    <div class="ll-topbar-spacer"></div>
+    <button class="btn btn-outline" id="exportBtn" disabled
+      style="background:rgba(255,255,255,0.07);border-color:rgba(255,255,255,0.12);color:rgba(255,255,255,0.7);font-size:12.5px;"
+      onclick="doExport()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      Export Excel
+    </button>
+    <button class="ll-back-btn" onclick="history.back()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      Back
+    </button>
+  </header>
+
+  <div class="ll-breadbar">
+    <span class="ll-bc-item">PIMS</span><span class="ll-bc-sep">›</span>
+    <span class="ll-bc-item">Tools</span><span class="ll-bc-sep">›</span>
+    <span class="ll-bc-curr">Stress Critical Index</span>
+    <div class="ll-bc-spacer"></div>
+    <div class="ll-bc-tag">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:11px;height:11px;">
+        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+      </svg>
+      <span id="countTag">No project selected</span>
+    </div>
+  </div>
+
+  <main class="ll-main">
+
+    <div class="sc-stats">
+      <div class="sc-stat"><span class="sc-stat-val" id="statLines">—</span><span class="sc-stat-lbl">Critical Lines</span></div>
+      <div class="sc-stat"><span class="sc-stat-val" id="statSystems">—</span><span class="sc-stat-lbl">Stress Systems</span></div>
+      <div class="sc-stat"><span class="sc-stat-val" id="statDate">—</span><span class="sc-stat-lbl">Last Upload</span></div>
+    </div>
+
+    <div class="two-col">
+
+      <!-- LEFT: Upload card -->
+      <div class="ll-card entry-card">
+        <div class="ll-card-header">
+          <div class="ll-card-icon amber">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </div>
+          <div>
+            <div class="ll-card-title">Stress Critical Index</div>
+            <div class="ll-card-sub">Upload stress analysis Excel · preview changes · apply</div>
+          </div>
+        </div>
+        <div class="ll-card-body">
+
+          <div style="display:flex;gap:12px;flex-wrap:wrap;">
+            <div class="form-group" style="flex:1;min-width:140px;">
+              <label class="form-label">Job No.</label>
+              <select class="form-select" id="jobSel"><option value="">— select —</option></select>
+            </div>
+            <div class="form-group" style="flex:1;min-width:140px;">
+              <label class="form-label">Unit No.</label>
+              <select class="form-select" id="unitSel" disabled><option value="">— select —</option></select>
+            </div>
+          </div>
+
+          <div id="uploadSection">
+            <div class="upload-zone" id="dropZone" onclick="document.getElementById('filePicker').click()">
+              <svg class="upload-zone-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
+                <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+              </svg>
+              <div class="upload-zone-title">Drop stress analysis Excel here or click to browse</div>
+              <div class="upload-zone-sub">Detects Line No and Stress System columns automatically</div>
+              <span class="zone-file-name" id="zoneFileName" style="display:none"></span>
+              <input type="file" id="filePicker" accept=".xlsx,.xls,.csv" style="display:none"/>
+            </div>
+            <div style="margin-top:1rem;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+              <button class="btn btn-accent" id="previewBtn" disabled onclick="doPreview()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;">
+                  <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+                </svg>
+                Preview Changes
+              </button>
+              <button class="btn btn-outline" onclick="clearUpload()">✕ Clear</button>
+              <span id="previewSpinner" style="display:none;font-size:12.5px;color:var(--text-muted)">⏳ Analysing…</span>
+            </div>
+          </div>
+
+          <div class="readonly-notice" id="readonlyNotice" style="display:none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;flex-shrink:0;">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            View only — uploads require Stress Checker, GL, or SGL role.
+          </div>
+
+          <div id="resultArea"></div>
+
+        </div>
+      </div>
+
+      <!-- RIGHT: Current index table -->
+      <div style="display:flex;flex-direction:column;gap:1rem;">
+        <div class="ll-card">
+          <div class="ll-card-body" style="padding:.9rem 1.25rem;">
+            <div class="search-row">
+              <div class="search-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                <input class="search-input" id="scSearch" type="text" placeholder="Search line no, system…" oninput="renderTable()">
+              </div>
+              <button class="btn btn-outline btn-sm" onclick="if(_currentJob&&_currentUnit)loadData(_currentJob,_currentUnit)" style="flex-shrink:0;">↺ Refresh</button>
+            </div>
+          </div>
+        </div>
+        <div class="ll-card">
+          <div class="ll-card-body no-pad">
+            <div class="tbl-outer" style="max-height:55vh;">
+              <table class="sc-table">
+                <thead id="scThead">
+                  <tr><th colspan="3"><div class="empty-state" style="padding:2.5rem;"><h3 style="font-size:15px;">Select a project &amp; unit</h3></div></th></tr>
+                </thead>
+                <tbody id="scTbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Preview section — revealed after Preview clicked -->
+    <div id="previewSection">
+      <div class="ll-card">
+        <div class="ll-card-header">
+          <div>
+            <div class="ll-card-title">Preview Changes</div>
+            <div class="ll-card-sub" id="previewSubtitle"></div>
+          </div>
+          <div class="ll-card-actions" style="display:flex;align-items:center;gap:8px;">
+            <span id="applySpinner" style="display:none;font-size:12.5px;color:var(--text-muted);">⏳ Applying…</span>
+            <button class="btn btn-outline btn-sm" onclick="cancelPreview()">Cancel</button>
+            <button class="btn btn-accent" id="applyBtn" onclick="doApply()">Apply Changes</button>
+          </div>
+        </div>
+        <div class="ll-card-body">
+          <div class="preview-chips" id="previewChips"></div>
+          <div class="tbl-outer" style="max-height:45vh;">
+            <table class="preview-table">
+              <thead>
+                <tr>
+                  <th>Line No (Raw)</th><th>Extracted</th><th>Stress System</th>
+                  <th>In Drawings</th><th>Current SC</th><th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="previewTbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- History -->
+    <div class="ll-card" style="margin-top:1.5rem;">
+      <div class="ll-card-header">
+        <div class="ll-card-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <path d="M3 9h18M3 15h18M9 3v18"/>
+          </svg>
+        </div>
+        <div><div class="ll-card-title">Upload History</div><div class="ll-card-sub">Current stress index per job / unit</div></div>
+        <div class="ll-card-actions"><button class="btn btn-outline btn-sm" onclick="loadHistory()">↺ Refresh</button></div>
+      </div>
+      <div class="ll-card-body no-pad">
+        <table class="hist-table">
+          <thead><tr><th>Job No.</th><th>Unit No.</th><th>Critical Lines</th><th>Systems</th><th>Last Upload</th><th></th></tr></thead>
+          <tbody id="histBody"><tr><td colspan="6" class="empty-hint">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let _canUpload    = false;
+let _projectsList = [];
+let _dbRows       = [];
+let _dynHeaders   = [];
+let _currentJob   = null;
+let _currentUnit  = null;
+let _pickedFile   = null;
+
+const esc = s => String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+/* ── Auth ── */
+(async () => {
+  try {
+    const r = await fetch('/api/me');
+    if (!r.ok) { window.location.href = '/index.html'; return; }
+    const d = await r.json();
+    _canUpload = (d.roles||[]).some(role => ['Stress Checker','GL','SGL'].includes(role));
+    document.getElementById('uploadSection').style.display  = _canUpload ? 'block' : 'none';
+    document.getElementById('readonlyNotice').style.display = _canUpload ? 'none'  : 'block';
+  } catch { window.location.href = '/index.html'; }
+})();
+
+/* ── Init ── */
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadProjects();
+  loadHistory();
+  setupDragDrop();
+  document.getElementById('filePicker').addEventListener('change', e => {
+    if (e.target.files[0]) setFile(e.target.files[0]);
+  });
+});
+
+async function loadProjects() {
+  try {
+    const r = await fetch('/api/projects/assigned');
+    const d = await r.json();
+    _projectsList = d.projects ?? [];
+    const sel = document.getElementById('jobSel');
+    _projectsList.forEach(p => {
+      const o = document.createElement('option');
+      o.value = p.id; o.textContent = p.name; sel.appendChild(o);
+    });
+  } catch {}
+  document.getElementById('jobSel').addEventListener('change',  onJobChange);
+  document.getElementById('unitSel').addEventListener('change', onUnitChange);
+}
+
+function onJobChange() {
+  const jobSel  = document.getElementById('jobSel');
+  const unitSel = document.getElementById('unitSel');
+  unitSel.innerHTML = '<option value="">— select —</option>';
+  unitSel.disabled  = true;
+  _currentJob = jobSel.value || null; _currentUnit = null;
+  _dbRows = []; _dynHeaders = [];
+  checkReady(); renderTable(); updateStats();
+  const proj = _projectsList.find(p => String(p.id) === jobSel.value);
+  if (!proj || !Array.isArray(proj.units)) return;
+  [...proj.units].sort().forEach(u => {
+    const o = document.createElement('option'); o.value=u; o.textContent=u; unitSel.appendChild(o);
+  });
+  unitSel.disabled = false;
+}
+
+function onUnitChange() {
+  _currentUnit = document.getElementById('unitSel').value || null;
+  checkReady();
+  if (_currentJob && _currentUnit) loadData(_currentJob, _currentUnit);
+}
+
+/* ── Load data ── */
+async function loadData(jobNo, unitNo) {
+  document.getElementById('scThead').innerHTML =
+    '<tr><th colspan="3" style="text-align:center;padding:20px;color:var(--text-muted)">Loading…</th></tr>';
+  document.getElementById('scTbody').innerHTML = '';
+  try {
+    const r = await fetch(`/api/stress-index/data?project=${encodeURIComponent(jobNo)}&unit=${encodeURIComponent(unitNo)}`);
+    const d = await r.json();
+    if (!d.ok) { showToast('Failed to load stress index','error'); return; }
+    _dbRows = d.rows || [];
+    const kSet = new Set(); const keys = [];
+    _dbRows.forEach(row => {
+      if (row.rowData) Object.keys(row.rowData).forEach(k => { if(!kSet.has(k)){kSet.add(k);keys.push(k);} });
+    });
+    _dynHeaders = keys;
+    renderTable(); updateStats();
+    document.getElementById('exportBtn').disabled = (_dbRows.length === 0);
+  } catch { showToast('Network error','error'); }
+}
+
+function renderTable() {
+  const q     = (document.getElementById('scSearch').value||'').toLowerCase();
+  const thead = document.getElementById('scThead');
+  const tbody = document.getElementById('scTbody');
+  if (!_currentJob || !_currentUnit) {
+    thead.innerHTML = '<tr><th colspan="3"><div class="empty-state" style="padding:2.5rem;"><h3 style="font-size:15px;">Select a project &amp; unit</h3></div></th></tr>';
+    tbody.innerHTML = '';
+    document.getElementById('countTag').textContent = 'No project selected';
+    return;
+  }
+  const filtered = _dbRows.filter(row => {
+    if (!q) return true;
+    return [row.lineNo, row.stressSystem, ...Object.values(row.rowData||{})].join(' ').toLowerCase().includes(q);
+  });
+  document.getElementById('countTag').textContent =
+    `${filtered.length} of ${_dbRows.length} critical line${_dbRows.length!==1?'s':''}`;
+  thead.innerHTML = `<tr>
+    <th style="width:38px;">#</th>
+    <th style="min-width:160px;">Line No</th>
+    <th style="min-width:110px;">Stress System</th>
+    ${_dynHeaders.map(h=>`<th>${esc(h)}</th>`).join('')}
+  </tr>`;
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="${3+_dynHeaders.length}"><div class="empty-state" style="padding:2rem;">
+      <h3>${_dbRows.length?'No matches':'No data'}</h3>
+      <p>${_dbRows.length?'Clear search to see all.':'Upload a stress analysis Excel file.'}</p>
+    </div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = filtered.map((row,i) => {
+    const dynCells = _dynHeaders.map(h => {
+      const v = row.rowData?.[h];
+      if (v==null||v==='') return '<td style="color:var(--text-muted)">—</td>';
+      if (!isNaN(v)&&String(v).trim()!=='') return `<td style="text-align:right;">${Number(v).toLocaleString(undefined,{maximumFractionDigits:3})}</td>`;
+      return `<td>${esc(String(v))}</td>`;
+    }).join('');
+    return `<tr>
+      <td style="color:var(--text-muted);font-size:11px;">${i+1}</td>
+      <td><span class="sc-line-no">${esc(row.lineNo||'—')}</span></td>
+      <td>${row.stressSystem?`<span class="sc-sys-badge">${esc(row.stressSystem)}</span>`:'<span style="color:var(--text-muted)">—</span>'}</td>
+      ${dynCells}
+    </tr>`;
+  }).join('');
+}
+
+function updateStats() {
+  if (!_dbRows.length) {
+    ['statLines','statSystems','statDate'].forEach(id => { document.getElementById(id).textContent='—'; });
+    document.getElementById('topBadge').textContent = 'No data'; return;
+  }
+  const systems = new Set(_dbRows.map(r=>r.stressSystem).filter(Boolean)).size;
+  const latest  = _dbRows.reduce((d,r)=>{ const t=r.uploadedAt?new Date(r.uploadedAt):null; return(!d||(t&&t>d))?t:d; },null);
+  document.getElementById('statLines').textContent   = _dbRows.length.toLocaleString();
+  document.getElementById('statSystems').textContent = systems.toLocaleString();
+  document.getElementById('statDate').textContent    = latest
+    ? latest.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+  document.getElementById('topBadge').textContent = `${_dbRows.length} Critical Line${_dbRows.length!==1?'s':''}`;
+}
+
+/* ── File handling ── */
+function setupDragDrop() {
+  const zone = document.getElementById('dropZone');
+  zone.addEventListener('dragover', e=>{ e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', ()=> zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e=>{ e.preventDefault(); zone.classList.remove('drag-over'); const f=e.dataTransfer.files[0]; if(f)setFile(f); });
+}
+
+function setFile(f) {
+  _pickedFile = f;
+  const el = document.getElementById('zoneFileName');
+  el.textContent = f.name; el.style.display = 'inline-block';
+  checkReady();
+}
+
+function checkReady() {
+  document.getElementById('previewBtn').disabled = !(_currentJob && _currentUnit && _pickedFile && _canUpload);
+}
+
+function clearUpload() {
+  document.getElementById('filePicker').value = '';
+  document.getElementById('zoneFileName').style.display = 'none';
+  document.getElementById('resultArea').style.display   = 'none';
+  document.getElementById('resultArea').innerHTML        = '';
+  _pickedFile = null; cancelPreview(); checkReady();
+}
+
+/* ── Preview ── */
+async function doPreview() {
+  const btn = document.getElementById('previewBtn');
+  const spin = document.getElementById('previewSpinner');
+  btn.disabled = true; spin.style.display = 'inline'; cancelPreview();
+  try {
+    const fd = new FormData();
+    fd.append('jobNo',  _currentJob);
+    fd.append('unitNo', _currentUnit);
+    fd.append('file',   _pickedFile);
+    const r = await fetch('/api/stress-index/preview', { method:'POST', body:fd });
+    const d = await r.json();
+    if (!d.ok) { showResult('error', d.error||'Preview failed'); return; }
+    renderPreview(d);
+    document.getElementById('previewSection').style.display = 'block';
+    document.getElementById('previewSection').scrollIntoView({ behavior:'smooth', block:'start' });
+  } catch(err) { showResult('error', 'Network error: '+err.message); }
+  finally { btn.disabled=false; spin.style.display='none'; checkReady(); }
+}
+
+function renderPreview(d) {
+  const { preview, summary } = d;
+  document.getElementById('previewSubtitle').textContent =
+    `${summary.total} lines · Line col: "${summary.lineColumn}"` +
+    (summary.systemColumn ? ` · System col: "${summary.systemColumn}"` : ' · no system column') +
+    ` · header row ${summary.headerRow}`;
+
+  document.getElementById('previewChips').innerHTML = [
+    summary.new           ? `<span class="chip chip-new">↑ ${summary.new} New</span>` : '',
+    summary.systemChanged ? `<span class="chip chip-changed">⚠ ${summary.systemChanged} System Changed</span>` : '',
+    summary.unchanged     ? `<span class="chip chip-unchanged">— ${summary.unchanged} Unchanged</span>` : '',
+    summary.removed       ? `<span class="chip chip-removed">↓ ${summary.removed} Removed</span>` : '',
+    summary.notInDrawings ? `<span class="chip chip-notfound">ℹ ${summary.notInDrawings} Not in Drawings</span>` : '',
+  ].join('');
+
+  const AM = {
+    new:            { cls:'pr-new',       tag:'at-new',       lbl:'↑ New — Set Y' },
+    system_changed: { cls:'pr-changed',   tag:'at-changed',   lbl:'⚠ System Changed' },
+    unchanged:      { cls:'pr-unchanged', tag:'at-unchanged', lbl:'— No change' },
+    removed:        { cls:'pr-removed',   tag:'at-removed',   lbl:'↓ Removed — Set N' },
+  };
+
+  document.getElementById('previewTbody').innerHTML = preview.map(row => {
+    const m = AM[row.action] || { cls:'', tag:'at-unchanged', lbl:row.action };
+    let sysCell;
+    if (row.action === 'system_changed') {
+      sysCell = `<span class="sys-old">${esc(row.currentSystem||'—')}</span><span class="sys-arrow">→</span><span class="sys-new">${esc(row.stressSystem||'—')}</span>`;
+    } else if (row.action === 'removed') {
+      sysCell = `<span style="color:#dc2626;text-decoration:line-through;">${esc(row.currentSystem||'—')}</span>`;
+    } else {
+      sysCell = esc(row.stressSystem || row.currentSystem || '—');
+    }
+    const noDrawBadge = !row.inDrawings
+      ? ' <span class="action-tag at-notfound" style="font-size:10px;">no drawing</span>' : '';
+    return `<tr class="${m.cls}">
+      <td style="font-family:monospace;font-size:12px;">${esc(row.lineNoRaw)}</td>
+      <td style="font-weight:600;color:var(--accent);font-family:monospace;font-size:12px;">${esc(row.lineNo)}</td>
+      <td>${sysCell}</td>
+      <td>${row.inDrawings?'<span style="color:#16a34a;font-size:13px;">✓</span>':'<span style="color:#dc2626;font-size:13px;">✗</span>'}</td>
+      <td>${row.currentSC||'—'}</td>
+      <td><span class="action-tag ${m.tag}">${m.lbl}</span>${noDrawBadge}</td>
+    </tr>`;
+  }).join('');
+}
+
+function cancelPreview() {
+  document.getElementById('previewSection').style.display = 'none';
+  document.getElementById('previewTbody').innerHTML = '';
+  document.getElementById('previewChips').innerHTML = '';
+}
+
+/* ── Apply ── */
+async function doApply() {
+  if (!_pickedFile || !_currentJob || !_currentUnit) return;
+  const btn  = document.getElementById('applyBtn');
+  const spin = document.getElementById('applySpinner');
+  btn.disabled = true; spin.style.display = 'inline';
+  try {
+    const fd = new FormData();
+    fd.append('jobNo',  _currentJob);
+    fd.append('unitNo', _currentUnit);
+    fd.append('file',   _pickedFile);
+    const r = await fetch('/api/stress-index/apply', { method:'POST', body:fd });
+    const d = await r.json();
+    if (d.ok) {
+      const msg = `✓ <strong>${d.inserted}</strong> critical lines saved for <strong>${esc(_currentJob)}</strong> / <strong>${esc(_currentUnit)}</strong>` +
+        (d.setY ? ` &nbsp;·&nbsp; ${d.setY} drawing${d.setY!==1?'s':''} set critical` : '') +
+        (d.setN ? ` &nbsp;·&nbsp; ${d.setN} drawing${d.setN!==1?'s':''} reset non-critical` : '');
+      showResult('success', msg);
+      cancelPreview(); clearUpload();
+      loadData(_currentJob, _currentUnit);
+      loadHistory();
+    } else {
+      showResult('error', d.error||'Apply failed');
+    }
+  } catch(err) { showResult('error','Network error: '+err.message); }
+  finally { btn.disabled=false; spin.style.display='none'; }
+}
+
+/* ── Export ── */
+async function doExport() {
+  if (!_currentJob||!_currentUnit) return;
+  const btn = document.getElementById('exportBtn');
+  const orig = btn.innerHTML; btn.disabled=true; btn.textContent='…';
+  try {
+    const url = `/api/stress-index/export?project=${encodeURIComponent(_currentJob)}&unit=${encodeURIComponent(_currentUnit)}`;
+    const r = await fetch(url);
+    if (!r.ok) { showToast('Export failed','error'); return; }
+    const blob = await r.blob();
+    const cd   = r.headers.get('Content-Disposition')||'';
+    const fn   = (cd.match(/filename="([^"]+)"/))||[,''];
+    const a = Object.assign(document.createElement('a'),{href:URL.createObjectURL(blob),download:fn[1]||`StressIndex_${_currentJob}_${_currentUnit}.xlsx`});
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(a.href); showToast('Exported','success');
+  } catch(err) { showToast('Error: '+err.message,'error'); }
+  finally { btn.disabled=false; btn.innerHTML=orig; }
+}
+
+/* ── History ── */
+async function loadHistory() {
+  const tbody = document.getElementById('histBody');
+  try {
+    const r = await fetch('/api/stress-index/summary');
+    const d = await r.json();
+    if (!d.ok||!d.data.length) {
+      tbody.innerHTML='<tr><td colspan="6" class="empty-hint">No stress index data stored yet.</td></tr>'; return;
+    }
+    tbody.innerHTML = d.data.map(row => {
+      const date = row.uploaded_at
+        ? new Date(row.uploaded_at).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+      return `<tr>
+        <td><strong>${esc(row.job_no)}</strong></td>
+        <td>${esc(row.unit_no)}</td>
+        <td>${Number(row.total_lines).toLocaleString()}</td>
+        <td>${Number(row.systems).toLocaleString()}</td>
+        <td style="color:var(--text-muted);">${date}</td>
+        <td><div style="display:flex;gap:6px;">
+          <button class="btn btn-outline btn-sm sc-view-btn" data-job="${esc(row.job_no)}" data-unit="${esc(row.unit_no)}" style="display:inline-flex;align-items:center;gap:5px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>View
+          </button>
+          <button class="btn btn-outline btn-sm sc-dl-btn" data-job="${esc(row.job_no)}" data-unit="${esc(row.unit_no)}" style="display:inline-flex;align-items:center;gap:5px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download
+          </button>
+        </div></td>
+      </tr>`;
+    }).join('');
+  } catch { tbody.innerHTML='<tr><td colspan="6" class="empty-hint">Failed to load history.</td></tr>'; }
+}
+
+document.addEventListener('click', async e => {
+  const vb = e.target.closest('.sc-view-btn');
+  if (vb) {
+    const job=vb.dataset.job, unit=vb.dataset.unit;
+    _currentJob=job; _currentUnit=unit;
+    const jobSel=document.getElementById('jobSel');
+    if (jobSel.value!==job){jobSel.value=job; onJobChange();}
+    setTimeout(()=>{ document.getElementById('unitSel').value=unit; _currentUnit=unit; loadData(job,unit); document.getElementById('exportBtn').disabled=false; document.querySelector('.two-col').scrollIntoView({behavior:'smooth',block:'start'}); },50);
+    return;
+  }
+  const db = e.target.closest('.sc-dl-btn');
+  if (db) {
+    const job=db.dataset.job, unit=db.dataset.unit;
+    const orig=db.innerHTML; db.disabled=true; db.textContent='…';
+    try {
+      const url=`/api/stress-index/export?project=${encodeURIComponent(job)}&unit=${encodeURIComponent(unit)}`;
+      const r=await fetch(url); if(!r.ok){showToast('Export failed','error');return;}
+      const blob=await r.blob(); const cd=r.headers.get('Content-Disposition')||'';
+      const fn=(cd.match(/filename="([^"]+)"/))||[,`StressIndex_${job}_${unit}.xlsx`];
+      const a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(blob),download:fn[1]});
+      document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(a.href);
+      showToast('Downloaded: '+fn[1],'success');
+    } catch(err){showToast('Error: '+err.message,'error');}
+    finally{db.disabled=false;db.innerHTML=orig;}
+  }
+});
+
+function showResult(type, msg) {
+  const area=document.getElementById('resultArea'); area.style.display='block';
+  area.innerHTML=`<div class="result-banner ${type}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      ${type==='success'?'<polyline points="20 6 9 17 4 12"/>':'<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>'}
+    </svg><div>${msg}</div></div>`;
+}
+
+function showToast(msg,type) {
+  const t=document.getElementById('toast'); t.textContent=msg;
+  t.className='toast show'+(type&&type!=='info'?' '+type:'');
+  clearTimeout(t._tmr); t._tmr=setTimeout(()=>t.classList.remove('show'),3200);
+}
+</script>
+</body>
+</html>

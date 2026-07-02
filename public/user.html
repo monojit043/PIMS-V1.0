@@ -1422,7 +1422,9 @@
               <h2 class="panel-title">Final <em>Isometrics</em></h2>
             </div>
           </div>
-          <div style="display:flex; justify-content:flex-end; margin-bottom:0.6rem;">
+          <div style="display:flex; justify-content:flex-end; align-items:center; gap:10px; margin-bottom:0.6rem;">
+            <span class="lines-chip" id="final-iso-total-count" style="display:none;"></span>
+            <span class="lines-chip" id="final-iso-selected-count" style="display:none;"></span>
             <button id="create-lot-btn" class="post-btn" style="opacity:0.4;cursor:not-allowed;" disabled onclick="createLotFromSelection()">
               Issue Lot
             </button>
@@ -1431,7 +1433,7 @@
             <table class="data-table">
               <thead>
                 <tr>
-                  <th>Select</th>
+                  <th style="text-align:center;width:36px;"><input type="checkbox" id="final-iso-select-all" title="Select all" onchange="toggleAllFinalIso(this)"></th>
                   <th>Job No</th>
                   <th>Unit No</th>
                   <th>Line No.</th>
@@ -4107,6 +4109,17 @@
         var container = document.getElementById('final-isometrics-table-container');
         var tbody = container.querySelector('.data-table tbody');
         inchMap = inchMap || {};
+
+        var totalCountEl = document.getElementById('final-iso-total-count');
+        if (totalCountEl) {
+          if (!tasks || tasks.length === 0) {
+            totalCountEl.style.display = 'none';
+          } else {
+            totalCountEl.textContent = tasks.length + (tasks.length === 1 ? ' line' : ' lines');
+            totalCountEl.style.display = '';
+          }
+        }
+
         if (!tasks || tasks.length === 0) {
           tbody.innerHTML = '<tr><td colspan="12" class="empty-td">No Final Isometrics available.</td></tr>';
           return;
@@ -4454,12 +4467,35 @@
 
       // ── Checkbox sync for Create Lot button ───────────────────────────────
       window.syncCreateLotBtn = function() {
+        var all = document.querySelectorAll('.final-iso-cb');
         var checked = document.querySelectorAll('.final-iso-cb:checked');
         var btn = document.getElementById('create-lot-btn');
         var on = checked.length > 0;
         btn.disabled = !on;
         btn.style.opacity = on ? '1' : '0.4';
         btn.style.cursor  = on ? 'pointer' : 'not-allowed';
+
+        var countEl = document.getElementById('final-iso-selected-count');
+        if (countEl) {
+          if (checked.length === 0) {
+            countEl.style.display = 'none';
+          } else {
+            countEl.textContent = checked.length + ' selected';
+            countEl.style.display = '';
+          }
+        }
+
+        var master = document.getElementById('final-iso-select-all');
+        if (master) master.checked = all.length > 0 && checked.length === all.length;
+      };
+
+      // Header "select all" checkbox — same pattern as #notif-select-all for
+      // the notification tables, driven through syncCreateLotBtn() so the
+      // Issue Lot button state and selected-count chip stay correct.
+      window.toggleAllFinalIso = function(masterCheckbox) {
+        var state = masterCheckbox.checked;
+        document.querySelectorAll('.final-iso-cb').forEach(function(cb) { cb.checked = state; });
+        syncCreateLotBtn();
       };
 
       // ── Create lot from selected Final ISO rows ───────────────────────────

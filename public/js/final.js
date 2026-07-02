@@ -265,10 +265,37 @@ function updateFinalIsometricsTableHeader() {
         'Rev. Date'
     ];
 
-    thead.innerHTML = headers.map(header => `<th>${header}</th>`).join('');
+    thead.innerHTML = headers.map(header =>
+        header === 'Select'
+            ? `<th style="text-align:center;width:36px;"><input type="checkbox" id="final-iso-select-all" title="Select all" onchange="toggleAllFinalIsos(this)"></th>`
+            : `<th>${header}</th>`
+    ).join('');
 
     // Add filters after headers are created
     setupFinalIsometricsFilters();
+}
+
+// Header "select all" checkbox — mirrors toggleSelectAllNotifications() in
+// left-top.js so Final Isometrics gets the same select-all UX as the
+// notification tables.
+function toggleAllFinalIsos(masterCheckbox) {
+    const desiredState = masterCheckbox.checked;
+    const rowCheckboxes = document.querySelectorAll('.final-iso-select');
+    rowCheckboxes.forEach((cb) => {
+        cb.checked = desiredState;
+        handleFinalIsoSelection(cb);
+    });
+    masterCheckbox.checked = desiredState;
+}
+
+// Keeps the header checkbox reflecting reality, same as syncSelectAllCheckbox()
+// for notifications — checked only when every row is checked.
+function syncFinalIsoSelectAllCheckbox() {
+    const master = document.getElementById('final-iso-select-all');
+    if (!master) return;
+    const rowCheckboxes = document.querySelectorAll('.final-iso-select');
+    master.checked = rowCheckboxes.length > 0 &&
+        Array.from(rowCheckboxes).every((cb) => cb.checked);
 }
 
 // Filter Final Isometrics table by search term
@@ -317,13 +344,20 @@ function handleFinalIsoSelection(checkbox) {
 
 function updateSelectionCount() {
     const selectedCount = document.querySelectorAll('.final-iso-select:checked').length;
-    const totalCount = finalIsometricsData.length;
 
-    // Update any selection counter if it exists
+    // Update any selection counter if it exists — same chip behavior as
+    // #notif-selected-count in the notification tables (hidden at 0).
     const selectionCounter = document.getElementById('final-iso-selection-count');
     if (selectionCounter) {
-        selectionCounter.textContent = `Selected: ${selectedCount} of ${totalCount}`;
+        if (selectedCount === 0) {
+            selectionCounter.style.display = 'none';
+        } else {
+            selectionCounter.textContent = `${selectedCount} selected`;
+            selectionCounter.style.display = '';
+        }
     }
+
+    syncFinalIsoSelectAllCheckbox();
 }
 
 function setupExportButtons() {
@@ -356,11 +390,12 @@ function setupExportButtons() {
             justify-content: space-between;
         `;
 
-    // Selection info
-    const selectionInfo = document.createElement('div');
+    // Selection info — same "lines-chip" badge used for #notif-selected-count
+    // in the notification tables, hidden until at least one row is selected.
+    const selectionInfo = document.createElement('span');
     selectionInfo.id = 'final-iso-selection-count';
-    selectionInfo.style.cssText = 'font-weight: bold; color: #495057;';
-    selectionInfo.textContent = `Selected: 0 of ${finalIsometricsData.length}`;
+    selectionInfo.className = 'lines-chip';
+    selectionInfo.style.display = 'none';
 
     // Buttons group
     const buttonsGroup = document.createElement('div');
@@ -463,8 +498,6 @@ const rightSideGroup = document.createElement('div');
 rightSideGroup.style.cssText = 'display: flex; gap: 15px; align-items: center; flex-shrink: 0;';
 
 
-    // Add selection info with styling
-    selectionInfo.style.cssText = 'font-weight: bold; color: #495057; white-space: nowrap;';
     rightSideGroup.appendChild(selectionInfo);
     rightSideGroup.appendChild(searchBarContainer);
 

@@ -354,4 +354,78 @@ async function batchQuery(req, res) {
   }
 }
 
-module.exports = { getAllLines, getUnderProgress, getSummary, getUserActivity, batchQuery };
+// GET /api/report/lots?jobNo=X&units=A,B,C
+// Returns all planned (unissued) lots for the job+units with full per-line detail.
+// Read-only — no workflow state is touched.
+async function getLotsReport(req, res) {
+  const { jobNo, units: unitsStr } = req.query;
+  if (!jobNo || !unitsStr)
+    return res.status(400).json({ ok: false, error: 'jobNo and units required' });
+  const units = unitsStr.split(',').filter(Boolean);
+
+  try {
+    const { rows } = await pool.query(
+      `SELECT
+         l.id          AS lot_id,
+         l.lot_number,
+         l.unit_no,
+         l.created_at,
+         u_cr.name     AS created_by_name,
+         d.id          AS drawing_id,
+         d.zone,
+         d.line_no,
+         d.rev_no,
+         d.status,
+         d.tags,
+         d.stress_critical,
+         COALESCE(
+           json_agg(
+             json_build_object('name', u.name, 'roles', dc.roles)
+           ) FILTER (WHERE dc.id IS NOT NULL),
+           '[]'::json
+         ) AS claimers
+       FROM lots l
+       JOIN lot_lines ll ON ll.lot_id = l.id
+       JOIN drawings d   ON d.id = ll.drawing_id
+       LEFT JOIN drawing_claims dc ON dc.drawing_id = d.id
+       LEFT JOIN users u    ON u.id::text = dc.user_id
+       LEFT JOIN users u_cr ON u_cr.id::text = l.created_by
+       WHERE l.job_no = $1 AND l.unit_no = ANY($2) AND l.issued_at IS NULL
+       GROUP BY l.id, l.lot_number, l.unit_no, l.created_at, u_cr.name,
+                d.id, d.zone, d.line_no, d.rev_no, d.status, d.tags, d.stress_critical
+       ORDER BY l.lot_number, l.unit_no, d.zone, d.line_no`,
+      [jobNo, units]
+    );
+
+    // Group flat rows → lots with nested lines
+    const lotMap = new Map();
+    for (const r of rows) {
+      if (!lotMap.has(r.lot_id)) {
+        lotMap.set(r.lot_id, {
+          lotId:     r.lot_id,
+          lotNumber: r.lot_number,
+          unitNo:    r.unit_no,
+          createdBy: r.created_by_name || String(r.lot_id),
+          createdAt: fmtDate(r.created_at),
+          lines:     [],
+        });
+      }
+      lotMap.get(r.lot_id).lines.push({
+        zone:           r.zone           || '-',
+        lineNo:         r.line_no,
+        revNo:          r.rev_no         || 0,
+        status:         r.status         || 'Uploaded',
+        stressCritical: r.stress_critical || 'N',
+        tags:           r.tags           || [],
+        claimers:       r.claimers       || [],
+      });
+    }
+
+    res.json({ ok: true, lots: [...lotMap.values()] });
+  } catch (err) {
+    console.error('getLotsReport error:', err);
+    res.status(500).json({ ok: false, error: 'Failed to generate lot report' });
+  }
+}
+
+module.exports = { getAllLines, getUnderProgress, getSummary, getUserActivity, batchQuery, getLotsReport };

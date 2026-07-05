@@ -104,6 +104,17 @@
         <span class="nb-label">Checker Activity</span>
       </button>
 
+      <button class="nav-btn" onclick="scrollToSection('sec-lots')">
+        <span class="nb-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+            <rect x="2" y="7" width="20" height="14" rx="2"/>
+            <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
+            <line x1="12" y1="12" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/>
+          </svg>
+        </span>
+        <span class="nb-label">Lot &amp; Tag Status</span>
+      </button>
+
       <div class="sb-section-label" style="margin-top:10px">Quick Export</div>
 
       <button class="nav-btn" onclick="exportAllLines()">
@@ -566,6 +577,40 @@
           </table>
         </div>
 
+      </section>
+
+      <!-- ── Lot & Tag Status ── -->
+      <section class="report-section" id="sec-lots">
+        <div class="section-head">
+          <h2>Lot &amp; Tag Status</h2>
+          <span class="section-chip" id="lotsCount">—</span>
+          <span class="section-spacer"></span>
+          <button class="lot-export-btn" id="lotsExportBtn" onclick="exportLotsExcel()" style="display:none;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>Export All Lots
+          </button>
+        </div>
+
+        <!-- Tag distribution cloud -->
+        <div class="lot-tag-cloud" id="lotTagCloud" style="display:none;">
+          <div class="lot-tag-cloud-label">Tags in use — click to filter lines</div>
+          <div id="lotTagPills"></div>
+          <button class="lot-tag-clear" id="lotTagClearBtn" onclick="clearLotTagFilter()" style="display:none;">Clear filter</button>
+        </div>
+
+        <!-- Lot accordion cards -->
+        <div class="lot-cards-list" id="lotCardsList">
+          <div class="lots-empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+              <rect x="2" y="7" width="20" height="14" rx="2"/>
+              <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
+            </svg>
+            <p>Select a project and click <strong>Fetch Report</strong></p>
+            <small>Planned lot details will appear here</small>
+          </div>
+        </div>
       </section>
 
     </div><!-- /content-scroll -->

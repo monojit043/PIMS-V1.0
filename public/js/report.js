@@ -9,6 +9,8 @@ let allUnits = [];
 let userProjects = [];
 let allLineData = [];       // full dataset from API
 let filteredData = [];      // after search/filter
+let _lotsData = [];         // lot report data
+let _activeLotTag = null;   // currently active tag filter
 let sortCol = 'slNo';
 let sortDir = 'asc';
 let currentPage = 1;
@@ -92,7 +94,7 @@ function initSidebar() {
 
 function scrollToSection(id) {
   // Ensure the normal report sections are visible and batch is hidden
-  ['sec-kpi','sec-charts','sec-register','sec-activity'].forEach(function(sid) {
+  ['sec-kpi','sec-charts','sec-register','sec-activity','sec-lots'].forEach(function(sid) {
     const el = document.getElementById(sid);
     if (el) el.style.display = 'block';
   });
@@ -103,7 +105,7 @@ function scrollToSection(id) {
   // update active nav btn
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   const sectionMap = {
-    'sec-kpi': 0, 'sec-charts': 1, 'sec-register': 2, 'sec-activity': 3,
+    'sec-kpi': 0, 'sec-charts': 1, 'sec-register': 2, 'sec-activity': 3, 'sec-lots': 4,
   };
   const idx = sectionMap[id];
   if (idx !== undefined) document.querySelectorAll('.nav-btn')[idx]?.classList.add('active');
@@ -210,7 +212,7 @@ async function fetchReport() {
   try {
     const q = `jobNo=${encodeURIComponent(selectedJob)}&units=${selectedUnits.map(encodeURIComponent).join(',')}`;
 
-    const [summaryRes, linesRes, activityRes] = await Promise.all([
+    const [summaryRes, linesRes, activityRes, lotsRes] = await Promise.all([
       fetch(`/api/report/summary?${q}`),
       fetch('/api/report/all-lines', {
         method: 'POST',
@@ -218,11 +220,13 @@ async function fetchReport() {
         body: JSON.stringify({ jobNo: selectedJob, units: selectedUnits }),
       }),
       fetch(`/api/report/user-activity?${q}`),
+      fetch(`/api/report/lots?${q}`),
     ]);
 
-    const summaryData = await summaryRes.json();
-    const linesData   = await linesRes.json();
+    const summaryData  = await summaryRes.json();
+    const linesData    = await linesRes.json();
     const activityData = await activityRes.json();
+    const lotsData     = await lotsRes.json();
 
     if (summaryData.ok) renderSummary(summaryData.summary);
     if (linesData.success) {
@@ -231,6 +235,13 @@ async function fetchReport() {
       applyFilters();
     }
     if (activityData.ok) renderActivity(activityData.activity, summaryData.summary);
+
+    // Lots section — isolated so a failure here never breaks the rest of the report
+    try {
+      if (lotsData.ok) renderLotsReport(lotsData.lots || []);
+    } catch (lotsErr) {
+      console.error('renderLotsReport error:', lotsErr);
+    }
 
     showToast(`✓ Report loaded — ${allLineData.length} lines`);
   } catch (err) {
@@ -672,7 +683,7 @@ function showToast(msg) {
 let _bqResults = [];
 
 function showBatchQuery() {
-  ['sec-kpi','sec-charts','sec-register','sec-activity'].forEach(function(sid) {
+  ['sec-kpi','sec-charts','sec-register','sec-activity','sec-lots'].forEach(function(sid) {
     const el = document.getElementById(sid);
     if (el) el.style.display = 'none';
   });
@@ -817,6 +828,260 @@ async function runBatchQuery(lineIds) {
 function esc(str) {
   return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
+
+// ══════════════════════════════════════════════
+// LOT & TAG STATUS SECTION
+// ══════════════════════════════════════════════
+
+// Tag colour — hash-based, matches the palette used in the main PIMS app
+const _LOT_TAG_PALETTE = [
+  { bg:'#dbeafe', text:'#1e40af' },
+  { bg:'#dcfce7', text:'#166534' },
+  { bg:'#fef3c7', text:'#92400e' },
+  { bg:'#ede9fe', text:'#5b21b6' },
+  { bg:'#ffedd5', text:'#9a3412' },
+  { bg:'#fce7f3', text:'#9d174d' },
+  { bg:'#e0f2fe', text:'#0369a1' },
+  { bg:'#f0fdf4', text:'#15803d' },
+];
+function _tagColor(tag) {
+  let h = 0;
+  for (let i = 0; i < tag.length; i++) h = (h << 5) - h + tag.charCodeAt(i);
+  return _LOT_TAG_PALETTE[Math.abs(h) % _LOT_TAG_PALETTE.length];
+}
+
+// Status colour — matches openLotStatusModal in left-bottom.js
+function _lotStatusColor(status) {
+  if (status === 'Uploaded')       return { bg:'#dbeafe', text:'#1d4ed8' };
+  if (status === 'Claimed')        return { bg:'#fef3c7', text:'#92400e' };
+  if (status === 'Checking')       return { bg:'#ede9fe', text:'#5b21b6' };
+  if (status === 'Comment Issued') return { bg:'#ffedd5', text:'#9a3412' };
+  if (status === 'Returned')       return { bg:'#fee2e2', text:'#991b1b' };
+  if (status === 'Final')          return { bg:'#dcfce7', text:'#166534' };
+  if (status === 'Approved')       return { bg:'#dcfce7', text:'#166534' };
+  return { bg:'#f1f5f9', text:'#475569' };
+}
+
+function renderLotsReport(lots) {
+  _lotsData = lots || [];
+  _activeLotTag = null;
+
+  const cardsList   = document.getElementById('lotCardsList');
+  const tagCloud    = document.getElementById('lotTagCloud');
+  const lotsCount   = document.getElementById('lotsCount');
+  const exportBtn   = document.getElementById('lotsExportBtn');
+  const tagPills    = document.getElementById('lotTagPills');
+  const tagClearBtn = document.getElementById('lotTagClearBtn');
+
+  if (!_lotsData.length) {
+    lotsCount.textContent = '0 lots';
+    tagCloud.style.display = 'none';
+    exportBtn.style.display = 'none';
+    cardsList.innerHTML = `
+      <div class="lots-empty">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+          <rect x="2" y="7" width="20" height="14" rx="2"/>
+          <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
+        </svg>
+        <p>No planned lots found for the selected project and units</p>
+        <small>Lots appear here once an SGL assigns lines to a lot</small>
+      </div>`;
+    return;
+  }
+
+  const totalLines = _lotsData.reduce((s, l) => s + l.lines.length, 0);
+  lotsCount.textContent = `${_lotsData.length} planned lot${_lotsData.length !== 1 ? 's' : ''} · ${totalLines} lines`;
+  exportBtn.style.display = '';
+
+  // Build tag counts across all lots
+  const tagCounts = {};
+  for (const lot of _lotsData) {
+    for (const line of lot.lines) {
+      for (const t of (line.tags || [])) {
+        tagCounts[t] = (tagCounts[t] || 0) + 1;
+      }
+    }
+  }
+  const allTags = Object.keys(tagCounts).sort();
+
+  if (allTags.length) {
+    tagCloud.style.display = '';
+    tagPills.innerHTML = allTags.map(t => {
+      const c = _tagColor(t);
+      return `<span class="lot-tag-pill" data-tag="${esc(t)}"
+        style="background:${c.bg};color:${c.text};"
+        onclick="applyLotTagFilter('${esc(t)}')"
+        title="Filter to lines tagged '${esc(t)}'">
+        ${esc(t)} <span class="tpc">×${tagCounts[t]}</span>
+      </span>`;
+    }).join('');
+    tagClearBtn.style.display = 'none';
+  } else {
+    tagCloud.style.display = 'none';
+  }
+
+  // Render accordion cards
+  cardsList.innerHTML = _lotsData.map((lot, idx) => {
+    const total    = lot.lines.length;
+    const doneCount = lot.lines.filter(l => l.status === 'Final' || l.status === 'Approved').length;
+    const pct      = total ? Math.round(doneCount * 100 / total) : 0;
+
+    // Status chip summary
+    const statusCounts = {};
+    for (const l of lot.lines) statusCounts[l.status] = (statusCounts[l.status] || 0) + 1;
+    const statusChips = Object.entries(statusCounts).map(([s, n]) => {
+      const c = _lotStatusColor(s);
+      return `<span class="lot-status-chip" style="background:${c.bg};color:${c.text};">${n} ${s}</span>`;
+    }).join('');
+
+    const rowsHtml = lot.lines.map(line => {
+      const sc = _lotStatusColor(line.status);
+      const scBadge = line.stressCritical === 'Y'
+        ? ' <span style="color:#ef4444;font-size:10px;font-weight:700;">SC</span>' : '';
+      const claimerText = (line.claimers || []).length
+        ? line.claimers.map(cl => `${esc(cl.name)} <span style="color:#94a3b8;font-size:10px;">(${(cl.roles||[]).join(', ')})</span>`).join('<br>')
+        : '<span style="color:#cbd5e1;">—</span>';
+      const tagsHtml = (line.tags || []).length
+        ? line.tags.map(t => {
+            const tc = _tagColor(t);
+            return `<span class="lot-inline-tag" style="background:${tc.bg};color:${tc.text};">${esc(t)}</span>`;
+          }).join('')
+        : '<span style="color:#cbd5e1;">—</span>';
+      const tagAttr = (line.tags || []).length ? `data-tags="${esc(JSON.stringify(line.tags))}"` : '';
+      return `<tr ${tagAttr}>
+        <td style="color:var(--bark-muted);">${esc(line.zone)}</td>
+        <td><strong>${esc(line.lineNo)}</strong>${scBadge}</td>
+        <td style="color:var(--bark-muted);">R${line.revNo}</td>
+        <td><span class="lot-status-chip" style="background:${sc.bg};color:${sc.text};">${esc(line.status)}</span></td>
+        <td style="font-size:12px;">${claimerText}</td>
+        <td>${tagsHtml}</td>
+      </tr>`;
+    }).join('');
+
+    return `
+      <div class="lot-acc-card" id="lot-card-${idx}">
+        <div class="lot-acc-header" onclick="toggleLotCard(${idx})">
+          <div>
+            <div class="lot-acc-num">Lot ${lot.lotNumber}</div>
+            <div class="lot-acc-unit">${esc(lot.unitNo)}</div>
+          </div>
+          <div class="lot-acc-meta">${statusChips}</div>
+          <div class="lot-acc-progress-wrap">
+            <div class="lot-acc-prog-bar">
+              <div class="lot-acc-prog-fill" style="width:${pct}%"></div>
+            </div>
+            <span class="lot-acc-pct">${pct}%</span>
+          </div>
+          <span class="lot-acc-creator">by ${esc(lot.createdBy)}</span>
+          <button class="lot-acc-toggle" title="Expand/collapse" aria-label="Toggle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:12px;height:12px">
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </button>
+        </div>
+        <div class="lot-acc-body">
+          <div style="overflow-x:auto;">
+            <table class="lot-inner-table">
+              <thead>
+                <tr>
+                  <th>Zone</th>
+                  <th>Line No</th>
+                  <th>Rev</th>
+                  <th>Status</th>
+                  <th>Claimed By</th>
+                  <th>Tags</th>
+                </tr>
+              </thead>
+              <tbody>${rowsHtml}</tbody>
+            </table>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+window.renderLotsReport = renderLotsReport;
+
+function toggleLotCard(idx) {
+  const card = document.getElementById('lot-card-' + idx);
+  if (card) card.classList.toggle('open');
+}
+window.toggleLotCard = toggleLotCard;
+
+function applyLotTagFilter(tag) {
+  _activeLotTag = tag;
+  const clearBtn = document.getElementById('lotTagClearBtn');
+  if (clearBtn) clearBtn.style.display = '';
+
+  // Mark active pill
+  document.querySelectorAll('.lot-tag-pill').forEach(p => {
+    p.classList.toggle('active-filter', p.dataset.tag === tag);
+  });
+
+  // Show/hide rows — also auto-open cards that have matching rows
+  document.querySelectorAll('#lotCardsList .lot-acc-card').forEach(card => {
+    const rows = card.querySelectorAll('tbody tr');
+    let cardHasMatch = false;
+    rows.forEach(row => {
+      const rawTags = row.dataset.tags;
+      let tags = [];
+      try { tags = rawTags ? JSON.parse(rawTags) : []; } catch {}
+      const match = tags.includes(tag);
+      row.classList.toggle('lot-row-hidden', !match);
+      if (match) cardHasMatch = true;
+    });
+    // Auto-open card if it has matching rows; leave it alone if it was already open
+    if (cardHasMatch && !card.classList.contains('open')) card.classList.add('open');
+  });
+}
+window.applyLotTagFilter = applyLotTagFilter;
+
+function clearLotTagFilter() {
+  _activeLotTag = null;
+  const clearBtn = document.getElementById('lotTagClearBtn');
+  if (clearBtn) clearBtn.style.display = 'none';
+
+  document.querySelectorAll('.lot-tag-pill').forEach(p => p.classList.remove('active-filter'));
+  document.querySelectorAll('#lotCardsList tbody tr').forEach(r => r.classList.remove('lot-row-hidden'));
+}
+window.clearLotTagFilter = clearLotTagFilter;
+
+function exportLotsExcel() {
+  if (!_lotsData.length) { showToast('No lot data to export'); return; }
+
+  const wb = XLSX.utils.book_new();
+
+  for (const lot of _lotsData) {
+    const headers = ['Zone','Line No','Rev','Status','Stress Critical','Claimed By','Claimed Roles','Tags'];
+    const rows = lot.lines.map(l => {
+      const claimerNames  = (l.claimers || []).map(c => c.name).join('; ');
+      const claimerRoles  = (l.claimers || []).map(c => (c.roles || []).join('+')).join('; ');
+      return [
+        l.zone, l.lineNo, `R${l.revNo}`, l.status,
+        l.stressCritical === 'Y' ? 'YES' : 'NO',
+        claimerNames || '—', claimerRoles || '—',
+        (l.tags || []).join(', ') || '—',
+      ];
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    ws['!cols'] = [{wch:8},{wch:22},{wch:6},{wch:18},{wch:12},{wch:20},{wch:18},{wch:20}];
+
+    // Bold header row
+    const range = XLSX.utils.decode_range(ws['!ref']);
+    for (let c = range.s.c; c <= range.e.c; c++) {
+      const addr = XLSX.utils.encode_cell({ r: 0, c });
+      if (ws[addr]) ws[addr].s = { font: { bold: true, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '1E4A78' } } };
+    }
+
+    const sheetName = `Lot ${lot.lotNumber} (${lot.unitNo})`.slice(0, 31); // Excel tab limit
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  }
+
+  const ts = new Date().toISOString().split('T')[0];
+  XLSX.writeFile(wb, `PIMS_Lots_${selectedJob}_${ts}.xlsx`);
+  showToast('✓ Lot report exported');
+}
+window.exportLotsExcel = exportLotsExcel;
 
 function exportBatchResults() {
   if (!_bqResults.length) return;

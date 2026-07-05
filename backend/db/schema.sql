@@ -184,6 +184,32 @@ CREATE INDEX IF NOT EXISTS idx_ll_lines_upload   ON linelist_lines(upload_id);
 CREATE INDEX IF NOT EXISTS idx_ll_lines_unit     ON linelist_lines(unit_no);
 CREATE INDEX IF NOT EXISTS idx_ll_lines_line_no  ON linelist_lines(line_no);
 
+-- ── S3D lock-feed export state ──────────────────────────────────
+-- One row per line (job_no, unit_no, zone, line_no), upserted in place as the
+-- line's state changes. Drives the daily Excel export to S3D's evening lock
+-- batch. lock_status is internal ('WORKING' | 'PENDING_LOCK') and is only
+-- translated to S3D's own vocabulary ('WORKING' | 'APPROVED') at export time,
+-- so it never collides with drawings.status or with GL's own "approve" action
+-- (GL approving a line to Final is a separate, unrelated concept).
+CREATE TABLE IF NOT EXISTS s3d_export_log (
+  id                         SERIAL        PRIMARY KEY,
+  job_no                     VARCHAR(50)   NOT NULL,
+  unit_no                    VARCHAR(50)   NOT NULL,
+  zone                       VARCHAR(20)   NOT NULL,
+  line_no                    VARCHAR(200)  NOT NULL,
+  lock_status                VARCHAR(20)   NOT NULL DEFAULT 'WORKING',
+  lot_no                     INTEGER,
+  updated_at                 TIMESTAMPTZ   DEFAULT NOW(),
+  last_exported_lock_status  VARCHAR(20),
+  last_exported_lot_no       INTEGER,
+  UNIQUE (job_no, unit_no, zone, line_no)
+);
+
+CREATE INDEX IF NOT EXISTS idx_s3d_export_log_pending
+  ON s3d_export_log(job_no, unit_no)
+  WHERE lock_status IS DISTINCT FROM last_exported_lock_status
+     OR lot_no       IS DISTINCT FROM last_exported_lot_no;
+
 -- ---- Indexes for common lookups ----
 CREATE INDEX IF NOT EXISTS idx_drawings_job_unit      ON drawings(job_no, unit_no);
 CREATE INDEX IF NOT EXISTS idx_drawings_line_no       ON drawings(line_no);

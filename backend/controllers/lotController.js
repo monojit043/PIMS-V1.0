@@ -3,6 +3,7 @@ const path    = require("path");
 const fs      = require("fs");
 const ExcelJS = require("exceljs");
 const archiver = require("archiver");
+const s3dExportQ = require("../db/queries/s3dExportQueries");
 
 const UPLOADS_ROOT = path.join(__dirname, "..", "uploads");
 
@@ -194,6 +195,20 @@ async function issueLot(req, res) {
       }
     }
 
+    // S3D lock feed — every line that actually stayed in this issued lot gets its lot no attached.
+    const { rows: issuedLines } = await pool.query(
+      `SELECT d.job_no, d.unit_no, d.zone, d.line_no
+       FROM lot_lines ll JOIN drawings d ON d.id = ll.drawing_id
+       WHERE ll.lot_id=$1`,
+      [lotId]
+    );
+    for (const line of issuedLines) {
+      await s3dExportQ.markLotIssued({
+        jobNo: line.job_no, unitNo: line.unit_no, zone: line.zone, lineNo: line.line_no,
+        lotNo: lot.lot_number,
+      }).catch(e => console.error("[S3D] markLotIssued error:", e.message));
+    }
+
     res.json({ ok: true, message: `Lot ${lot.lot_number} issued`, lotNumber: lot.lot_number });
   } catch (err) {
     console.error("issueLot error:", err);
@@ -381,6 +396,27 @@ async function issueSelectedLines(req, res) {
     return res.status(400).json({ ok: false, error: "jobNo, unitNo, lineNos[] required" });
 
   try {
+    // Guard: detect a cross-unit selection before touching any lot data. The
+    // per-line resolution below (step 3) is scoped to (jobNo, unitNo), so a
+    // line belonging to a different unit than the one requested would
+    // otherwise just fail to match and be silently dropped — no error, no
+    // indication to the caller. Catch that here and reject with a per-unit
+    // breakdown instead of letting anything partially issue.
+    const { rows: unitBreakdown } = await pool.query(
+      `SELECT unit_no, COUNT(*)::int AS cnt FROM drawings
+       WHERE job_no=$1 AND line_no = ANY($2::text[])
+       GROUP BY unit_no`,
+      [jobNo, lineNos]
+    );
+    if (unitBreakdown.length > 1) {
+      const breakdown = unitBreakdown.map(r => `${r.cnt} ISO selected in Unit ${r.unit_no}`).join(', ');
+      return res.status(409).json({
+        ok: false,
+        error: `Selected lines span multiple units: ${breakdown}. Please issue lots separately for each unit.`,
+        unitBreakdown: unitBreakdown.map(r => ({ unitNo: r.unit_no, count: r.cnt }))
+      });
+    }
+
     // 1. Find or create the lowest planned lot
     const { rows: planned } = await pool.query(
       `SELECT id, lot_number FROM lots WHERE job_no=$1 AND unit_no=$2 AND issued_at IS NULL ORDER BY lot_number ASC LIMIT 1`,
@@ -449,6 +485,20 @@ async function issueSelectedLines(req, res) {
 
     // 7. Issue the lot
     await pool.query(`UPDATE lots SET issued_at=NOW() WHERE id=$1`, [lotId]);
+
+    // S3D lock feed — attach the lot no to every line actually issued in it.
+    if (selectedDrawingIds.length > 0) {
+      const { rows: issuedLines } = await pool.query(
+        `SELECT job_no, unit_no, zone, line_no FROM drawings WHERE id = ANY($1::int[])`,
+        [selectedDrawingIds]
+      );
+      for (const line of issuedLines) {
+        await s3dExportQ.markLotIssued({
+          jobNo: line.job_no, unitNo: line.unit_no, zone: line.zone, lineNo: line.line_no,
+          lotNo: lotNumber,
+        }).catch(e => console.error("[S3D] markLotIssued error:", e.message));
+      }
+    }
 
     // 8. Carry-forward lines → next planned lot (find existing or create)
     if (carryForwardIds.length > 0) {
@@ -696,4 +746,72 @@ async function exportLot(req, res) {
   }
 }
 
-module.exports = { createLot, getPlannedLots, issueLot, assignLinesToLot, removeLineFromLot, getLots, getLotLines, issueSelectedLines, exportLot };
+// GET /api/lots/status?jobNo=X&unitNo=Y&lotNumber=N
+// Returns live status of every line in a planned lot — visible to all logged-in users.
+async function getLotStatus(req, res) {
+  const { jobNo, unitNo, lotNumber } = req.query;
+  if (!jobNo || !unitNo || !lotNumber)
+    return res.status(400).json({ ok: false, error: 'jobNo, unitNo, lotNumber required' });
+
+  try {
+    const { rows: lotRows } = await pool.query(
+      `SELECT id, lot_number, created_by, created_at
+       FROM lots
+       WHERE job_no=$1 AND unit_no=$2 AND lot_number=$3 AND issued_at IS NULL
+       LIMIT 1`,
+      [jobNo, unitNo, parseInt(lotNumber)]
+    );
+    if (!lotRows[0])
+      return res.status(404).json({ ok: false, error: 'Lot not found or already issued' });
+    const lot = lotRows[0];
+
+    const { rows: creatorRows } = await pool.query(
+      `SELECT name FROM users WHERE id=$1`, [lot.created_by]
+    );
+
+    const { rows } = await pool.query(
+      `SELECT d.id, d.zone, d.line_no, d.rev_no, d.status, d.tags, d.stress_critical,
+              COALESCE(
+                json_agg(
+                  json_build_object('userId', dc.user_id, 'name', u.name, 'roles', dc.roles)
+                ) FILTER (WHERE dc.id IS NOT NULL),
+                '[]'::json
+              ) AS claimers
+       FROM lot_lines ll
+       JOIN drawings d ON d.id = ll.drawing_id
+       LEFT JOIN drawing_claims dc ON dc.drawing_id = d.id
+       LEFT JOIN users u ON u.id::text = dc.user_id
+       WHERE ll.lot_id = $1
+       GROUP BY d.id
+       ORDER BY d.zone, d.line_no`,
+      [lot.id]
+    );
+
+    res.json({
+      ok: true,
+      lot: {
+        id: lot.id,
+        lotNumber: lot.lot_number,
+        jobNo,
+        unitNo,
+        createdBy: creatorRows[0]?.name || lot.created_by,
+        createdAt: lot.created_at,
+      },
+      lines: rows.map(d => ({
+        drawingId:      d.id,
+        zone:           d.zone,
+        lineNo:         d.line_no,
+        revNo:          d.rev_no || 0,
+        status:         d.status,
+        stressCritical: d.stress_critical || 'N',
+        tags:           d.tags || [],
+        claimers:       d.claimers || [],
+      })),
+    });
+  } catch (err) {
+    console.error('getLotStatus error:', err);
+    res.status(500).json({ ok: false, error: 'Failed' });
+  }
+}
+
+module.exports = { createLot, getPlannedLots, issueLot, assignLinesToLot, removeLineFromLot, getLots, getLotLines, issueSelectedLines, exportLot, getLotStatus };

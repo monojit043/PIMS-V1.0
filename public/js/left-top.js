@@ -97,11 +97,29 @@ async function loadCurrentUser() {
   }
 }
 
-// Lot plan badge — shown wherever a line appears if it has a pending lot assignment
-function lotBadgeHtml(plannedLotNumber) {
+// Lot plan badge — shown wherever a line appears if it has a pending lot assignment.
+// jobNo / unitNo are embedded as data attributes so the delegated click handler below
+// can open the lot status modal without walking the DOM.
+function lotBadgeHtml(plannedLotNumber, jobNo, unitNo) {
   if (!plannedLotNumber) return '';
-  return `<span class="lot-plan-badge" title="Planned: Lot ${plannedLotNumber}" style="margin-left:5px;">L${plannedLotNumber}</span>`;
+  const jAttr = jobNo  ? ` data-job="${jobNo}"`   : '';
+  const uAttr = unitNo ? ` data-unit="${unitNo}"` : '';
+  return `<span class="lot-plan-badge" data-lotnumber="${plannedLotNumber}"${jAttr}${uAttr} title="Planned: Lot ${plannedLotNumber} — click to view status" style="margin-left:5px;cursor:pointer;">L${plannedLotNumber}</span>`;
 }
+
+// Delegated click handler — any .lot-plan-badge anywhere on the page opens the modal
+document.addEventListener('click', function (e) {
+  const badge = e.target.closest('.lot-plan-badge');
+  if (!badge) return;
+  e.stopPropagation();
+  const lotNumber = badge.dataset.lotnumber;
+  const jobNo     = badge.dataset.job;
+  const unitNo    = badge.dataset.unit;
+  if (!lotNumber) return;
+  if (typeof openLotStatusModal === 'function') {
+    openLotStatusModal(jobNo, unitNo, parseInt(lotNumber, 10));
+  }
+});
 
 // Add CSS for highlighted row
 const style = document.createElement("style");
@@ -940,7 +958,7 @@ function renderNotificationsTable(notifications) {
       </td>
       <td style="font-weight:600;color:var(--blue-700);font-size:12.5px;">${notification.jobNo}</td>
       <td style="color:var(--text-secondary);font-size:12.5px;">${notification.unitNo}</td>
-      <td><span class="lno-tag">${notification.lineNo}</span>${lotBadgeHtml(notification.plannedLotNumber)}</td>
+      <td><span class="lno-tag">${notification.lineNo}</span>${lotBadgeHtml(notification.plannedLotNumber, notification.jobNo, notification.unitNo)}${typeof renderTagPills === 'function' ? renderTagPills(notification.tags || []) : ''}</td>
       <td><span class="rev-badge">${notification.revNo}${notification.uploadCount ? '-' + notification.uploadCount : ''}</span></td>
       <td>${scBadge}</td>
       <td><span class="from-chip">${notification.from}</span></td>
@@ -2161,7 +2179,7 @@ function generateUniversalTaskRowContent(task) {
   const baseContent = `
     <td>${task.jobNo}</td>
     <td>${task.unitNo}</td>
-    <td>${task.lineNo}${lotBadgeHtml(task.plannedLotNumber)}</td>
+    <td>${task.lineNo}${lotBadgeHtml(task.plannedLotNumber, task.jobNo, task.unitNo)}${typeof renderTagPills === 'function' ? renderTagPills(task.tags || []) : ''}</td>
     <td>${task.revNo}${task.uploadCount ? "-" + task.uploadCount : ""}</td>
     <td>${task.stressCritical}</td>
     <td>${task.from}</td>
@@ -2419,7 +2437,7 @@ function generateTaskRowContent(task, currentRole) {
   const baseContent = `
     <td>${task.jobNo}</td>
     <td>${task.unitNo}</td>
-    <td>${task.lineNo}${lotBadgeHtml(task.plannedLotNumber)}</td>
+    <td>${task.lineNo}${lotBadgeHtml(task.plannedLotNumber, task.jobNo, task.unitNo)}${typeof renderTagPills === 'function' ? renderTagPills(task.tags || []) : ''}</td>
     <td>${task.revNo}${task.uploadCount ? "-" + task.uploadCount : ""}</td>
     <td>${task.stressCritical}</td>
     <td>${task.from}</td>
@@ -2505,7 +2523,7 @@ function renderClaimedTasksTable(tasks) {
     row.innerHTML = `
       <td>${task.jobNo}</td>
       <td>${task.unitNo}</td>
-      <td>${task.lineNo}${lotBadgeHtml(task.plannedLotNumber)}</td>
+      <td>${task.lineNo}${lotBadgeHtml(task.plannedLotNumber, task.jobNo, task.unitNo)}${typeof renderTagPills === 'function' ? renderTagPills(task.tags || []) : ''}</td>
       <td>${task.revNo}${task.uploadCount ? "-" + task.uploadCount : ""}</td>
       <td>${task.stressCritical}</td>
       <td>${task.from}</td>

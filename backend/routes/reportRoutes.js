@@ -7,5 +7,6 @@ router.get("/report/user-activity",   requireLogin, ctrl.getUserActivity);
 router.post("/report/all-lines",      requireLogin, ctrl.getAllLines);
 router.post("/report/under-progress", requireLogin, ctrl.getUnderProgress);
 router.post("/report/batch-query",    requireLogin, ctrl.batchQuery);
+router.get("/report/lots",            requireLogin, ctrl.getLotsReport);
 
 module.exports = router;

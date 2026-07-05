@@ -4,6 +4,7 @@ const fsp = fs.promises;
 const { pool } = require("../db/pool");
 const drawingQ = require("../db/queries/drawingQueries");
 const userQ = require("../db/queries/userQueries");
+const s3dExportQ = require("../db/queries/s3dExportQueries");
 const sse = require("../utils/sse");
 
 const UPLOADS_ROOT = path.join(__dirname, "..", "uploads");
@@ -378,6 +379,7 @@ async function getNotificationsByRole(req, res) {
           noCommentsFrom,
           uploadType: d.upload_type || null,
           plannedLotNumber: d.planned_lot_number || null,
+          tags: d.tags || [],
         });
       }
       return res.json({ ok: true, notifications });
@@ -410,6 +412,7 @@ async function getNotificationsByRole(req, res) {
           uploadedOn: d.uploaded_on, userRoles, claimedRoles,
           scTagged: d.sc_tagged || false, drawingId: d.line_no,
           plannedLotNumber: d.planned_lot_number || null,
+          tags: d.tags || [],
         });
       }
     }
@@ -463,6 +466,7 @@ async function getClaimedTasks(req, res) {
         status: d.status, claimedOn: d.claimed_at, claimedRoles: d.claimed_roles || [],
         assignedBy: d.delegated_by_role || null,
         plannedLotNumber: d.planned_lot_number || null,
+        tags: d.tags || [],
       })),
     });
   } catch (err) {
@@ -954,6 +958,11 @@ async function submitGLComments(req, res) {
         targetModellerId,
         'Comments Received from GL'
       );
+
+      // S3D lock feed — line is no longer approved, revert to working.
+      await s3dExportQ.markWorking({ jobNo, unitNo, zone: drawing.zone, lineNo })
+        .catch(e => console.error("[S3D] markWorking error:", e.message));
+
       if (req.file?.path && fs.existsSync(req.file.path)) await fsp.unlink(req.file.path).catch(() => {});
       return res.json({ ok: true, message: "GL comments sent directly to Modeller" });
     }
@@ -963,6 +972,10 @@ async function submitGLComments(req, res) {
       `UPDATE drawings SET status='GL Commented', notify_gl=FALSE WHERE id=$1`,
       [drawing.id]
     );
+
+    // S3D lock feed — line is no longer approved, revert to working.
+    await s3dExportQ.markWorking({ jobNo, unitNo, zone: drawing.zone, lineNo })
+      .catch(e => console.error("[S3D] markWorking error:", e.message));
 
     if (routeTo === 'sc') {
       // ── Route to SC ──────────────────────────────────────────────────────
@@ -1734,6 +1747,12 @@ async function submitCheckerComments(req, res) {
             'Line Ready for GL Review',
             `Line ${drawing.line_no} (${drawing.job_no}/${drawing.unit_no}) has no checker comments and is ready for GL review.`);
         }
+
+        // S3D lock feed — line is ready for GL, mark pending-lock for tonight's export.
+        await s3dExportQ.markPendingLock({
+          jobNo: drawing.job_no, unitNo: drawing.unit_no,
+          zone: drawing.zone, lineNo: drawing.line_no,
+        }).catch(e => console.error("[S3D] markPendingLock error:", e.message));
       }
     }
 

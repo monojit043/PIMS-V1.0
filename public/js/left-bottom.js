@@ -508,9 +508,10 @@ function renderISOTable(isos) {
       ? `<span style="background:rgba(0,123,255,0.12);color:#007bff;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:600;">Lot ${rep.issuedLotNumber}</span>`
       : '<span style="color:var(--text-faint);">—</span>';
 
-    // Planned-lot badge — shown on Pipeline Name cell
+    // Planned-lot badge — shown on Pipeline Name cell. data-job/unit/lotnumber drive
+    // the delegated click handler in left-top.js that opens the lot status modal.
     const lotBadge = rep.plannedLotNumber
-      ? `<span class="lot-plan-badge" title="Planned: Lot ${rep.plannedLotNumber}" data-lot="${rep.plannedLotNumber}">L${rep.plannedLotNumber}</span>`
+      ? `<span class="lot-plan-badge" data-lotnumber="${rep.plannedLotNumber}" data-job="${selectedProject}" data-unit="${selectedUnit}" data-lot="${rep.plannedLotNumber}" title="Planned: Lot ${rep.plannedLotNumber} — click to view status" style="cursor:pointer;">L${rep.plannedLotNumber}</span>`
       : '';
 
     // INCH data for this line
@@ -1063,6 +1064,16 @@ function hideWelcomeAndTables() {
     p.classList.remove('active-panel');
     p.style.display = 'none';
   });
+
+  // Final Isometrics and Lot Detail aren't tagged .view-panel, so the loop
+  // above misses them — loadFinalIsometrics()/openLotDetail() in user.html
+  // already special-case hide each other for this reason; do the same here
+  // so switching to a Zone from either view actually hides it instead of
+  // just rendering the zone table above it.
+  const finalIso = document.getElementById('final-isometrics-table-container');
+  if (finalIso) finalIso.style.display = 'none';
+  const lotDetail = document.getElementById('lot-detail-panel');
+  if (lotDetail) lotDetail.style.display = 'none';
 }
 
 // ===== GL/SGL MODAL =====
@@ -1954,5 +1965,133 @@ async function openTagModal(iso) {
   document.body.appendChild(modal);
   renderModal();
   modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+}
+
+// ===== LOT STATUS MODAL =====
+// Opens a live status view of a planned lot. Accessible to all logged-in users via
+// clicking any L{N} badge — the badge carries jobNo/unitNo as data attributes.
+async function openLotStatusModal(jobNo, unitNo, lotNumber) {
+  const existing = document.getElementById('_lot-status-modal');
+  if (existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.id = '_lot-status-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:10000;';
+
+  function setCard(html) {
+    modal.innerHTML = `<div style="background:#fff;border-radius:12px;width:720px;max-width:95vw;max-height:88vh;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.22);display:flex;flex-direction:column;">${html}</div>`;
+    const closeBtn = modal.querySelector('._lot-close');
+    if (closeBtn) closeBtn.onclick = () => modal.remove();
+  }
+
+  setCard(`
+    <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div style="font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:.05em;">Lot Live Status</div>
+        <div style="font-size:17px;font-weight:700;color:#0f172a;">Lot ${lotNumber} · ${jobNo} / ${unitNo}</div>
+      </div>
+      <button class="_lot-close" style="background:none;border:none;font-size:24px;cursor:pointer;color:#94a3b8;line-height:1;">&times;</button>
+    </div>
+    <div style="padding:24px;text-align:center;color:#94a3b8;font-size:14px;">Loading…</div>
+  `);
+
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+
+  let data;
+  try {
+    const r = await fetch(`/api/lots/status?jobNo=${encodeURIComponent(jobNo)}&unitNo=${encodeURIComponent(unitNo)}&lotNumber=${encodeURIComponent(lotNumber)}`);
+    data = await r.json();
+  } catch {
+    setCard(`<div style="padding:24px;color:#ef4444;">Network error — could not load lot data.</div>`);
+    return;
+  }
+
+  if (!data.ok) {
+    setCard(`
+      <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;justify-content:space-between;">
+        <div style="font-size:17px;font-weight:700;color:#0f172a;">Lot ${lotNumber}</div>
+        <button class="_lot-close" style="background:none;border:none;font-size:24px;cursor:pointer;color:#94a3b8;line-height:1;">&times;</button>
+      </div>
+      <div style="padding:24px;color:#64748b;font-size:14px;">${data.error || 'Lot not found or already issued.'}</div>
+    `);
+    return;
+  }
+
+  const { lot, lines } = data;
+
+  // Status colour coding
+  function sColor(status) {
+    if (status === 'Uploaded')       return { bg: '#dbeafe', text: '#1d4ed8' };
+    if (status === 'Claimed')        return { bg: '#fef3c7', text: '#92400e' };
+    if (status === 'Checking')       return { bg: '#ede9fe', text: '#5b21b6' };
+    if (status === 'Comment Issued') return { bg: '#ffedd5', text: '#9a3412' };
+    if (status === 'Returned')       return { bg: '#fee2e2', text: '#991b1b' };
+    if (status === 'Final')          return { bg: '#dcfce7', text: '#166534' };
+    if (status === 'Approved')       return { bg: '#dcfce7', text: '#166534' };
+    return { bg: '#f1f5f9', text: '#475569' };
+  }
+
+  // Summary counts
+  const counts = {};
+  for (const l of lines) counts[l.status] = (counts[l.status] || 0) + 1;
+  const summaryHtml = Object.entries(counts).map(([status, n]) => {
+    const c = sColor(status);
+    return `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:600;background:${c.bg};color:${c.text};">${n} ${status}</span>`;
+  }).join('');
+
+  const rowsHtml = lines.map(l => {
+    const c = sColor(l.status);
+    const scBadge = l.stressCritical === 'Y' ? ' <span style="color:#ef4444;font-size:10px;font-weight:700;vertical-align:middle;">SC</span>' : '';
+    const claimerText = (l.claimers && l.claimers.length)
+      ? l.claimers.map(cl => `${cl.name}<span style="color:#94a3b8;font-size:10px;"> (${(cl.roles || []).join(', ')})</span>`).join('<br>')
+      : '<span style="color:#cbd5e1;">—</span>';
+    const tagsHtml = (l.tags && l.tags.length)
+      ? (typeof renderTagPills === 'function' ? renderTagPills(l.tags) : l.tags.map(t => `<span style="padding:1px 6px;border-radius:8px;font-size:11px;background:#f1f5f9;color:#475569;">${t}</span>`).join(' '))
+      : '<span style="color:#cbd5e1;">—</span>';
+    return `<tr style="border-bottom:1px solid #f8fafc;">
+      <td style="padding:8px 10px;font-size:12px;color:#64748b;white-space:nowrap;">${l.zone}</td>
+      <td style="padding:8px 10px;font-size:12.5px;font-weight:600;color:#0f172a;">${l.lineNo}${scBadge}</td>
+      <td style="padding:8px 10px;font-size:12px;color:#64748b;">R${l.revNo}</td>
+      <td style="padding:8px 10px;white-space:nowrap;">
+        <span style="display:inline-block;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:600;background:${c.bg};color:${c.text};">${l.status}</span>
+      </td>
+      <td style="padding:8px 10px;font-size:12px;color:#334155;">${claimerText}</td>
+      <td style="padding:8px 10px;">${tagsHtml}</td>
+    </tr>`;
+  }).join('');
+
+  setCard(`
+    <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0;">
+      <div>
+        <div style="font-size:11px;color:#94a3b8;font-weight:600;text-transform:uppercase;letter-spacing:.05em;">Lot Live Status</div>
+        <div style="font-size:17px;font-weight:700;color:#0f172a;">Lot ${lot.lotNumber} · ${lot.jobNo} / ${lot.unitNo}</div>
+        <div style="font-size:12px;color:#94a3b8;margin-top:3px;">Planned by ${lot.createdBy}</div>
+      </div>
+      <button class="_lot-close" style="background:none;border:none;font-size:24px;cursor:pointer;color:#94a3b8;line-height:1;flex-shrink:0;margin-left:16px;">&times;</button>
+    </div>
+
+    <div style="padding:12px 24px;background:#f8fafc;border-bottom:1px solid #f1f5f9;flex-shrink:0;display:flex;flex-wrap:wrap;align-items:center;gap:8px;">
+      <span style="font-size:12px;color:#64748b;font-weight:600;">${lines.length} line${lines.length !== 1 ? 's' : ''}</span>
+      <span style="color:#e2e8f0;font-size:12px;">|</span>
+      ${summaryHtml || '<span style="color:#94a3b8;font-size:12px;">No lines yet</span>'}
+    </div>
+
+    <div style="overflow-y:auto;flex:1;">
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="background:#f8fafc;">
+            <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.04em;position:sticky;top:0;background:#f8fafc;">Zone</th>
+            <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.04em;position:sticky;top:0;background:#f8fafc;">Line No</th>
+            <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.04em;position:sticky;top:0;background:#f8fafc;">Rev</th>
+            <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.04em;position:sticky;top:0;background:#f8fafc;">Status</th>
+            <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.04em;position:sticky;top:0;background:#f8fafc;">Claimed By</th>
+            <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.04em;position:sticky;top:0;background:#f8fafc;">Tags</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml || '<tr><td colspan="6" style="padding:24px;text-align:center;color:#94a3b8;">No lines in this lot yet.</td></tr>'}</tbody>
+      </table>
+    </div>
+  `);
 }
 

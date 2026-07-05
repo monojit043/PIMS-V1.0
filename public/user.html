@@ -4503,17 +4503,24 @@
         var checked = document.querySelectorAll('.final-iso-cb:checked');
         if (!checked.length) return;
 
-        var lines = [], job = null, unit = null, mismatch = false;
+        var lines = [], job = null, unit = null;
+        var groupCounts = {}; // "job|unit" -> count, used to report a breakdown if selection spans units
         checked.forEach(function(cb) {
           var tr = cb.closest('tr');
           var j = tr.dataset.job, u = tr.dataset.unit, l = tr.dataset.line;
           if (job === null) { job = j; unit = u; }
-          else if (j !== job || u !== unit) mismatch = true;
+          var key = j + '|' + u;
+          groupCounts[key] = (groupCounts[key] || 0) + 1;
           lines.push(l);
         });
 
-        if (mismatch) {
-          alert('All selected lines must belong to the same Job and Unit to create a lot.');
+        var groupKeys = Object.keys(groupCounts);
+        if (groupKeys.length > 1) {
+          var breakdown = groupKeys.map(function(key) {
+            var parts = key.split('|');
+            return groupCounts[key] + ' ISO selected in Job ' + parts[0] + ', Unit ' + parts[1];
+          }).join('; ');
+          alert(breakdown + '. Please issue lots separately for each job/unit.');
           return;
         }
 

@@ -3,7 +3,8 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const ctrl = require("../controllers/notificationController");
-const { requireLogin, requireCheckerRole, requireGLRole, requireSGLAccess } = require("../middleware/auth");
+const { requireLogin, requireCheckerRole, requireGLRole, requireSGLAccess, requireAnyRole } = require("../middleware/auth");
+const requireReviewRole = requireAnyRole('Process Checker', 'Material Checker', 'Stress Checker', 'GL', 'SGL');
 
 const TEMP_DIR = path.join(__dirname, "..", "temp");
 if (!fs.existsSync(TEMP_DIR)) fs.mkdirSync(TEMP_DIR, { recursive: true });
@@ -32,6 +33,7 @@ router.get("/my-all-tasks", requireLogin, ctrl.getAllTasks);
 router.get("/drawing-claimers", requireLogin, ctrl.getDrawingClaimers);
 router.post("/forward-iso-lines", requireLogin, ctrl.forwardIsoLines);
 router.get("/sc-users", requireLogin, ctrl.getScUsers);
+router.get("/drawing-sc-claimer", requireLogin, ctrl.getDrawingScClaimer);
 router.get("/modellers", requireLogin, ctrl.getModellerUsers);
 router.post("/send-for-supporting", requireLogin, ctrl.sendForSupporting);
 router.post("/submit-checker-comments", requireCheckerRole, uploadTemp.single("commentFile"), ctrl.submitCheckerComments);
@@ -46,6 +48,8 @@ router.post("/unclaim", requireLogin, ctrl.unclaimLine);
 router.get("/zone-claims", requireLogin, ctrl.getZoneClaims);
 router.get("/my-final-isometrics", requireLogin, ctrl.getGLFinalIsometrics);
 router.get("/track-line",          requireLogin, ctrl.trackLine);
+router.get("/hold-lines",          requireReviewRole, ctrl.getHoldLines);
+router.post("/unblock-line",       requireReviewRole, ctrl.unblockLine);
 router.get("/line-holds",          requireLogin, ctrl.getLineHolds);
 router.patch("/drawing-comments/:id/hold", requireLogin, ctrl.removeHold);
 

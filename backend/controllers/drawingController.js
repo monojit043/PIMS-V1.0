@@ -553,8 +553,8 @@ async function checkIsoRoles(req, res) {
 
   try {
     const roles = await userQ.getRolesForUnit(userId, project, unit);
-    const canForward  = roles.some((r) => ["GL", "SGL"].includes(r));
-    const canCheckbox = roles.some((r) => ["GL", "SGL"].includes(r));
+    const canForward  = roles.some((r) => ["GL", "SGL", "ISO Manager"].includes(r));
+    const canCheckbox = roles.some((r) => ["GL", "SGL", "ISO Manager"].includes(r));
     res.json({ ok: true, canForward, canCheckbox, userRoles: roles });
   } catch (err) {
     res.json({ ok: false, error: "Error checking roles", canForward: false, canCheckbox: false });

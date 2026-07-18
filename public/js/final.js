@@ -222,7 +222,7 @@ function renderFinalIsometricsTable() {
         row.setAttribute('data-index', index);
 
         // Format revision date
-        const revisionDate = item.revision_dt ? new Date(item.revision_dt).toLocaleDateString() : '';
+        const revisionDate = item.revision_dt ? new Date(item.revision_dt).toLocaleDateString('en-GB') : '';
 
         row.innerHTML = `
                 <td>

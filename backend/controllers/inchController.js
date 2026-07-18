@@ -34,31 +34,39 @@ const _upload = multer({
   },
 }).single('file');
 
-// ── Scan the first 5 rows of a sheet (as array-of-arrays) to locate headers ──
+// ── Scan the first N rows of a sheet (as array-of-arrays) to locate headers ──
 // Returns { headerRowIdx, colPipeline, colInchDia, colInchMeter }
+const HEADER_SCAN_ROWS = 15;
+
+// Collapse embedded line breaks / repeated whitespace (common in wrapped header
+// cells like "DESIGN TEMP\n(deg. C)") into single spaces before regex matching —
+// otherwise "." in the regexes below won't cross a literal newline.
+function norm(c) {
+  return String(c ?? '').replace(/\s+/g, ' ').trim();
+}
+
 function detectHeaders(rawRows) {
-  for (let i = 0; i < Math.min(5, rawRows.length); i++) {
-    const row = rawRows[i] || [];
-    const pipeIdx = row.findIndex(c => /pipeline.?name/i.test(String(c ?? '')));
+  for (let i = 0; i < Math.min(HEADER_SCAN_ROWS, rawRows.length); i++) {
+    const row = (rawRows[i] || []).map(norm);
+    const pipeIdx     = row.findIndex(c => /pipe.?line.?name/i.test(c));
     if (pipeIdx < 0) continue;                        // this row doesn't have it
+
+    const inchDiaIdx   = row.findIndex(c => /inch.?dia(meter)?/i.test(c) && !/meter/i.test(c));
+    const inchMeterIdx = row.findIndex(c => /inch.?meter/i.test(c));
 
     return {
       headerRowIdx: i,
       colPipeline:  pipeIdx,
-      colInchDia:   row.findIndex(c => /inch.?dia(meter)?/i.test(String(c ?? ''))   && !/meter/i.test(String(c ?? ''))),
-      colInchMeter: row.findIndex(c => /inch.?meter/i.test(String(c ?? ''))),
+      colInchDia:   inchDiaIdx,
+      colInchMeter: inchMeterIdx,
       headerLabels: {
-        pipeline: String(row[pipeIdx]),
-        inchDia:  row.findIndex(c => /inch.?dia(meter)?/i.test(String(c ?? '')) && !/meter/i.test(String(c ?? ''))) >= 0
-          ? String(row[row.findIndex(c => /inch.?dia/i.test(String(c ?? '')) && !/meter/i.test(String(c ?? '')))])
-          : null,
-        inchMeter: row.findIndex(c => /inch.?meter/i.test(String(c ?? ''))) >= 0
-          ? String(row[row.findIndex(c => /inch.?meter/i.test(String(c ?? '')))])
-          : null,
+        pipeline:  row[pipeIdx],
+        inchDia:   inchDiaIdx   >= 0 ? row[inchDiaIdx]   : null,
+        inchMeter: inchMeterIdx >= 0 ? row[inchMeterIdx] : null,
       },
     };
   }
-  return null;   // not found in first 5 rows
+  return null;   // not found in first N rows
 }
 
 // POST /api/inch/upload
@@ -75,21 +83,32 @@ async function uploadInchData(req, res) {
 
     try {
       const workbook = XLSX.read(req.file.buffer, { type: 'buffer', cellDates: true });
-      const sheetName = workbook.SheetNames[0];
-      if (!sheetName)
+      if (!workbook.SheetNames.length)
         return res.status(400).json({ ok: false, error: 'Excel file has no sheets' });
 
-      // Read as raw array-of-arrays so we can detect headers in any row
-      const rawRows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {
-        header: 1,
-        defval: null,
-      });
+      // Some exports (e.g. SP3D reports) bundle the real data in a sheet that
+      // isn't first — search every sheet for one whose header row matches,
+      // instead of assuming SheetNames[0] is the data sheet.
+      let rawRows = null;
+      let found   = null;
+      for (const name of workbook.SheetNames) {
+        const candidateRows = XLSX.utils.sheet_to_json(workbook.Sheets[name], {
+          header: 1,
+          defval: null,
+        });
+        const candidateFound = detectHeaders(candidateRows);
+        if (candidateFound) {
+          rawRows = candidateRows;
+          found   = candidateFound;
+          break;
+        }
+      }
 
-      const found = detectHeaders(rawRows);
       if (!found) {
         return res.status(400).json({
           ok: false,
-          error: 'Could not find a "PIPELINE NAME" column in the first 5 rows of the sheet',
+          error: `Could not find a "PIPELINE NAME" column in the first ${HEADER_SCAN_ROWS} rows of any sheet ` +
+                 `(checked: ${workbook.SheetNames.join(', ')})`,
         });
       }
 

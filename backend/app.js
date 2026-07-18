@@ -2,7 +2,8 @@ require("dotenv").config();
 const express = require("express");
 const path = require("path");
 const session = require("express-session");
-const MemoryStore = require("memorystore")(session);
+const { pool } = require("./db/pool");
+const PgSessionStore = require("./db/pgSessionStore");
 
 const noCache = require("./middleware/noCache");
 const authRoutes = require("./routes/authRoutes");
@@ -21,6 +22,7 @@ const lmsRoutes          = require("./routes/lmsRoutes");
 const stressIndexRoutes  = require("./routes/stressIndexRoutes");
 const isoPreCheckRoutes  = require("./routes/isoPreCheckRoutes");
 const gadRoutes          = require("./routes/gadRoutes");
+const masterUnitRoutes   = require("./routes/masterUnitRoutes");
 
 const app = express();
 
@@ -34,7 +36,7 @@ app.use(
     secret: process.env.SESSION_SECRET || "pims-secret",
     resave: false,
     saveUninitialized: false,
-    store: new MemoryStore({ checkPeriod: 86400000 }),
+    store: new PgSessionStore(pool),
     cookie: { maxAge: 8 * 60 * 60 * 1000 },
   })
 );
@@ -65,6 +67,7 @@ app.use("/api", lmsRoutes);
 app.use("/api", stressIndexRoutes);
 app.use("/api", isoPreCheckRoutes);
 app.use("/api", gadRoutes);
+app.use("/api", masterUnitRoutes);
 
 // ---------- HEALTH CHECK ----------
 app.get("/api/health", (req, res) => res.json({ status: "OK", db: "PostgreSQL" }));

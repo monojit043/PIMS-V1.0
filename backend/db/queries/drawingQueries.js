@@ -292,7 +292,11 @@ async function getClaimedTasks(userId) {
   const { rows } = await pool.query(
     `SELECT d.*, dc.roles AS claimed_roles, dc.claimed_at,
             (SELECT l.lot_number FROM lot_lines ll JOIN lots l ON l.id = ll.lot_id
-             WHERE ll.drawing_id = d.id AND l.issued_at IS NULL LIMIT 1) AS planned_lot_number
+             WHERE ll.drawing_id = d.id AND l.issued_at IS NULL LIMIT 1) AS planned_lot_number,
+            EXISTS (
+              SELECT 1 FROM drawing_claims sc_dc
+              WHERE sc_dc.drawing_id = d.id AND 'SC' = ANY(sc_dc.roles)
+            ) AS sc_claimed
      FROM drawing_claims dc
      JOIN drawings d ON d.id = dc.drawing_id
      WHERE dc.user_id = $1 AND dc.completed_at IS NULL

@@ -860,6 +860,9 @@ function setupContextMenu() {
       case 'revision-history':
         viewIsoRevisionHistory(iso);
         break;
+      case 'unblock-line':
+        unblockLineFromContext(iso);
+        break;
     }
 
     contextMenu.style.display = 'none';
@@ -876,6 +879,13 @@ function showContextMenu(event, iso) {
   // Show/hide Remove from Lot Plan only when a planned lot exists on this line
   const removeItem = document.getElementById('ctx-remove-from-lot');
   if (removeItem) removeItem.style.display = iso.plannedLotNumber ? '' : 'none';
+
+  // Show Unblock only when line is on hold
+  const unblockItem = document.getElementById('ctx-unblock-line');
+  if (unblockItem) {
+    const onHold = ['Checker Hold', 'GL Hold', 'SGL Hold'].includes(iso.status);
+    unblockItem.style.display = onHold ? '' : 'none';
+  }
 
   contextMenu.style.left = event.pageX + 'px';
   contextMenu.style.top  = event.pageY + 'px';
@@ -1360,10 +1370,18 @@ async function loadRoleCheckers(role) {
 
 // ===== LOT ASSIGNMENT MODAL =====
 async function openAssignLotModal(selectedRows) {
-  // Fetch existing planned lots for this project/unit
+  // Resolve child unit → master unit so lot operations target the correct lot sequence
+  let masterUnit = selectedUnit;
+  try {
+    const muRes = await fetch(`/api/master-units/resolve?project=${encodeURIComponent(selectedProject)}&unit=${encodeURIComponent(selectedUnit)}`);
+    const muData = await muRes.json();
+    if (muData.ok) masterUnit = muData.masterUnit;
+  } catch (e) { /* keep selectedUnit if resolve fails */ }
+
+  // Fetch existing planned lots for this master unit
   let plannedLots = [];
   try {
-    const res = await fetch(`/api/lots/planned?project=${encodeURIComponent(selectedProject)}&unit=${encodeURIComponent(selectedUnit)}`);
+    const res = await fetch(`/api/lots/planned?project=${encodeURIComponent(selectedProject)}&unit=${encodeURIComponent(masterUnit)}`);
     const data = await res.json();
     if (data.ok) plannedLots = data.lots;
   } catch (e) {
@@ -1436,7 +1454,7 @@ async function openAssignLotModal(selectedRows) {
         const res = await fetch('/api/lots/create', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ jobNo: selectedProject, unitNo: selectedUnit, lineNos: selectedRows.map(r => r.lineNo) })
+          body: JSON.stringify({ jobNo: selectedProject, unitNo: masterUnit, lineNos: selectedRows.map(r => r.lineNo) })
         });
         const data = await res.json();
         if (data.ok) {
@@ -1468,7 +1486,7 @@ async function openAssignLotModal(selectedRows) {
         const res = await fetch(`/api/lots/${lotId}/lines`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ jobNo: selectedProject, unitNo: selectedUnit, lineNos: selectedRows.map(r => r.lineNo) })
+          body: JSON.stringify({ jobNo: selectedProject, unitNo: masterUnit, lineNos: selectedRows.map(r => r.lineNo) })
         });
         const data = await res.json();
         if (data.ok) {
@@ -2093,5 +2111,31 @@ async function openLotStatusModal(jobNo, unitNo, lotNumber) {
       </table>
     </div>
   `);
+}
+
+// ── Unblock Line (right-click) ────────────────────────────────────────────────
+async function unblockLineFromContext(iso) {
+  const lineNo = iso.line_no;
+  const jobNo  = iso.job_no  || selectedProject;
+  const unitNo = iso.unit_no || selectedUnit;
+  if (!confirm(`Remove hold on line ${lineNo}?\n\nThe line will be returned to the checker pool as if newly uploaded. Any checker can claim it.`)) return;
+  try {
+    const resp = await fetch('/api/unblock-line', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jobNo, unitNo, lineNo }),
+    });
+    const result = await resp.json();
+    if (result.ok) {
+      alert(result.message);
+      if (typeof refreshCurrentNotificationView === 'function') refreshCurrentNotificationView();
+      if (typeof loadHoldLines === 'function') loadHoldLines();
+      if (typeof loadProjectData === 'function') loadProjectData();
+    } else {
+      alert('Error: ' + (result.error || 'Failed to unblock'));
+    }
+  } catch (err) {
+    alert('Network error: ' + err.message);
+  }
 }
 

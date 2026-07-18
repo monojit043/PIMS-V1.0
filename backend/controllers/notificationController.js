@@ -309,13 +309,14 @@ async function getNotificationsByRole(req, res) {
   try {
     const statusMap = {
       GL: "Ready for GL", SGL: "Ready for SGL", Modeller: "Comments Received%",
+      'ISO Manager': "Ready for GL",
     };
     const targetStatus = statusMap[role];
 
     if (targetStatus) {
-      // GL / SGL / Modeller path
+      // GL / SGL / Modeller / ISO Manager path
       const extraCondition =
-        role === "GL"       ? "OR d.notify_gl=TRUE" :
+        role === "GL" || role === "ISO Manager" ? "OR d.notify_gl=TRUE" :
         role === "Modeller" ? "OR d.notify_modeller=TRUE" : "";
 
       // For GL/SGL/Modeller pool: hide lines already claimed/directly assigned
@@ -325,10 +326,16 @@ async function getNotificationsByRole(req, res) {
       // are — and since unclaiming just deletes that same claim row, this one
       // condition is also what makes the line reappear for everyone else the
       // moment it's unclaimed, with no separate "release" step needed.
+      // ISO Manager sees the unclaimed GL pool (same pool as GL, read-only).
       const directClaimExclusion = (role === "GL" || role === "SGL" || role === "Modeller")
         ? `AND NOT EXISTS (
              SELECT 1 FROM drawing_claims dc2
              WHERE dc2.drawing_id=d.id AND $2=ANY(dc2.roles) AND dc2.completed_at IS NULL
+           )`
+        : role === "ISO Manager"
+        ? `AND NOT EXISTS (
+             SELECT 1 FROM drawing_claims dc2
+             WHERE dc2.drawing_id=d.id AND 'GL'=ANY(dc2.roles) AND dc2.completed_at IS NULL
            )`
         : "";
 
@@ -382,7 +389,7 @@ async function getNotificationsByRole(req, res) {
           tags: d.tags || [],
         });
       }
-      return res.json({ ok: true, notifications });
+      return res.json({ ok: true, notifications, canClaim: role !== 'ISO Manager' });
     }
 
     // Checker path
@@ -466,6 +473,7 @@ async function getClaimedTasks(req, res) {
         status: d.status, claimedOn: d.claimed_at, claimedRoles: d.claimed_roles || [],
         assignedBy: d.delegated_by_role || null,
         plannedLotNumber: d.planned_lot_number || null,
+        scClaimed: d.sc_claimed || false,
         tags: d.tags || [],
       })),
     });
@@ -543,6 +551,13 @@ async function getGLFinalIsometrics(req, res) {
                AND ura.unit_no    = d.unit_no
                AND ura.user_id    = $1
                AND ura.role       = 'GL'
+           )
+           OR EXISTS (
+             SELECT 1 FROM user_role_assignments ura
+             WHERE ura.project_id = d.job_no
+               AND ura.unit_no    = d.unit_no
+               AND ura.user_id    = $1
+               AND ura.role       = 'ISO Manager'
            )
            OR EXISTS (
              SELECT 1 FROM drawing_claims dc
@@ -723,6 +738,27 @@ async function getModellerUsers(req, res) {
   }
 }
 
+// GET /api/drawing-sc-claimer?jobNo=X&unitNo=Y&lineNo=Z
+async function getDrawingScClaimer(req, res) {
+  const { jobNo, unitNo, lineNo } = req.query;
+  if (!jobNo || !unitNo || !lineNo) return res.status(400).json({ ok: false, error: "Missing fields" });
+  try {
+    const { rows } = await pool.query(
+      `SELECT u.id, u.name
+       FROM drawing_claims dc
+       JOIN drawings d ON d.id = dc.drawing_id
+       JOIN users u ON u.id = dc.user_id
+       WHERE d.job_no=$1 AND d.unit_no=$2 AND d.line_no=$3
+         AND 'SC'=ANY(dc.roles) AND dc.completed_at IS NULL`,
+      [jobNo, unitNo, lineNo]
+    );
+    res.json({ ok: true, claimers: rows });
+  } catch (err) {
+    console.error("getDrawingScClaimer error:", err);
+    res.status(500).json({ ok: false, error: "Failed" });
+  }
+}
+
 // POST /api/send-for-supporting
 async function sendForSupporting(req, res) {
   const { jobNo, unitNo, lineNo, assignedScUserId } = req.body;
@@ -746,6 +782,29 @@ async function sendForSupporting(req, res) {
     );
 
     if (assignedScUserId) {
+      // Before assigning new SC, remove any open SC claims for OTHER users
+      const { rows: existingSCs } = await pool.query(
+        `SELECT user_id, roles FROM drawing_claims WHERE drawing_id=$1 AND 'SC'=ANY(roles) AND completed_at IS NULL AND user_id != $2`,
+        [drawingId, assignedScUserId]
+      );
+      for (const existing of existingSCs) {
+        const remainingRoles = existing.roles.filter(r => r !== 'SC');
+        if (remainingRoles.length === 0) {
+          await pool.query(
+            `DELETE FROM drawing_claims WHERE drawing_id=$1 AND user_id=$2`,
+            [drawingId, existing.user_id]
+          );
+        } else {
+          await pool.query(
+            `UPDATE drawing_claims SET roles=$1 WHERE drawing_id=$2 AND user_id=$3`,
+            [remainingRoles, drawingId, existing.user_id]
+          );
+        }
+        await pushNotification(existing.user_id, drawingId,
+          'Stress Check Reassigned',
+          `Line ${lineNo} (${jobNo}/${unitNo}) has been reassigned to another SC engineer. No further action needed from you.`);
+      }
+
       // Specific SC selected → always direct to their inbox regardless of cycle
       await drawingQ.upsertClaim(drawingId, assignedScUserId, ["SC"]);
       await pushNotification(assignedScUserId, drawingId,
@@ -2173,6 +2232,121 @@ async function trackLine(req, res) {
   }
 }
 
+// GET /api/hold-lines
+// Returns all lines currently on Checker Hold / GL Hold / SGL Hold that the
+// caller has authority over (has PC/MC/SC/GL/SGL role on the same project/unit).
+async function getHoldLines(req, res) {
+  const userId = req.session.user.id;
+  try {
+    const { rows } = await pool.query(
+      `SELECT DISTINCT ON (d.id)
+         d.id AS drawing_id, d.job_no, d.unit_no, d.zone, d.line_no,
+         d.rev_no, d.stored_file, d.status, d.stress_critical, d.uploaded_by,
+         dc_hold.user_id  AS hold_declarer_id,
+         u_hold.name      AS hold_declarer_name,
+         dc_hold.hold_description,
+         dc_hold.roles    AS hold_roles,
+         dc_hold.created_at AS held_at
+       FROM drawings d
+       JOIN user_role_assignments ura
+         ON ura.project_id = d.job_no AND ura.unit_no = d.unit_no
+         AND ura.user_id = $1
+         AND ura.role IN ('Process Checker','Material Checker','Stress Checker','GL','SGL')
+       LEFT JOIN LATERAL (
+         SELECT user_id, hold_description, roles, created_at
+         FROM drawing_comments
+         WHERE drawing_id = d.id AND hold_type = 'blocking'
+         ORDER BY created_at DESC LIMIT 1
+       ) dc_hold ON TRUE
+       LEFT JOIN users u_hold ON u_hold.id = dc_hold.user_id
+       WHERE d.status IN ('Checker Hold','GL Hold','SGL Hold')
+       ORDER BY d.id, dc_hold.created_at DESC`,
+      [userId]
+    );
+    res.json({ ok: true, lines: rows });
+  } catch (err) {
+    console.error('getHoldLines error:', err);
+    res.status(500).json({ ok: false, error: 'Failed to load hold lines' });
+  }
+}
+
+// POST /api/unblock-line
+// Any PC/MC/SC, GL, or SGL assigned to the same project/unit may unblock a
+// blocked line. The line is reset to 'Uploaded' — same behaviour as a fresh
+// upload — so any eligible checker can claim it from the pool.
+async function unblockLine(req, res) {
+  const { jobNo, unitNo, lineNo } = req.body;
+  const userId = req.session.user.id;
+  if (!jobNo || !unitNo || !lineNo)
+    return res.status(400).json({ ok: false, error: 'jobNo, unitNo, lineNo required' });
+
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM drawings WHERE job_no=$1 AND unit_no=$2 AND line_no=$3`,
+      [jobNo, unitNo, lineNo]
+    );
+    if (!rows[0]) return res.status(404).json({ ok: false, error: 'Drawing not found' });
+    const drawing = rows[0];
+
+    const holdStatuses = ['Checker Hold', 'GL Hold', 'SGL Hold'];
+    if (!holdStatuses.includes(drawing.status))
+      return res.status(400).json({ ok: false, error: `Line is not on hold (status: ${drawing.status})` });
+
+    // Confirm caller has an eligible role for this unit
+    const { rows: roleCheck } = await pool.query(
+      `SELECT 1 FROM user_role_assignments
+       WHERE user_id=$1 AND project_id=$2 AND unit_no=$3
+         AND role IN ('Process Checker','Material Checker','Stress Checker','GL','SGL')
+       LIMIT 1`,
+      [userId, jobNo, unitNo]
+    );
+    if (!req.session.user.isHod && roleCheck.length === 0)
+      return res.status(403).json({ ok: false, error: 'Not authorised to unblock lines in this unit' });
+
+    const cycleNo = extractUploadCount(drawing.stored_file);
+
+    // Record the unblock in history with hold_type='unblocked' so it appears
+    // in the Hold History tab (which queries hold_type IS NOT NULL).
+    await drawingQ.addComment(
+      drawing.id, userId, [], 'unblock', 'Hold removed — line returned to checker pool',
+      null, null, null, 'unblocked', null, cycleNo
+    );
+
+    // Wipe all claim rows — the hold declarer's completed claim and any others.
+    await drawingQ.clearAllClaims(drawing.id);
+
+    // Reset to Uploaded — identical to a fresh line entering the pool.
+    await pool.query(
+      `UPDATE drawings
+         SET status='Uploaded', checker_reroute='[]'::jsonb,
+             all_roles_claimed=FALSE, notify_gl=FALSE, notify_modeller=FALSE,
+             delegated_by_user=NULL, delegated_by_role=NULL
+       WHERE id=$1`,
+      [drawing.id]
+    );
+
+    // Broadcast to checker pool just like uploadIsometric does for a fresh line.
+    await Promise.all([
+      pushToRoleUsers(jobNo, unitNo, 'Process Checker', drawing.id,
+        'Line Unblocked — Available for Review',
+        `Line ${lineNo} (${jobNo}/${unitNo}) hold has been removed. Line is available for checker review.`),
+      pushToRoleUsers(jobNo, unitNo, 'Material Checker', drawing.id,
+        'Line Unblocked — Available for Review',
+        `Line ${lineNo} (${jobNo}/${unitNo}) hold has been removed. Line is available for checker review.`),
+    ]);
+    if (drawing.stress_critical !== 'Y') {
+      await pushToRoleUsers(jobNo, unitNo, 'Stress Checker', drawing.id,
+        'Line Unblocked — Available for Review',
+        `Line ${lineNo} (${jobNo}/${unitNo}) hold has been removed. Line is available for checker review.`);
+    }
+
+    res.json({ ok: true, message: 'Hold removed. Line returned to checker pool.' });
+  } catch (err) {
+    console.error('unblockLine error:', err);
+    res.status(500).json({ ok: false, error: 'Failed to unblock line' });
+  }
+}
+
 // GET /api/line-holds?drawingId=X  (or ?lineNo=X&jobNo=Y&unitNo=Z)
 // Returns all hold declarations for a line, grouped by cycle, newest cycle first.
 async function getLineHolds(req, res) {
@@ -2292,11 +2466,12 @@ async function removeHold(req, res) {
 module.exports = {
   getNotifications, getNotificationsByRole,
   claimNotifications, getClaimedTasks, getModellerTasks, getGLTasks, getAllTasks,
-  getDrawingClaimers, forwardIsoLines, sendForSupporting, getScUsers, getModellerUsers,
+  getDrawingClaimers, forwardIsoLines, sendForSupporting, getScUsers, getModellerUsers, getDrawingScClaimer,
   submitCheckerComments, submitGLComments, submitSGLComments, unclaimLine,
   forwardGLToModeller, trackLine,
   declareCheckerBlockingHold, declareGLBlockingHold, declareSGLBlockingHold,
   getGLFinalIsometrics, getZoneClaims,
+  getHoldLines, unblockLine,
   getLineHolds, removeHold,
   sseStream, getNotifList, markAllRead, markOneRead,
 };

@@ -54,13 +54,6 @@
           <span class="sb-name">PIMS</span>
           <span class="sb-sub">HOD Console</span>
         </div>
-        <button class="notif-bell" id="notifBell" title="Notifications">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-          </svg>
-          <span class="notif-badge" id="notifBadge" style="display:none">0</span>
-        </button>
         <button class="sb-collapse-btn" id="sbCollapseBtn" aria-label="Collapse sidebar">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M15 18l-6-6 6-6" />
@@ -77,7 +70,7 @@
           </svg>
         </div>
         <div class="sb-user-info">
-          <span class="sb-user-name" id="userInfo">—</span>
+          <span class="sb-user-name loggedUser">—</span>
           <span class="sb-user-role">Head of Department</span>
         </div>
         <div class="sb-user-dot"></div>
@@ -88,68 +81,60 @@
 
         <div class="sb-section-label">Actions</div>
 
-        <div class="nav-group">
-          <button class="nav-group-btn" onclick="scrollToSection('create-job-section')">
-            <span class="nav-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-                <rect x="2" y="7" width="20" height="14" rx="2" />
-                <path d="M16 3H8a2 2 0 0 0-2 2v2h12V5a2 2 0 0 0-2-2z"/>
-                <line x1="12" y1="12" x2="12" y2="17"/>
-                <line x1="9.5" y1="14.5" x2="14.5" y2="14.5"/>
-              </svg>
-            </span>
-            <span class="nav-label">Create Job</span>
-          </button>
-        </div>
+        <button class="nav-item" onclick="scrollToSection('create-job-section')">
+          <span class="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+              <rect x="2" y="7" width="20" height="14" rx="2" />
+              <path d="M16 3H8a2 2 0 0 0-2 2v2h12V5a2 2 0 0 0-2-2z"/>
+              <line x1="12" y1="12" x2="12" y2="17"/>
+              <line x1="9.5" y1="14.5" x2="14.5" y2="14.5"/>
+            </svg>
+          </span>
+          <span class="nav-label">Create Job</span>
+        </button>
 
-        <div class="nav-group">
-          <button class="nav-group-btn" onclick="scrollToSection('assign-sgl-section')">
-            <span class="nav-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                <circle cx="9" cy="7" r="4"/>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-              </svg>
-            </span>
-            <span class="nav-label">Assign SGL</span>
-          </button>
-        </div>
+        <button class="nav-item" onclick="scrollToSection('assign-sgl-section')">
+          <span class="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+          </span>
+          <span class="nav-label">Assign SGL</span>
+        </button>
 
-        <div class="nav-group">
-          <button class="nav-group-btn" onclick="scrollToSection('all-jobs-section')">
-            <span class="nav-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14 2 14 8 20 8"/>
-                <line x1="16" y1="13" x2="8" y2="13"/>
-                <line x1="16" y1="17" x2="8" y2="17"/>
-                <polyline points="10 9 9 9 8 9"/>
-              </svg>
-            </span>
-            <span class="nav-label">All Jobs</span>
-          </button>
-        </div>
+        <button class="nav-item" onclick="scrollToSection('all-jobs-section')">
+          <span class="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/>
+              <line x1="16" y1="17" x2="8" y2="17"/>
+              <polyline points="10 9 9 9 8 9"/>
+            </svg>
+          </span>
+          <span class="nav-label">All Jobs</span>
+        </button>
 
         <div class="sb-section-label" style="margin-top:1rem;">System</div>
 
-        <div class="nav-group">
-          <button class="nav-group-btn" onclick="closeWindow()">
-            <span class="nav-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                <polyline points="9 22 9 12 15 12 15 22"/>
-              </svg>
-            </span>
-            <span class="nav-label">Dashboard</span>
-          </button>
-        </div>
+        <button class="nav-item" onclick="closeWindow()">
+          <span class="nav-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+              <polyline points="9 22 9 12 15 12 15 22"/>
+            </svg>
+          </span>
+          <span class="nav-label">Dashboard</span>
+        </button>
 
       </nav>
 
       <!-- Footer -->
       <div class="sb-footer">
-        <button class="sb-footer-btn sb-logout" onclick="doLogout()">
+        <button class="sb-footer-btn sb-logout" id="sbSignOutBtn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
             <polyline points="16 17 21 12 16 7"/>
@@ -164,14 +149,85 @@
     <!-- ═══ MAIN AREA ═══ -->
     <div class="main-area">
 
-      <!-- Top command bar -->
-      <header class="command-bar">
-        <div class="cb-breadcrumb">
-          <span class="cb-crumb-root">PIMS</span>
-          <svg class="cb-crumb-sep" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M9 18l6-6-6-6"/>
+      <!-- Top bar -->
+      <header class="topbar">
+        <div class="topbar-search">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
-          <span class="cb-crumb-current">HOD Console</span>
+          <input type="text" class="search-input" id="globalSearch" placeholder="Search jobs, SGLs…" autocomplete="off" />
+          <span class="search-kbd">⌘ K</span>
+        </div>
+
+        <div class="topbar-actions">
+          <button class="topbar-btn notif-trigger" id="notifBell" title="Notifications">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+            <span class="notif-badge" id="notifBadge" style="display:none">0</span>
+          </button>
+
+          <button class="topbar-btn" id="themeToggle" title="Toggle theme">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+          </button>
+
+          <a class="topbar-btn" href="https://forms.gle/UjGuMiht51UcDdPW7" target="_blank" title="Feedback">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </a>
+
+          <div class="tu-wrap" id="tuWrap">
+            <div class="topbar-user" id="tuBtn">
+              <div class="topbar-avatar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                  <circle cx="12" cy="7" r="4"/>
+                </svg>
+              </div>
+              <div class="topbar-user-text">
+                <span class="topbar-user-name loggedUser">Loading…</span>
+                <span class="topbar-user-role" id="topbarUserRole">Head of Department</span>
+              </div>
+              <svg class="topbar-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </div>
+
+            <div class="tu-dropdown" id="tuDropdown">
+              <div class="tu-dd-header">
+                <div class="tu-dd-avatar">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                  </svg>
+                </div>
+                <div class="tu-dd-info">
+                  <div class="tu-dd-name loggedUser">Loading…</div>
+                  <div class="tu-dd-role" id="tuDdRole">Head of Department</div>
+                </div>
+              </div>
+              <div class="tu-dd-sep"></div>
+              <button class="tu-dd-item" id="changePasswordBtn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                Change Password
+              </button>
+              <button class="tu-dd-item tu-dd-signout" id="tuSignOutBtn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                  <polyline points="16 17 21 12 16 7"/>
+                  <line x1="21" y1="12" x2="9" y2="12"/>
+                </svg>
+                Sign Out
+              </button>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -265,6 +321,32 @@
     </div>
   </div>
 
+  <!-- Change Password Modal -->
+  <div class="cpw-modal-bg" id="cpwModalBg">
+    <div class="cpw-modal">
+      <div class="cpw-modal-header">
+        <span>Change Password</span>
+        <button class="cpw-close" id="cpwClose">&#x2715;</button>
+      </div>
+      <form id="cpwForm" class="cpw-form">
+        <label>Current Password
+          <input type="password" id="cpwCurrent" placeholder="Enter current password" autocomplete="current-password" />
+        </label>
+        <label>New Password
+          <input type="password" id="cpwNew" placeholder="Enter new password" autocomplete="new-password" />
+        </label>
+        <label>Confirm New Password
+          <input type="password" id="cpwConfirm" placeholder="Confirm new password" autocomplete="new-password" />
+        </label>
+        <div class="cpw-msg" id="cpwMsg"></div>
+        <div class="cpw-actions">
+          <button type="button" class="cpw-cancel" id="cpwCancel">Cancel</button>
+          <button type="submit" class="cpw-submit">Update Password</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Notification overlay + panel -->
   <div class="notif-overlay" id="notifOverlay"></div>
   <aside class="notif-panel" id="notifPanel">
@@ -307,10 +389,92 @@
       overlay.classList.remove('visible');
     }
 
-    async function doLogout() {
-      await fetch('/api/logout', { method: 'POST' }).catch(() => {});
-      window.location.href = '/index.html';
-    }
+    // User dropdown + logout + change password
+    (function () {
+      async function doLogout() {
+        try { await fetch('/api/logout', { method: 'POST' }); } catch (_) {}
+        window.location.href = '/index.html';
+      }
+      document.getElementById('tuSignOutBtn')?.addEventListener('click', doLogout);
+      document.getElementById('sbSignOutBtn')?.addEventListener('click', doLogout);
+
+      // Dropdown toggle (position: fixed anchored to button)
+      const tuWrap = document.getElementById('tuWrap');
+      const tuBtn  = document.getElementById('tuBtn');
+      const tuDd   = document.getElementById('tuDropdown');
+      if (tuBtn && tuDd) {
+        tuBtn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          const isOpen = tuWrap.classList.toggle('open');
+          tuDd.classList.toggle('open', isOpen);
+          if (isOpen) {
+            const rect = tuBtn.getBoundingClientRect();
+            tuDd.style.top   = (rect.bottom + 8) + 'px';
+            tuDd.style.right = (window.innerWidth - rect.right) + 'px';
+          }
+        });
+        document.addEventListener('click', function () {
+          tuWrap.classList.remove('open');
+          tuDd.classList.remove('open');
+        });
+        tuDd.addEventListener('click', function (e) { e.stopPropagation(); });
+      }
+
+      // Change Password modal
+      const cpwBg     = document.getElementById('cpwModalBg');
+      const cpwClose  = document.getElementById('cpwClose');
+      const cpwCancel = document.getElementById('cpwCancel');
+      const cpwForm   = document.getElementById('cpwForm');
+      const cpwMsg    = document.getElementById('cpwMsg');
+      const cpwBtn    = document.getElementById('changePasswordBtn');
+
+      function openCpw() {
+        tuDd?.classList.remove('open');
+        tuWrap?.classList.remove('open');
+        cpwForm.reset();
+        cpwMsg.textContent = ''; cpwMsg.className = 'cpw-msg';
+        cpwBg.classList.add('open');
+      }
+      function closeCpw() { cpwBg.classList.remove('open'); }
+
+      cpwBtn?.addEventListener('click', openCpw);
+      cpwClose?.addEventListener('click', closeCpw);
+      cpwCancel?.addEventListener('click', closeCpw);
+      cpwBg?.addEventListener('click', function (e) { if (e.target === cpwBg) closeCpw(); });
+
+      cpwForm?.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const cur  = document.getElementById('cpwCurrent').value.trim();
+        const nw   = document.getElementById('cpwNew').value;
+        const conf = document.getElementById('cpwConfirm').value;
+        cpwMsg.textContent = ''; cpwMsg.className = 'cpw-msg';
+        if (!cur || !nw || !conf) {
+          cpwMsg.textContent = 'All fields are required.'; cpwMsg.className = 'cpw-msg err'; return;
+        }
+        if (nw !== conf) {
+          cpwMsg.textContent = 'New passwords do not match.'; cpwMsg.className = 'cpw-msg err'; return;
+        }
+        if (nw.length < 6) {
+          cpwMsg.textContent = 'Password must be at least 6 characters.'; cpwMsg.className = 'cpw-msg err'; return;
+        }
+        try {
+          const res  = await fetch('/api/change-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ currentPassword: cur, newPassword: nw })
+          });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok) {
+            cpwMsg.textContent = 'Password changed. Redirecting to login…'; cpwMsg.className = 'cpw-msg ok';
+            setTimeout(() => { window.location.href = '/index.html'; }, 1600);
+          } else {
+            cpwMsg.textContent = data.message || 'Failed to change password.'; cpwMsg.className = 'cpw-msg err';
+          }
+        } catch (_) {
+          cpwMsg.textContent = 'Network error. Please try again.'; cpwMsg.className = 'cpw-msg err';
+        }
+      });
+    })();
   </script>
   <script src="js/notifications.js"></script>
 </body>

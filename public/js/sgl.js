@@ -34,7 +34,9 @@ document.addEventListener('DOMContentLoaded', async function () {
     currentUser = await userResponse.json();
 
     if (currentUser && currentUser.name && currentUser.id) {
-      document.getElementById('userInfo').textContent = `${currentUser.name}   (${currentUser.id})`;
+      document.querySelectorAll('.loggedUser').forEach(el => {
+        el.textContent = `${currentUser.name} (${currentUser.id})`;
+      });
     }
 
     await loadProjects();
@@ -119,8 +121,10 @@ async function loadEmployees() {
 function populateProjectDropdowns() {
   const addSelect = document.getElementById('addProjectSelect');
   const removeSelect = document.getElementById('removeProjectSelect');
+  const muSelect = document.getElementById('muProjectSelect');
 
-  [addSelect, removeSelect].forEach(select => {
+  [addSelect, removeSelect, muSelect].forEach(select => {
+    if (!select) return;
     select.innerHTML = '<option value="">Select Project</option>';
     projects.forEach(project => {
       const option = document.createElement('option');
@@ -452,6 +456,7 @@ function populateEmployeesTable() {
       <td><input type="checkbox" name="role-${employee.id}" value="Process Checker" ${isDisabled ? 'checked disabled' : ''}></td>
       <td><input type="checkbox" name="role-${employee.id}" value="Material Checker" ${isDisabled ? 'checked disabled' : ''}></td>
       <td><input type="checkbox" name="role-${employee.id}" value="Stress Checker" ${isDisabled ? 'checked disabled' : ''}></td>
+      <td><input type="checkbox" name="role-${employee.id}" value="ISO Manager" ${isDisabled ? 'checked disabled' : ''}></td>
       <td><input type="checkbox" name="role-${employee.id}" value="GL" ${isDisabled ? 'checked disabled' : ''}></td>
       <td><input type="checkbox" name="role-${employee.id}" value="SGL" ${isDisabled ? 'checked disabled' : ''}></td>
     `;
@@ -649,7 +654,7 @@ async function removeSelected() {
     for (const [unit, employeeIds] of Object.entries(unitGroups)) {
       const unitRolesToRemove = {};
       employeeIds.forEach(employeeId => {
-        unitRolesToRemove[employeeId] = ['Modeller', 'Process Checker', 'Material Checker', 'Stress Checker', 'GL', 'SGL'];
+        unitRolesToRemove[employeeId] = ['Modeller', 'Process Checker', 'Material Checker', 'Stress Checker', 'GL', 'SGL', 'ISO Manager'];
       });
 
       const response = await fetch('/api/projects/remove-roles', {
@@ -667,5 +672,163 @@ async function removeSelected() {
   } catch (error) {
     console.error('Error removing assignments:', error);
     alert('Failed to remove assignments. Please try again.');
+  }
+}
+
+// ── MASTER UNITS ──────────────────────────────────────────────────────────────
+
+let _muProjectId = null;
+let _muUnits = [];
+let _muMappings = [];
+
+function showMuAlert(msg, type) {
+  const el = document.getElementById('mu-alert');
+  const bg  = type === 'success' ? '#dcfce7' : '#fee2e2';
+  const col = type === 'success' ? '#166534' : '#991b1b';
+  el.innerHTML = `<div style="padding:10px 14px;border-radius:6px;background:${bg};color:${col};font-size:13px;">${msg}</div>`;
+  setTimeout(() => { el.innerHTML = ''; }, 4000);
+}
+
+async function loadMasterUnitsForProject() {
+  const sel = document.getElementById('muProjectSelect');
+  _muProjectId = sel.value;
+  if (!_muProjectId) { showMuAlert('Select a project first.', 'error'); return; }
+
+  try {
+    const [unitsRes, mapRes] = await Promise.all([
+      fetch(`/api/projects/${encodeURIComponent(_muProjectId)}/units`),
+      fetch(`/api/master-units?project=${encodeURIComponent(_muProjectId)}`),
+    ]);
+    const unitsData = await unitsRes.json();
+    const mapData   = await mapRes.json();
+
+    _muUnits    = unitsData.success ? Object.values(unitsData.units).flat().sort() : [];
+    _muMappings = mapData.ok ? mapData.mappings : [];
+
+    renderMuGrid();
+    document.getElementById('muSetupArea').style.display = 'block';
+  } catch (e) {
+    console.error('loadMasterUnitsForProject error:', e);
+    showMuAlert('Failed to load project data.', 'error');
+  }
+}
+
+function renderMuGrid() {
+  const grid = document.getElementById('muGrid');
+  if (!_muUnits.length) {
+    grid.innerHTML = '<p style="color:#64748b;font-size:13px;">No units found for this project.</p>';
+    return;
+  }
+
+  // Build child→master lookup from current mappings
+  const childToMaster = {};
+  _muMappings.forEach(m => { childToMaster[m.child_unit] = m.master_unit; });
+
+  // Identify which units are currently acting as master units (can't be set as child)
+  const masterUnitSet = new Set(_muMappings.map(m => m.master_unit));
+
+  grid.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:4px;">
+      <thead>
+        <tr style="background:#f1f5f9;">
+          <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569;border-bottom:1px solid #e2e8f0;">Unit</th>
+          <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569;border-bottom:1px solid #e2e8f0;">Current Role</th>
+          <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569;border-bottom:1px solid #e2e8f0;">Set Master Unit</th>
+          <th style="padding:10px 14px;text-align:left;font-weight:600;color:#475569;border-bottom:1px solid #e2e8f0;">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${_muUnits.map(u => {
+          const currentMaster = childToMaster[u] || '';
+          const isMasterUnit  = masterUnitSet.has(u) && !currentMaster;
+
+          const roleLabel = isMasterUnit
+            ? `<span style="background:#dbeafe;color:#1e40af;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">Master Unit</span>`
+            : currentMaster
+            ? `<span style="background:#ede9fe;color:#5b21b6;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">Child → ${currentMaster}</span>`
+            : `<span style="color:#94a3b8;font-size:12px;">Standalone</span>`;
+
+          // Only non-master units can be picked as the master for another unit
+          const opts = _muUnits
+            .filter(x => x !== u && !childToMaster[x])
+            .map(x => `<option value="${x}" ${currentMaster === x ? 'selected' : ''}>${x}</option>`)
+            .join('');
+
+          const disabledAttr = isMasterUnit ? 'disabled' : '';
+          const disabledHint = isMasterUnit ? ' title="This unit is acting as master for others — clear those assignments first"' : '';
+
+          return `<tr style="border-bottom:1px solid #f1f5f9;">
+            <td style="padding:10px 14px;font-weight:600;color:#1e293b;">${u}</td>
+            <td style="padding:10px 14px;">${roleLabel}</td>
+            <td style="padding:10px 14px;">
+              <select class="mu-master-sel form-select" data-child="${u}" style="width:150px;padding:5px 8px;font-size:12px;" ${disabledAttr}${disabledHint}>
+                <option value="">— Standalone —</option>
+                ${opts}
+              </select>
+            </td>
+            <td style="padding:10px 14px;white-space:nowrap;">
+              <button class="mu-save-btn" data-child="${u}" ${disabledAttr} style="padding:5px 14px;background:${disabledAttr ? '#cbd5e1' : '#007bff'};color:white;border:none;border-radius:4px;font-size:12px;cursor:${disabledAttr ? 'not-allowed' : 'pointer'};font-weight:600;">Save</button>
+              ${currentMaster ? `<button class="mu-clear-btn" data-child="${u}" style="padding:5px 10px;background:#dc3545;color:white;border:none;border-radius:4px;font-size:12px;cursor:pointer;margin-left:6px;font-weight:600;">Clear</button>` : ''}
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+
+  grid.querySelectorAll('.mu-save-btn').forEach(btn => {
+    if (btn.disabled) return;
+    btn.addEventListener('click', async function() {
+      const childUnit  = this.dataset.child;
+      const masterSel  = grid.querySelector(`.mu-master-sel[data-child="${childUnit}"]`);
+      const masterUnit = masterSel ? masterSel.value : '';
+
+      if (!masterUnit) {
+        await _muClear(childUnit);
+        return;
+      }
+
+      btn.disabled = true; btn.textContent = '…';
+      try {
+        const res  = await fetch('/api/master-units', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ projectId: _muProjectId, masterUnit, childUnit }),
+        });
+        const data = await res.json();
+        if (data.ok) {
+          showMuAlert(`Unit ${childUnit} now points to Master Unit ${masterUnit}.`, 'success');
+          await loadMasterUnitsForProject();
+        } else {
+          showMuAlert(data.error || 'Failed to save.', 'error');
+          btn.disabled = false; btn.textContent = 'Save';
+        }
+      } catch (e) {
+        showMuAlert('Network error.', 'error');
+        btn.disabled = false; btn.textContent = 'Save';
+      }
+    });
+  });
+
+  grid.querySelectorAll('.mu-clear-btn').forEach(btn => {
+    btn.addEventListener('click', () => _muClear(btn.dataset.child));
+  });
+}
+
+async function _muClear(childUnit) {
+  try {
+    const res  = await fetch('/api/master-units', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ projectId: _muProjectId, childUnit }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      showMuAlert(`Master unit cleared for unit ${childUnit}.`, 'success');
+      await loadMasterUnitsForProject();
+    } else {
+      showMuAlert(data.error || 'Failed to clear.', 'error');
+    }
+  } catch (e) {
+    showMuAlert('Network error.', 'error');
   }
 }

@@ -32,7 +32,11 @@ document.addEventListener('DOMContentLoaded', async function () {
     currentUser = await userResponse.json();
 
     if (currentUser && currentUser.name && currentUser.id) {
-      document.getElementById('userInfo').textContent = `${currentUser.name}   (${currentUser.id})`;
+      document.querySelectorAll('.loggedUser').forEach(el => {
+        el.textContent = `${currentUser.name} (${currentUser.id})`;
+      });
+      const roleEls = [document.getElementById('topbarUserRole'), document.getElementById('tuDdRole')];
+      roleEls.forEach(el => { if (el) el.textContent = 'Head of Department'; });
     }
 
     if (!currentUser.isHod) {

@@ -16,10 +16,11 @@ async function roleSummary(req, res) {
     // dashboard (fixed pipeline order) — a Modeller+Checker user sees both,
     // not just whichever role used to win the old single-winner priority.
     const sections = [];
-    if (uniqueRoles.includes('Modeller')) sections.push('Modeller');
-    if (checkerRoles.length)              sections.push('Checker');
-    if (uniqueRoles.includes('GL'))        sections.push('GL');
-    if (uniqueRoles.includes('SGL'))       sections.push('SGL');
+    if (uniqueRoles.includes('Modeller'))    sections.push('Modeller');
+    if (checkerRoles.length)                 sections.push('Checker');
+    if (uniqueRoles.includes('GL'))          sections.push('GL');
+    if (uniqueRoles.includes('SGL'))         sections.push('SGL');
+    if (uniqueRoles.includes('ISO Manager')) sections.push('ISO Manager');
 
     let data = { sections, allRoles: uniqueRoles, checkerRoles };
 
@@ -107,6 +108,42 @@ async function roleSummary(req, res) {
         pendingSGLReview: parseInt(pending.rows[0].count),
         approvedToday:    parseInt(approvedToday.rows[0].count),
         assignedJobs:     parseInt(jobs.rows[0].count),
+      };
+    }
+
+    if (uniqueRoles.includes('ISO Manager')) {
+      const isoAssignments = roleRows.filter(r => r.role === 'ISO Manager');
+      let pendingGLCount = 0;
+      if (isoAssignments.length > 0) {
+        const conditions = isoAssignments
+          .map((_, i) => `(job_no = $${i * 2 + 1} AND unit_no = $${i * 2 + 2})`)
+          .join(' OR ');
+        const params = isoAssignments.flatMap(a => [a.project_id, a.unit_no]);
+        const { rows } = await pool.query(
+          `SELECT COUNT(*) FROM drawings WHERE notify_gl = TRUE AND (${conditions})`,
+          params
+        );
+        pendingGLCount = parseInt(rows[0].count);
+      }
+      const [finalLines, assignedJobs] = await Promise.all([
+        pool.query(
+          `SELECT COUNT(*) FROM drawings d
+           JOIN user_role_assignments ura ON ura.project_id=d.job_no AND ura.unit_no=d.unit_no
+           WHERE ura.user_id=$1 AND ura.role='ISO Manager' AND d.status='Final'`,
+          [userId]
+        ),
+        pool.query(
+          `SELECT COUNT(*) FROM (
+             SELECT DISTINCT project_id, unit_no FROM user_role_assignments
+             WHERE user_id = $1 AND role = 'ISO Manager'
+           ) t`,
+          [userId]
+        ),
+      ]);
+      data.isoManager = {
+        pendingGLReview: pendingGLCount,
+        finalLines:      parseInt(finalLines.rows[0].count),
+        assignedJobs:    parseInt(assignedJobs.rows[0].count),
       };
     }
 

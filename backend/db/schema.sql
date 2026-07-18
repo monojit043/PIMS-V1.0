@@ -210,6 +210,24 @@ CREATE INDEX IF NOT EXISTS idx_s3d_export_log_pending
   WHERE lock_status IS DISTINCT FROM last_exported_lock_status
      OR lot_no       IS DISTINCT FROM last_exported_lot_no;
 
+-- ── Master Unit groupings ─────────────────────────────────────────────────
+-- SGL defines which child units share a lot-number sequence under a master
+-- unit. One row per child unit; each child can belong to at most one group.
+-- Lots are stored with unit_no = master_unit so the sequence and folder key
+-- are consistent across the whole group. Standalone units have no row here.
+CREATE TABLE IF NOT EXISTS master_units (
+  id           SERIAL       PRIMARY KEY,
+  project_id   VARCHAR(50)  REFERENCES projects(id) ON DELETE CASCADE,
+  master_unit  VARCHAR(50)  NOT NULL,
+  child_unit   VARCHAR(50)  NOT NULL,
+  created_by   VARCHAR(20),
+  created_at   TIMESTAMPTZ  DEFAULT NOW(),
+  UNIQUE (project_id, child_unit)
+);
+
+CREATE INDEX IF NOT EXISTS idx_master_units_project  ON master_units(project_id);
+CREATE INDEX IF NOT EXISTS idx_master_units_master   ON master_units(project_id, master_unit);
+
 -- ---- Indexes for common lookups ----
 CREATE INDEX IF NOT EXISTS idx_drawings_job_unit      ON drawings(job_no, unit_no);
 CREATE INDEX IF NOT EXISTS idx_drawings_line_no       ON drawings(line_no);

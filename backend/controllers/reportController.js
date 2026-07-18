@@ -390,7 +390,12 @@ async function getLotsReport(req, res) {
        LEFT JOIN drawing_claims dc ON dc.drawing_id = d.id
        LEFT JOIN users u    ON u.id::text = dc.user_id
        LEFT JOIN users u_cr ON u_cr.id::text = l.created_by
-       WHERE l.job_no = $1 AND l.unit_no = ANY($2) AND l.issued_at IS NULL
+       WHERE l.job_no = $1
+         AND (
+           l.unit_no = ANY($2)
+           OR l.unit_no IN (SELECT master_unit FROM master_units WHERE project_id=$1 AND child_unit = ANY($2))
+         )
+         AND l.issued_at IS NULL
        GROUP BY l.id, l.lot_number, l.unit_no, l.created_at, u_cr.name,
                 d.id, d.zone, d.line_no, d.rev_no, d.status, d.tags, d.stress_critical
        ORDER BY l.lot_number, l.unit_no, d.zone, d.line_no`,

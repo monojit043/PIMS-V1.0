@@ -14,6 +14,8 @@ backend/uploads/
 backend/temp/
 backend/batch_input/
 backend/batch_logs/
+backend/s3d_export_logs/
+output/
 IDF/
 
 # Logs

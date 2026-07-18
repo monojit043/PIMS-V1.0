@@ -1,0 +1,3018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PDH Line List Converter — UNIFIED (build 1) — Bulk Edition</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/3.44.0/tabler-icons.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Fira+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* ── Base surfaces (OLED-true dark, layered elevation) ── */
+  --bg:#07070c;
+  --card:rgba(255,255,255,.038);
+  --surface-1:rgba(255,255,255,.035);
+  --surface-2:rgba(255,255,255,.055);
+  --surface-3:rgba(255,255,255,.085);
+  --col-bg:rgba(255,255,255,.06);
+  --border:rgba(255,255,255,.08);
+  --border-strong:rgba(255,255,255,.15);
+  --border-accent:rgba(168,85,247,.4);
+
+  --text:#f5f4f7; --text-2:#b7b5c0; --text-3:#85838f;
+
+  /* ── Brand accent (unchanged — keeps Chart.js gauge/bar coherent) ── */
+  --accent-1:#a855f7; --accent-2:#7c3aed;
+  --accent-grad:linear-gradient(135deg,var(--accent-1),var(--accent-2));
+  --accent-soft:rgba(168,85,247,.12);
+  --focus-ring:0 0 0 3px rgba(168,85,247,.35);
+
+  /* ── Semantic status (values kept identical to preserve coherence) ── */
+  --ok-bg:rgba(74,222,128,.12); --ok-fg:#4ade80; --ok-bd:rgba(74,222,128,.3);
+  --run-bg:rgba(251,191,36,.12); --run-fg:#fbbf24; --run-bd:rgba(251,191,36,.3);
+  --err-bg:rgba(248,113,113,.12); --err-fg:#f87171; --err-bd:rgba(248,113,113,.3);
+  --pend-bg:rgba(255,255,255,.07); --pend-fg:#b7b5c0;
+
+  /* ── Format badges (kept) ── */
+  --dm:#2dd4bf; --dm-bg:rgba(45,212,191,.12);
+  --ls:#a78bfa; --ls-bg:rgba(167,139,250,.14);
+  --li:#fbbf24; --li-bg:rgba(251,191,36,.12);
+  --pdf:#f87171; --pdf-bg:rgba(248,113,113,.12);
+
+  /* ── Type ── */
+  --font-ui:"Fira Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --font-mono:"Fira Code",ui-monospace,"SF Mono","Cascadia Code",Consolas,monospace;
+
+  /* ── Radii ── */
+  --r-sm:8px; --r-md:12px; --r-lg:16px; --r-pill:999px;
+
+  /* ── Elevation ── */
+  --shadow-card:0 1px 0 rgba(255,255,255,.04) inset,0 10px 34px rgba(0,0,0,.38);
+
+  color-scheme:dark;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{-webkit-text-size-adjust:100%;}
+body{
+  font-family:var(--font-ui);
+  background:
+    radial-gradient(68% 42% at 50% -6%,rgba(139,92,246,.30),transparent 72%),
+    radial-gradient(38% 30% at 88% 6%,rgba(124,58,237,.10),transparent 70%),
+    var(--bg);
+  background-attachment:fixed;
+  color:var(--text);
+  min-height:100dvh;
+  padding:32px 20px 56px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1180px;margin:0 auto;}
+/* tabular figures for all data readouts */
+.tnum{font-family:var(--font-mono);font-variant-numeric:tabular-nums;}
+
+/* ── Header ─────────────────────────────────────────── */
+.hdr{display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;margin-bottom:32px;padding-top:8px;}
+.hdr-badge{width:52px;height:52px;border-radius:15px;display:grid;place-items:center;font-size:24px;color:#fff;
+  background:var(--accent-grad);box-shadow:0 8px 28px rgba(168,85,247,.42),0 1px 0 rgba(255,255,255,.25) inset;}
+.hdr h1{font-size:30px;font-weight:600;letter-spacing:-.02em;color:var(--text);}
+.hdr .sub{font-family:var(--font-mono);font-size:11.5px;letter-spacing:.01em;color:var(--text-3);}
+
+/* ── Card / section ─────────────────────────────────── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r-lg);padding:22px 24px;margin-bottom:16px;
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);box-shadow:var(--shadow-card);}
+.ctitle{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;letter-spacing:.01em;color:var(--text);margin-bottom:16px;}
+.ctitle .ct-hint{margin-left:auto;font-family:var(--font-mono);font-size:10.5px;font-weight:400;letter-spacing:.04em;color:var(--text-3);text-transform:uppercase;}
+.sbadge{width:22px;height:22px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;
+  font-family:var(--font-mono);font-size:11px;font-weight:700;flex-shrink:0;
+  background:var(--accent-soft);color:var(--accent-1);border:1px solid var(--border-accent);}
+
+/* ── Dropzone ───────────────────────────────────────── */
+.dz{position:relative;border:1.5px dashed var(--border-strong);border-radius:var(--r-md);padding:40px 24px;text-align:center;cursor:pointer;
+  background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,.006));
+  transition:border-color .18s ease,background .18s ease,transform .18s ease;}
+.dz:hover,.dz.over{border-color:var(--accent-1);background:rgba(168,85,247,.07);}
+.dz.over{transform:scale(1.005);}
+.dz:focus-visible{outline:none;border-color:var(--accent-1);box-shadow:var(--focus-ring);}
+.dz .ic{width:56px;height:56px;margin:0 auto 12px;border-radius:14px;display:grid;place-items:center;font-size:26px;
+  color:var(--accent-1);background:var(--accent-soft);border:1px solid var(--border-accent);}
+.dz .dt{font-size:15px;font-weight:600;margin-bottom:4px;color:var(--text);}
+.dz .ds{font-size:12px;color:var(--text-3);}
+.type-badges{display:flex;gap:8px;justify-content:center;margin-top:14px;flex-wrap:wrap;}
+.tbadge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:var(--r-pill);
+  font-family:var(--font-mono);font-size:10.5px;font-weight:500;letter-spacing:.02em;
+  background:var(--col-bg);color:var(--text-2);border:1px solid var(--border);}
+input[type=file]{display:none;}
+
+/* ── Options sub-panel ──────────────────────────────── */
+.options{margin-top:18px;padding:16px 18px;border:1px solid var(--border);border-radius:var(--r-md);background:var(--surface-1);}
+.options-title{font-size:10.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--text-3);margin-bottom:14px;}
+.settings-row{display:flex;align-items:center;gap:12px;font-size:12.5px;color:var(--text-2);flex-wrap:wrap;}
+.settings-row+.settings-row{margin-top:14px;}
+.settings-row label{white-space:nowrap;font-weight:500;color:var(--text);}
+.settings-row .hint{font-size:11px;color:var(--text-3);}
+.settings-row strong{font-family:var(--font-mono);color:var(--accent-1);min-width:14px;text-align:center;}
+.settings-note{display:flex;align-items:flex-start;gap:6px;margin-top:14px;font-size:11.5px;color:var(--text-3);line-height:1.5;}
+.settings-note i{color:var(--accent-1);font-size:14px;flex-shrink:0;}
+.settings-note i.ti-list-numbers{margin-top:1px;}
+input[type=range]{-webkit-appearance:none;appearance:none;height:5px;border-radius:99px;width:130px;
+  background:linear-gradient(90deg,var(--accent-2),var(--accent-1));outline:none;cursor:pointer;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#fff;
+  border:2px solid var(--accent-1);box-shadow:0 2px 6px rgba(0,0,0,.4);cursor:pointer;}
+input[type=range]::-moz-range-thumb{width:15px;height:15px;border:2px solid var(--accent-1);background:#fff;border-radius:50%;cursor:pointer;}
+input[type=range]:focus-visible{box-shadow:var(--focus-ring);}
+.settings-row input[type=number],.settings-row input[type=text]{
+  font-family:var(--font-mono);background:var(--surface-2);border:1px solid var(--border-strong);border-radius:var(--r-sm);
+  color:var(--text);padding:7px 10px;font-size:12.5px;transition:border-color .15s,box-shadow .15s;}
+.settings-row input[type=number]:focus,.settings-row input[type=text]:focus{outline:none;border-color:var(--accent-1);box-shadow:var(--focus-ring);}
+
+/* ── Buttons ────────────────────────────────────────── */
+.btn{font-family:var(--font-ui);padding:11px 22px;border-radius:var(--r-pill);border:1px solid transparent;cursor:pointer;
+  font-size:13px;font-weight:600;letter-spacing:.01em;display:inline-flex;align-items:center;gap:8px;
+  transition:transform .12s ease,box-shadow .18s ease,filter .18s ease,background .18s ease,border-color .18s ease;}
+.btn i{font-size:16px;}
+.btn:active{transform:translateY(1px);}
+.btn:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(168,85,247,.45);}
+.btn-p{background:var(--accent-grad);color:#fff;box-shadow:0 6px 22px rgba(168,85,247,.35);}
+.btn-p:hover{box-shadow:0 8px 28px rgba(168,85,247,.5);filter:brightness(1.07);}
+.btn-s{background:linear-gradient(135deg,#4ade80,#16a34a);color:#04120a;box-shadow:0 6px 22px rgba(74,222,128,.25);}
+.btn-s:hover{filter:brightness(1.07);}
+.btn-d{background:var(--surface-2);color:var(--text);border-color:var(--border-strong);}
+.btn-d:hover{background:var(--surface-3);border-color:var(--accent-1);}
+.btn:disabled{opacity:.4;cursor:not-allowed;filter:none;transform:none;box-shadow:none;}
+.hidden{display:none!important;}
+
+/* ── Bulk panel ─────────────────────────────────────── */
+.bulk-panel{display:none;}
+.status-line{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px;font-size:13px;}
+.status-line .lbl{display:flex;align-items:center;gap:9px;font-weight:600;color:var(--text);}
+.status-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0;}
+.sd-running{background:var(--run-fg);box-shadow:0 0 0 4px var(--run-bg);animation:pulse 1.2s infinite;}
+.sd-done{background:var(--ok-fg);box-shadow:0 0 0 4px var(--ok-bg);}
+.sd-idle{background:var(--text-3);}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+.master-bar-wrap{background:var(--col-bg);border-radius:99px;height:7px;overflow:hidden;margin-bottom:18px;}
+.master-bar{height:100%;background:var(--accent-grad);border-radius:99px;transition:width .4s ease;width:0%;box-shadow:0 0 12px rgba(168,85,247,.5);}
+.kanban-search{width:100%;font-family:var(--font-ui);background:var(--surface-2);border:1px solid var(--border-strong);border-radius:var(--r-sm);
+  padding:10px 14px;font-size:13px;color:var(--text);margin-bottom:18px;transition:border-color .15s,box-shadow .15s;}
+.kanban-search::placeholder{color:var(--text-3);}
+.kanban-search:focus{outline:none;border-color:var(--accent-1);box-shadow:var(--focus-ring);}
+
+/* ── Stat cards ─────────────────────────────────────── */
+.stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px;}
+.stat-card{min-width:0;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-md);padding:16px 18px;
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);}
+.stat-card.gauge{display:flex;align-items:center;gap:16px;}
+.stat-card.wide{grid-column:span 2;}
+.gauge-wrap{position:relative;width:62px;height:62px;flex-shrink:0;}
+.gauge-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:13px;font-weight:600;color:var(--text);}
+.stat-lbl{font-size:10.5px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text-3);}
+.stat-sub{font-size:12px;color:var(--text-2);margin-top:3px;}
+.stat-big{font-family:var(--font-mono);font-size:26px;font-weight:600;color:var(--text);margin-top:4px;letter-spacing:-.01em;}
+.bar-wrap{height:38px;margin-top:8px;}
+
+/* ── Kanban board ───────────────────────────────────── */
+.kanban{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+.kanban>*{min-width:0;}
+.kcol{position:relative;min-width:0;background:var(--surface-1);border:1px solid var(--border);border-radius:var(--r-md);padding:14px 12px 8px;overflow:hidden;}
+.kcol::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;opacity:.9;}
+.kcol--pending::before{background:var(--pend-fg);}
+.kcol--running::before{background:var(--run-fg);}
+.kcol--done::before{background:var(--ok-fg);}
+.kcol--failed::before{background:var(--err-fg);}
+.kcol-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding:0 2px;}
+.kcol-title{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text-2);}
+.kcol-count{font-family:var(--font-mono);font-size:10px;font-weight:600;border-radius:99px;padding:2px 9px;min-width:24px;text-align:center;}
+.kcol-count.pending{background:var(--pend-bg);color:var(--pend-fg);}
+.kcol-count.running{background:var(--run-bg);color:var(--run-fg);}
+.kcol-count.done{background:var(--ok-bg);color:var(--ok-fg);}
+.kcol-count.failed{background:var(--err-bg);color:var(--err-fg);}
+.kcol-body{max-height:440px;overflow-y:auto;padding:2px 2px 0;}
+.kcol-body::-webkit-scrollbar{width:6px;}
+.kcol-body::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:99px;}
+.kcard{background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:11px 12px;margin-bottom:8px;font-size:12px;transition:border-color .15s;}
+.kcard:hover{border-color:var(--border-strong);}
+.kcard.running{border-color:var(--run-bd);}
+.kcard.failed{border-color:var(--err-bd);}
+.kcard-name{font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.kcard-top{display:flex;align-items:center;gap:8px;}
+.kcard-top .kcard-name{flex:1;min-width:0;}
+.kcard-reorder{display:flex;gap:4px;flex-shrink:0;}
+.kbtn{width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;padding:0;
+  border-radius:6px;border:1px solid var(--border-strong);background:var(--surface-2);color:var(--text-2);
+  cursor:pointer;font-size:14px;line-height:1;transition:background .15s,color .15s,border-color .15s;}
+.kbtn:hover:not(:disabled){background:var(--surface-3);color:var(--text);border-color:var(--accent-1);}
+.kbtn:active:not(:disabled){transform:translateY(1px);}
+.kbtn:focus-visible{outline:none;box-shadow:var(--focus-ring);}
+.kbtn:disabled{opacity:.3;cursor:not-allowed;}
+.kcard-meta{font-family:var(--font-mono);font-size:10.5px;margin-top:5px;}
+.kcard-meta.pending{color:var(--text-3);}
+.kcard-meta.running{color:var(--run-fg);}
+.kcard-meta.done{color:var(--ok-fg);}
+.kcard-meta.failed{color:var(--err-fg);}
+.kcol-more{font-family:var(--font-mono);font-size:10.5px;color:var(--text-3);text-align:center;padding:8px 0;}
+.kcard-details{background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:11px 12px;margin-bottom:8px;font-size:12px;transition:border-color .15s;}
+.kcard-details:hover{border-color:var(--border-strong);}
+.kcard-details.failed{border-color:var(--err-bd);}
+.kcard-details summary{cursor:pointer;list-style:none;}
+.kcard-details summary::-webkit-details-marker{display:none;}
+.kcard-details summary::before{content:"▸ ";color:var(--text-3);font-size:9px;}
+.kcard-details[open] summary::before{content:"▾ ";}
+.kcard-expand{margin-top:9px;padding-top:9px;border-top:1px solid var(--border);font-family:var(--font-mono);font-size:10.5px;color:var(--text-2);}
+.kcard-expand .kx-row{display:flex;justify-content:space-between;gap:10px;margin-bottom:4px;}
+.kcard-expand .kx-warn{background:var(--run-bg);color:var(--run-fg);border-radius:6px;padding:5px 8px;margin-top:6px;}
+.kcard-expand .kx-err{background:var(--err-bg);color:var(--err-fg);border-radius:6px;padding:5px 8px;margin-top:6px;}
+
+/* ── Format badges ──────────────────────────────────── */
+.fmt-row{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0 0;}
+.fbadge{font-family:var(--font-mono);padding:4px 12px;border-radius:var(--r-pill);font-size:10.5px;font-weight:600;letter-spacing:.02em;border:1px solid transparent;}
+.fb-dm{background:var(--dm-bg);color:var(--dm);border-color:rgba(45,212,191,.25);}
+.fb-ls{background:var(--ls-bg);color:var(--ls);border-color:rgba(167,139,250,.28);}
+.fb-li{background:var(--li-bg);color:var(--li);border-color:rgba(251,191,36,.28);}
+.fb-pdf{background:var(--pdf-bg);color:var(--pdf);border-color:rgba(248,113,113,.28);}
+
+.bulk-actions{display:flex;gap:12px;margin-top:20px;padding-top:18px;border-top:1px solid var(--border);flex-wrap:wrap;}
+
+/* ── Accessibility & responsive ─────────────────────── */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important;}
+}
+@media (max-width:900px){
+  .stat-row{grid-template-columns:1fr 1fr;}
+  .stat-card.wide{grid-column:span 2;}
+  .kanban{grid-template-columns:1fr 1fr;}
+}
+@media (max-width:560px){
+  body{padding:22px 14px 44px;}
+  .card{padding:18px 16px;}
+  .hdr h1{font-size:24px;}
+  .stat-row{grid-template-columns:1fr;}
+  .stat-card.wide{grid-column:span 1;}
+  .kanban{grid-template-columns:1fr;}
+  .bulk-actions .btn{flex:1 1 auto;justify-content:center;}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hdr">
+    <div class="hdr-badge"><i class="ti ti-building-factory-2" aria-hidden="true"></i></div>
+    <h1>Line List Converter</h1>
+    <p class="sub">Bulk Edition · 200+ files · sequential in-order processing · single master export</p>
+  </header>
+
+  <section class="card">
+    <div class="ctitle"><span class="sbadge">1</span>Upload Line Schedules / Line Index Files</div>
+    <div class="dz" id="dz" role="button" tabindex="0"
+         onclick="document.getElementById('fi').click()"
+         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();document.getElementById('fi').click();}">
+      <div class="ic"><i class="ti ti-cloud-upload" aria-hidden="true"></i></div>
+      <div class="dt">Drop files here or click to browse</div>
+      <div class="ds">XLSX, XLSM, PDF · 200+ files supported · all formats auto-detected</div>
+    </div>
+    <div class="type-badges">
+      <span class="tbadge"><i class="ti ti-file-spreadsheet" aria-hidden="true"></i>XLSX / XLSM</span>
+      <span class="tbadge"><i class="ti ti-file-type-pdf" aria-hidden="true"></i>PDF</span>
+    </div>
+
+    <div class="options">
+      <div class="options-title">Processing Options</div>
+      <div class="settings-row">
+        <label for="ambientTempInput">Ambient temperature (°C)</label>
+        <input type="number" id="ambientTempInput" placeholder="21" step="0.1" style="width:78px;">
+        <span class="hint">resolves “AMB to X” operating-temperature ranges · defaults to 21 °C if blank</span>
+      </div>
+      <div class="settings-note"><i class="ti ti-list-numbers" aria-hidden="true"></i>Files are processed one at a time, in the order queued below. Use the <i class="ti ti-chevron-up" aria-hidden="true"></i><i class="ti ti-chevron-down" aria-hidden="true"></i> arrows on a queued file to reorder it before processing.</div>
+    </div>
+
+    <input type="file" id="fi" accept=".xlsx,.xls,.xlsm,.pdf" multiple>
+  </section>
+
+  <!-- Bulk Progress Panel -->
+  <section class="card bulk-panel" id="bulkPanel">
+    <div class="ctitle"><span class="sbadge">2</span>Processing Queue<span class="ct-hint">live status</span></div>
+
+    <div class="status-line">
+      <span class="lbl"><span class="status-dot sd-idle" id="statusDot"></span><span id="statusLabel">Ready</span></span>
+      <span class="tnum" id="etaLabel" style="font-size:12px;color:var(--text-3);"></span>
+    </div>
+    <div class="master-bar-wrap"><div class="master-bar" id="masterBar"></div></div>
+    <input type="text" id="kanbanSearch" class="kanban-search" placeholder="Search files by name…" oninput="scheduleRender()">
+
+    <div class="stat-row">
+      <div class="stat-card gauge">
+        <div class="gauge-wrap"><canvas id="gaugeChart" width="60" height="60"></canvas><div class="gauge-num" id="gaugeNum">—</div></div>
+        <div>
+          <div class="stat-lbl">Success rate</div>
+          <div class="stat-sub" id="successSub">0 of 0 files clean</div>
+        </div>
+      </div>
+      <div class="stat-card wide">
+        <div class="stat-lbl">Rows per file (recent)</div>
+        <div class="bar-wrap"><canvas id="barChart"></canvas></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-lbl">Total rows</div>
+        <div class="stat-big tnum" id="totalRowsBig">0</div>
+        <div class="stat-sub" id="warnSub" style="color:var(--text-3);">0 warnings logged</div>
+      </div>
+    </div>
+
+    <div class="kanban">
+      <div class="kcol kcol--pending">
+        <div class="kcol-head"><span class="kcol-title">Pending</span><span class="kcol-count pending tnum" id="kcount-pending">0</span></div>
+        <div class="kcol-body" id="kcol-pending"></div>
+      </div>
+      <div class="kcol kcol--running">
+        <div class="kcol-head"><span class="kcol-title">Running</span><span class="kcol-count running tnum" id="kcount-running">0</span></div>
+        <div class="kcol-body" id="kcol-running"></div>
+      </div>
+      <div class="kcol kcol--done">
+        <div class="kcol-head"><span class="kcol-title">Done</span><span class="kcol-count done tnum" id="kcount-done">0</span></div>
+        <div class="kcol-body" id="kcol-done"></div>
+      </div>
+      <div class="kcol kcol--failed">
+        <div class="kcol-head"><span class="kcol-title">Failed</span><span class="kcol-count failed tnum" id="kcount-failed">0</span></div>
+        <div class="kcol-body" id="kcol-failed"></div>
+      </div>
+    </div>
+
+    <div class="fmt-row" id="fmtRow"></div>
+
+    <div class="bulk-actions">
+      <button class="btn btn-p" id="btnProcess" onclick="startBulkProcess()"><i class="ti ti-player-play-filled" aria-hidden="true"></i>Process all files</button>
+      <button class="btn btn-d hidden" id="btnCancel" onclick="cancelBulkProcess()">Cancel</button>
+      <button class="btn btn-s hidden" id="btnExport" onclick="exportMaster()"><i class="ti ti-download" aria-hidden="true"></i>Download master Excel</button>
+      <button class="btn btn-d" id="btnClear" onclick="clearAll()"><i class="ti ti-trash" aria-hidden="true"></i>Clear</button>
+    </div>
+  </section>
+
+</div><!-- /wrap -->
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// PDH LINE LIST CONVERTER — UNIFIED ENGINE (build 1) — BULK EDITION
+// Architecture:
+//   • Sequential: one file at a time, strictly in user-arranged queue order
+//   • Master accumulator: all rows → single array → one export
+//   • Virtual UI: only last 12 rows rendered, throttled to 300ms
+//   • Fault isolation: per-file try/catch, errors logged, batch continues
+//   • Memory: workbook nulled immediately after row extraction
+//   • GC yield: await yieldUI() between batches lets browser breathe
+// ═══════════════════════════════════════════════════════════════════════════
+
+if(typeof pdfjsLib!=="undefined")
+  pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+// ── Global state ──────────────────────────────────────────────
+var fileQueue   = [];   // {id,file,name,size,status,rowCount,error,fmt}
+var masterRows  = [];   // consolidated output rows (all files)
+var masterErrors= [];   // consolidated error log (all files)
+var masterNotes = [];   // consolidated "Notes" blocks captured from source sheets (all files)
+var batchRunning= false;
+var batchStart  = 0;
+var batchCancelled = false; // set by Cancel button; checked between dispatches, doesn't abort in-flight files
+var expandedFileIds = new Set(); // Done/Failed <details> cards kept open across re-renders
+var AMBIENT_TEMP_C = 21; // resolved at batch start from user input, or defaulted with a warning
+
+var OUTCOLS = ["PID_NO","SERVICE","UNIT_NO","LINE_NO","LINE_SIZE","LINE_SIZE_UNIT",
+  "LINE_CLASS","LINE_FROM","LINE_TO","MIN_DESIGN_PRESS","MIN_DESIGN_PRESS_UNIT",
+  "MIN_DESIGN_TEMP","MIN_DESIGN_TEMP_UNIT","MIN_OPERATING_PRESS","MIN_OPERATING_PRESS_UNIT",
+  "MIN_OPERATING_TEMP","MIN_OPERATING_TEMP_UNIT","OPERATING_TEMP","OPERATING_TEMP_UNIT",
+  "OPERATING_PRESS","OPERATING_PRESS_UNIT","DESIGN_TEMP","DESIGN_TEMP_UNIT",
+  "DESIGN_PRESS","DESIGN_PRESS_UNIT","STEAM OUT","STEAM OUT TEMPERATURE","STEAM OUT TEMPERATURE UNIT",
+  "FULL_VACCUM","INSULATION","INSULATION THICKNESS",
+  "PHASE (L/V)","MULTI PHASE (FLOW REGIME)","REMARKS"];
+var ERR_COLS = ["FILE_NAME","SHEET_NAME","ROW_INDEX","LINE_NUMBER","ERROR_TYPE","ERROR_DESCRIPTION"];
+
+// ═══════════════════════════════════════════════════════════════
+// UNIFIED ENGINE — SHARED ALIAS DICTIONARY
+// ─────────────────────────────────────────────────────────────
+// Single place that maps each logical field to the header variants
+// seen across ALL four formats (DM, LS, LI, PDF). Seeded from every
+// exact-name + regex candidate the four legacy processors already
+// recognized. Grow this list as new files reveal new header spellings.
+//
+// Each field has:
+//   exact:  array of exact header strings (case-insensitive compare)
+//   regex:  array of fallback RegExp patterns (tried only if no exact hit)
+// Resolution order per field: exact  →  regex  →  (positional fallback,
+// handled separately for the fixed Line Schedule layout).
+// ═══════════════════════════════════════════════════════════════
+var FIELD_ALIASES = {
+  pid:          {exact:["PID_NO","DOCNO","P&ID Name","P&ID NAME"], regex:[/^P&ID/i,/^DOC.?NO/i]},
+  service:      {exact:["SERVICE","FLUID CODE.1","FLUID CODE"], regex:[/FLUID.*CODE/i,/SERVICE/i]},
+  unitNo:       {exact:["UNIT_NO_COL","UNIT NO.1","UNIT NO","UNIT NO.","UNIT"], regex:[/UNIT.*NO/i]},
+  lineNo:       {exact:["LINENO","LINE_NO","LINE NUMBER","SERIAL NO..1","SERIAL NO."], regex:[/LINE.*NO/i,/SERIAL.*NO/i]},
+  size:         {exact:["LINE_SIZE","SIZE INCHES","SIZE (INCHES)","SIZE MM","SIZE (MM)","SIZE (in).1","SIZE (in)"], regex:[/^SIZE/i]},
+  sizeUnit:     {exact:["LINE_SIZE_UNIT"], regex:[]},
+  lineClass:    {exact:["LINE_CLASS","CLASS","PIPE CLASS.1","PIPE CLASS"], regex:[/PIPE.*CLASS/i,/PIPING.*CLASS/i,/MATERIAL.*CLASS/i,/CLASS/i]},
+  from:         {exact:["LINE_FROM","FROM","LOCATION FROM","FROM.1"], regex:[/^FROM\b/i]},
+  to:           {exact:["LINE_TO","TO","LOCATION TO","TO.1"], regex:[/^TO\b/i,/\bTO\b/i]},
+  designPress:  {exact:["DESIGN_PRESS","DESIGN PRESS (kg/cm2g).1","DESIGN PRESS (kg/cm2g)","DESIGN PRESS (kg/cm2g) / FV)","DESIGN PRESS (kg/cm2g) / FV","PRESSURE KGCM2 G (DESIGN)"], regex:[/DESIGN.*PRESS/i,/DESIGN CONDITIONS.*PRESSURE/i]},
+  designTemp:   {exact:["DESIGN_TEMP","DESIGN TEMP (\u00b0C).1","DESIGN TEMP (\u00b0C)","TEMP DEG.C"], regex:[/DESIGN.*TEMP/i,/DESIGN CONDITIONS.*TEMP/i]},
+  operPress:    {exact:["OPERATING_PRESS","OPER. PRESS (kg/cm2g).1","OPER. PRESS (kg/cm2g)","OPER. PRESS (kg/cm\u00b2 g)","PRESSURE KGCM2 G"], regex:[/OPER.*PRESS/i,/OPERATING CONDITIONS.*PRESSURE/i]},
+  operTemp:     {exact:["OPERATING_TEMP","OPER. TEMP (\u00b0C).1","OPER. TEMP (\u00b0C)","TEMP DEG. C"], regex:[/OPER.*TEMP/i,/OPERATING CONDITIONS.*TEMP/i]},
+  mdmt:         {exact:["MDMT","MDMT (\u00b0C).1","MDMT (\u00b0C)"], regex:[/^MDMT/i]},
+  phase:        {exact:["FLUID_STATE","FLUID STATE","PHASE (L/V)"], regex:[/^PHASE/i,/FLUID.*STATE/i,/\bSTATE\b/i]},
+  insulation:   {exact:["INSULATION","INS_TYPE","INSULATION.1"], regex:[/^INSUL(?!.*THICK)/i]},
+  insThickness: {exact:["INSULATION THICKNESS","INSULATION_THICKNESS","INSULATION THICKNESS.1","INS_THICKNESS","INS_THICK"], regex:[/INSUL.*THICK/i,/INS.*THICK/i]},
+  multiPhase:   {exact:["MULTI PHASE (FLOW REGIME)","MULTIPHASE(FLOWREGIME)","MULTI_PHASE"], regex:[/MULTIPHASE.*FLOW/i,/MULTI.*PHASE/i]},
+  remarks:      {exact:["REMARKS","REMARKS.1"], regex:[/REMARK/i]},
+  steamOut:     {exact:["STEAM OUT","STEAM_OUT","STEAM OUT.1"], regex:[/STEAM.*OUT(?!.*TEMP)/i]},
+  steamOutTemp: {exact:["STEAM OUT TEMPERATURE","STEAM OUT TEMP","STEAM_OUT_TEMPERATURE","STEAM_OUT_TEMP"], regex:[/STEAM.*OUT.*TEMP/i]},
+  fullVacuum:   {exact:["FULL_VACCUM","FULL VACUUM","FULL_VACUUM"], regex:[/FULL.*VAC/i]}
+};
+
+// Resolve one logical field against a header list. Returns the matching
+// header string, or null. exact matches are case-insensitive and win over
+// regex matches (which are tried in listed order).
+function resolveField(fieldKey, headers){
+  var spec = FIELD_ALIASES[fieldKey];
+  if(!spec) return null;
+  var norm = headers.map(function(h){return String(h==null?"":h).trim();});
+  // 1. exact (case-insensitive)
+  for(var e=0;e<spec.exact.length;e++){
+    var want = spec.exact[e].toUpperCase();
+    for(var i=0;i<norm.length;i++){
+      if(norm[i].toUpperCase()===want) return headers[i];
+    }
+  }
+  // 2. regex fallback
+  for(var r=0;r<spec.regex.length;r++){
+    for(var j=0;j<norm.length;j++){
+      if(spec.regex[r].test(norm[j])) return headers[j];
+    }
+  }
+  return null;
+}
+
+// Build a transformRow-compatible column map from any header list, using
+// the shared dictionary. Same shape getColMap returns, so the proven
+// transformRow() consumes it unchanged.
+function buildDynamicColMap(headers){
+  var cm = {};
+  ["pid","service","unitNo","lineNo","size","lineClass","from","to",
+   "designPress","designTemp","operPress","operTemp","mdmt","phase",
+   "insulation","insThickness","multiPhase","remarks","steamOut","steamOutTemp"
+  ].forEach(function(k){ cm[k]=resolveField(k,headers); });
+  // Same guard getColMap uses: a combined "Unit-Serial" column must not
+  // double-map unitNo and lineNo to the same header.
+  if(cm.unitNo&&cm.lineNo&&cm.unitNo===cm.lineNo) cm.unitNo=null;
+  return cm;
+}
+
+// Measure how reliably LINE_FROM / LINE_TO are populated in a set of
+// output rows — decides which dedup strategy a file gets.
+var FROMTO_RELIABILITY_THRESHOLD = 0.60; // ≥60% of rows have both FROM and TO
+function fromToReliability(rows){
+  if(!rows.length) return 0;
+  var both=0;
+  rows.forEach(function(r){
+    if(String(r.LINE_FROM||"").trim() && String(r.LINE_TO||"").trim()) both++;
+  });
+  return both/rows.length;
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+var _BAD={"#N/A":1,"N/A":1,"#REF!":1,"#VALUE!":1,"#NAME?":1,"#DIV/0!":1,"NONE":1};
+function safeStr(v){
+  try{
+    if(v===null||v===undefined) return "";
+    if(v instanceof Date) return "";
+    var s=String(v).trim();
+    return (s===""||_BAD[s.toUpperCase()])?"":s;
+  }catch(e){return "";}
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SAFE SHEET READER
+// Some real-world files declare a worksheet "!ref" dimension that
+// spans the entire Excel grid (e.g. up to row 1,048,576) even though
+// actual data only occupies the first few thousand rows — a common
+// artifact of selecting/formatting whole columns in Excel. Trusting
+// "!ref" blindly makes sheet_to_json emit millions of blank rows and
+// can take minutes per sheet. This wrapper detects the real used
+// range from populated cell addresses and clamps to it first.
+// ═══════════════════════════════════════════════════════════════
+function getUsedRange(sh){
+  if(!sh||!sh['!ref']) return null;
+  var declared=XLSX.utils.decode_range(sh['!ref']);
+  var maxRow=-1,maxCol=-1;
+  Object.keys(sh).forEach(function(addr){
+    if(addr.charAt(0)==='!') return;
+    var v=sh[addr];
+    if(v===undefined||v===null) return;
+    if(v.v===undefined||v.v===null||v.v==="") return;
+    var c=XLSX.utils.decode_cell(addr);
+    if(c.r>maxRow) maxRow=c.r;
+    if(c.c>maxCol) maxCol=c.c;
+  });
+  // If declared range is already reasonably sized, or no populated cells found, keep as-is
+  if(maxRow<0||declared.e.r<=maxRow+5000) return null;
+  return {s:{r:declared.s.r,c:declared.s.c},e:{r:maxRow,c:Math.max(maxCol,declared.e.c)}};
+}
+function sheetToRowsSafe(sh,opts){
+  opts=opts||{};
+  var used=getUsedRange(sh);
+  if(used){
+    var o2={}; for(var k in opts) o2[k]=opts[k];
+    o2.range=used;
+    return XLSX.utils.sheet_to_json(sh,o2);
+  }
+  return XLSX.utils.sheet_to_json(sh,opts);
+}
+
+// Yield to browser event loop — prevents UI freeze between heavy operations
+function yieldUI(){return new Promise(function(r){setTimeout(r,0);});}
+
+// ═══════════════════════════════════════════════════════════════
+// RICH TEXT SUPPORT
+// When a source cell has struck-out (old) + normal (new) text,
+// the output cell preserves both:  ~~old value~~  **new value**
+// ═══════════════════════════════════════════════════════════════
+
+// Parse SheetJS cell.h (HTML) into xlsx rich-text XML.
+// Returns {richXml, value} if cell has meaningful strike+normal, else null.
+function parseRichHtml(html){
+  if(!html) return null;
+  if(html.indexOf('<s>')===-1&&html.indexOf('line-through')===-1) return null;
+  function dec(s){return s.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'");}
+  function strip(s){return s.replace(/<[^>]+>/g,'');}
+  function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  // Mark strikethrough regions with sentinels
+  var norm=html
+    .replace(/<s>([\s\S]*?)<\/s>/gi,'\x00S\x00$1\x00E\x00')
+    .replace(/<span[^>]*?line-through[^>]*?>([\s\S]*?)<\/span>/gi,'\x00S\x00$1\x00E\x00');
+  var runs=[],inStrike=false;
+  norm.split(/(\x00S\x00|\x00E\x00)/).forEach(function(seg){
+    if(seg==='\x00S\x00'){inStrike=true;return;}
+    if(seg==='\x00E\x00'){inStrike=false;return;}
+    var t=dec(strip(seg));
+    if(!t.trim()) return;
+    runs.push({text:t,strike:inStrike});
+  });
+  if(!runs.some(function(r){return r.strike;})||!runs.some(function(r){return !r.strike;})) return null;
+  var richXml=runs.map(function(run){
+    var e=esc(run.text);
+    var sp=/^\s|\s$/.test(run.text)?' xml:space="preserve"':'';
+    return run.strike
+      ?'<r><rPr><strike/></rPr><t'+sp+'>'+e+'</t></r>'
+      :'<r><rPr><b/></rPr><t'+sp+'>'+e+'</t></r>';
+  }).join('');
+  return {richXml:richXml, value:runs.map(function(r){return r.text;}).join(' ').trim()};
+}
+
+// Scan a worksheet and return a map of "rowIdx_colIdx" → {richXml, value}
+// for every cell that has meaningful strikethrough+normal content.
+function buildRichTextMap(ws){
+  var map={};
+  if(!ws||!ws['!ref']) return map;
+  try{
+    // Iterate only the sheet's actual populated cell keys (sparse representation)
+    // rather than looping the full declared "!ref" range, which some real-world
+    // files inflate to the entire Excel grid (1M+ rows) even when mostly blank.
+    Object.keys(ws).forEach(function(addr){
+      if(addr.charAt(0)==='!') return;
+      var cell=ws[addr];
+      if(!cell||!cell.h) return;
+      var rt=parseRichHtml(cell.h);
+      if(!rt) return;
+      var c=XLSX.utils.decode_cell(addr);
+      map[c.r+'_'+c.c]=rt;
+    });
+  }catch(e){}
+  return map;
+}
+
+// Throttled render: at most once per 300ms
+var _renderTimer=null;
+function scheduleRender(){
+  if(_renderTimer) return;
+  _renderTimer=setTimeout(function(){_renderTimer=null;renderBulkPanel();},300);
+}
+
+// ── File input / drag-drop ────────────────────────────────────
+var dz=document.getElementById("dz");
+dz.addEventListener("dragover",function(e){e.preventDefault();dz.classList.add("over");});
+dz.addEventListener("dragleave",function(){dz.classList.remove("over");});
+dz.addEventListener("drop",function(e){
+  e.preventDefault();dz.classList.remove("over");
+  if(e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
+});
+document.getElementById("fi").addEventListener("change",function(e){
+  if(e.target.files.length) addFiles(e.target.files);
+  e.target.value=""; // allow re-selecting same files
+});
+
+function addFiles(files){
+  Array.from(files).forEach(function(file,i){
+    fileQueue.push({
+      id:Date.now()+i, file:file, name:file.name,
+      size:file.size, status:"pending", rowCount:0, error:null, fmt:""
+    });
+  });
+  document.getElementById("bulkPanel").style.display="block";
+  renderBulkPanel();
+}
+
+function clearAll(){
+  if(batchRunning) return;
+  fileQueue=[];masterRows=[];masterErrors=[];masterNotes=[];
+  batchCancelled=false; expandedFileIds.clear();
+  document.getElementById("kanbanSearch").value="";
+  document.getElementById("bulkPanel").style.display="none";
+  document.getElementById("btnExport").classList.add("hidden");
+  renderBulkPanel();
+}
+
+// ── Chart instances (created once, updated on each render) ──────
+var _gaugeChart=null, _barChart=null;
+function ensureCharts(){
+  if(typeof Chart==="undefined") return;
+  if(!_gaugeChart){
+    _gaugeChart=new Chart(document.getElementById("gaugeChart"),{
+      type:"doughnut",
+      data:{datasets:[{data:[0,1],backgroundColor:["#a855f7","rgba(255,255,255,.08)"],borderWidth:0}]},
+      options:{cutout:"72%",responsive:false,animation:{duration:300},plugins:{tooltip:{enabled:false}}}
+    });
+  }
+  if(!_barChart){
+    _barChart=new Chart(document.getElementById("barChart"),{
+      type:"bar",
+      data:{labels:[],datasets:[{data:[],backgroundColor:"#a855f7",borderRadius:2}]},
+      options:{responsive:true,maintainAspectRatio:false,animation:{duration:300},
+        plugins:{legend:{display:false},tooltip:{enabled:false}},
+        scales:{x:{display:false},y:{display:false}}}
+    });
+  }
+}
+
+function escapeHtml(s){
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+// ── Kanban UI renderer (throttled) ──────────────────────────
+// "125" -> "2m 5s"; used for the ETA label so long batches don't show raw seconds.
+function formatDuration(seconds){
+  seconds=Math.max(0,Math.ceil(seconds));
+  if(seconds<60) return seconds+"s";
+  var m=Math.floor(seconds/60), s=seconds%60;
+  return m+"m "+s+"s";
+}
+
+function cancelBulkProcess(){
+  if(!batchRunning||batchCancelled) return;
+  batchCancelled=true;
+  document.getElementById("btnCancel").disabled=true;
+  renderBulkPanel();
+}
+
+// <details ontoggle> handler for Done/Failed cards — tracks open state in a
+// Set so cards stay expanded across the frequent re-renders during/after a run.
+function onCardToggle(el,id){
+  if(el.open) expandedFileIds.add(id); else expandedFileIds.delete(id);
+}
+
+// Reorder a queued file. dir=-1 moves it up, +1 down. Swaps with the adjacent
+// *pending* file so processing order (which walks fileQueue top-to-bottom)
+// follows the user's arrangement. Disabled while a batch is running.
+function moveFile(id,dir){
+  if(batchRunning) return;
+  var pendingIdx=[];
+  fileQueue.forEach(function(f,i){ if(f.status==="pending") pendingIdx.push(i); });
+  var qpos=-1;
+  for(var i=0;i<fileQueue.length;i++){ if(fileQueue[i].id===id){ qpos=i; break; } }
+  var p=pendingIdx.indexOf(qpos);
+  if(p<0) return;
+  var np=p+dir;
+  if(np<0||np>=pendingIdx.length) return; // already at an end
+  var a=pendingIdx[p], b=pendingIdx[np];
+  var tmp=fileQueue[a]; fileQueue[a]=fileQueue[b]; fileQueue[b]=tmp;
+  renderBulkPanel(); // immediate feedback (only fires while idle)
+}
+
+function renderBulkPanel(){
+  var total  = fileQueue.length;
+  var done   = fileQueue.filter(function(f){return f.status==="done";}).length;
+  var failed = fileQueue.filter(function(f){return f.status==="error";}).length;
+  var running= fileQueue.filter(function(f){return f.status==="running";}).length;
+  var pendingList = fileQueue.filter(function(f){return f.status==="pending";});
+  var rows   = masterRows.length;
+  var warns  = masterErrors.length;
+
+  // Master progress bar
+  var pct = total ? Math.round((done+failed)/total*100) : 0;
+  document.getElementById("masterBar").style.width = pct+"%";
+
+  // Cancel button: visible only mid-run; disabled (label swap) once clicked
+  var btnCancel=document.getElementById("btnCancel");
+  btnCancel.classList.toggle("hidden",!batchRunning);
+  btnCancel.textContent = batchCancelled?"Cancelling…":"Cancel";
+
+  // Status dot + label
+  var dot = document.getElementById("statusDot");
+  var lbl = document.getElementById("statusLabel");
+  if(batchRunning){
+    dot.className="status-dot sd-running";
+    if(batchCancelled){
+      lbl.textContent="Cancelling — finishing the in-flight file…";
+    }else{
+      var cur=fileQueue.filter(function(f){return f.status==="running";})[0];
+      var pos=done+failed+1; // 1-based position of the file now processing
+      var nm=cur?(cur.name.length>44?cur.name.slice(0,44)+"…":cur.name):"";
+      lbl.textContent=cur?("Processing "+pos+" of "+total+" — "+nm):"Processing…";
+    }
+    if(done+failed>0&&batchStart>0){
+      var elapsed=(Date.now()-batchStart)/1000;
+      var rate=(done+failed)/elapsed; // files per second
+      var remaining=(total-done-failed)/(rate||1);
+      var perMin=(rate*60).toFixed(1);
+      document.getElementById("etaLabel").textContent=
+        batchCancelled ? "" : "~"+perMin+" files/min · "+formatDuration(remaining)+" remaining";
+    }
+  } else if(batchCancelled&&done+failed<total){
+    // Cancelled mid-run: in-flight files finished, but some are still pending
+    dot.className="status-dot sd-idle";
+    lbl.textContent="Cancelled — "+done+" succeeded, "+failed+" failed, "+(total-done-failed)+" not processed";
+    document.getElementById("etaLabel").textContent="";
+  } else if(done+failed===total&&total>0){
+    dot.className="status-dot sd-done";
+    lbl.textContent="Complete — "+done+" succeeded, "+failed+" failed";
+    document.getElementById("etaLabel").textContent="";
+  } else {
+    dot.className="status-dot sd-idle";
+    lbl.textContent=total+" file"+(total!==1?"s":"")+" queued";
+    document.getElementById("etaLabel").textContent="";
+  }
+
+  // ── Stat cards: success gauge, rows-per-file bar, total rows ──
+  ensureCharts();
+  var successPct = (done+failed)>0 ? Math.round(100*done/(done+failed)) : 0;
+  document.getElementById("gaugeNum").textContent = (done+failed)>0 ? successPct+"%" : "—";
+  document.getElementById("successSub").textContent = done+" of "+(done+failed)+" files clean";
+  if(_gaugeChart){
+    _gaugeChart.data.datasets[0].data = (done+failed)>0 ? [done,failed] : [0,1];
+    _gaugeChart.update();
+  }
+  if(_barChart){
+    var doneFiles = fileQueue.filter(function(f){return f.status==="done";}).slice(-12);
+    _barChart.data.labels = doneFiles.map(function(f){return f.name;});
+    _barChart.data.datasets[0].data = doneFiles.map(function(f){return f.rowCount;});
+    _barChart.update();
+  }
+  document.getElementById("totalRowsBig").textContent = rows.toLocaleString();
+  document.getElementById("warnSub").textContent = warns+" warning"+(warns!==1?"s":"")+" logged";
+
+  // ── Kanban columns ──
+  document.getElementById("kcount-pending").textContent = pendingList.length;
+  document.getElementById("kcount-running").textContent = running;
+  document.getElementById("kcount-done").textContent    = done;
+  document.getElementById("kcount-failed").textContent  = failed;
+
+  // Filename search box: applies to all four columns. Uncapped (well, capped
+  // higher at 50) while searching since a filtered list is normally much
+  // shorter than the full 8/10-card default view.
+  var searchVal=(document.getElementById("kanbanSearch").value||"").trim().toLowerCase();
+  function matchesSearch(f){ return !searchVal || f.name.toLowerCase().indexOf(searchVal)!==-1; }
+  var defaultCap=searchVal?50:8, listCap=searchVal?50:10;
+
+  // Warnings collected against a file even when it succeeded (e.g. HV
+  // notation, conflicting duplicates) — surfaced in the Done card detail
+  // instead of making a reviewer cross-reference Processing_Errors by hand.
+  var errorsByFile={};
+  masterErrors.forEach(function(e){ (errorsByFile[e.FILE_NAME]=errorsByFile[e.FILE_NAME]||[]).push(e); });
+  function warnHtml(fname){
+    var errs=errorsByFile[fname]; if(!errs||!errs.length) return "";
+    var html=errs.slice(0,3).map(function(e){
+      return "<div class='kx-warn'>"+escapeHtml(e.ERROR_TYPE)+": "+escapeHtml(String(e.ERROR_DESCRIPTION||"").substring(0,90))+"</div>";
+    }).join("");
+    if(errs.length>3) html+="<div class='kx-row'><span>+"+(errs.length-3)+" more — see Processing_Errors</span></div>";
+    return html;
+  }
+
+  // Pending: show first N (8, or 50 while searching), then a "+N more" summary.
+  // Reorder arrows show only when idle and unfiltered, so up/down maps 1:1 to
+  // the true queue order (a filtered view would make "up" jump unpredictably).
+  var pendingFiltered=pendingList.filter(matchesSearch);
+  var canReorder=!batchRunning && !searchVal;
+  var pendHtml="";
+  pendingFiltered.slice(0,defaultCap).forEach(function(f,i){
+    var reorder="";
+    if(canReorder){
+      var upDis=i===0?" disabled":"";
+      var dnDis=i===pendingFiltered.length-1?" disabled":"";
+      reorder="<div class='kcard-reorder'>"+
+        "<button type='button' class='kbtn' title='Move up' aria-label='Move up'"+upDis+" onclick='moveFile("+f.id+",-1)'><i class='ti ti-chevron-up' aria-hidden='true'></i></button>"+
+        "<button type='button' class='kbtn' title='Move down' aria-label='Move down'"+dnDis+" onclick='moveFile("+f.id+",1)'><i class='ti ti-chevron-down' aria-hidden='true'></i></button>"+
+      "</div>";
+    }
+    pendHtml+="<div class='kcard'>"+
+      "<div class='kcard-top'><div class='kcard-name' title='"+escapeHtml(f.name)+"'>"+escapeHtml(f.name)+"</div>"+reorder+"</div>"+
+      "<div class='kcard-meta pending'>"+Math.round(f.size/1024)+" KB · queued</div>"+
+    "</div>";
+  });
+  if(pendingFiltered.length>defaultCap) pendHtml+="<div class='kcol-more'>+"+(pendingFiltered.length-defaultCap)+" more pending…</div>";
+  document.getElementById("kcol-pending").innerHTML=pendHtml;
+
+  // Running: sequential processing means at most one active file
+  var runningList = fileQueue.filter(function(f){return f.status==="running";}).filter(matchesSearch);
+  var runHtml="";
+  runningList.forEach(function(f){
+    runHtml+="<div class='kcard running'><div class='kcard-name' title='"+escapeHtml(f.name)+"'>"+escapeHtml(f.name)+"</div>"+
+      "<div class='kcard-meta running'>⏳ processing…</div></div>";
+  });
+  document.getElementById("kcol-running").innerHTML=runHtml;
+
+  // Done: expandable cards (click to see format/size/rows/any warnings)
+  var doneList = fileQueue.filter(function(f){return f.status==="done";}).filter(matchesSearch);
+  var doneHtml="";
+  doneList.slice(-listCap).reverse().forEach(function(f){
+    var isOpen=expandedFileIds.has(f.id)?" open":"";
+    var detail="<div class='kx-row'><span>Format</span><span>"+escapeHtml(f.fmt||"—")+"</span></div>"+
+      "<div class='kx-row'><span>Size</span><span>"+Math.round(f.size/1024)+" KB</span></div>"+
+      "<div class='kx-row'><span>Rows extracted</span><span>"+f.rowCount.toLocaleString()+"</span></div>"+
+      warnHtml(f.name);
+    doneHtml+="<details class='kcard-details'"+isOpen+" ontoggle='onCardToggle(this,"+f.id+")'>"+
+      "<summary class='kcard-name' title='"+escapeHtml(f.name)+"'>"+escapeHtml(f.name)+"</summary>"+
+      "<div class='kcard-meta done'>✓ "+f.rowCount.toLocaleString()+" rows</div>"+
+      "<div class='kcard-expand'>"+detail+"</div>"+
+    "</details>";
+  });
+  if(doneList.length>listCap) doneHtml+="<div class='kcol-more'>+"+(doneList.length-listCap)+" more completed…</div>";
+  document.getElementById("kcol-done").innerHTML=doneHtml;
+
+  // Failed: expandable cards showing the full error (kept visible for debugging)
+  var failedList = fileQueue.filter(function(f){return f.status==="error";}).filter(matchesSearch);
+  var failHtml="";
+  failedList.slice(-listCap).reverse().forEach(function(f){
+    var isOpen=expandedFileIds.has(f.id)?" open":"";
+    var detail="<div class='kx-row'><span>Format</span><span>"+escapeHtml(f.fmt||"—")+"</span></div>"+
+      "<div class='kx-err'>"+escapeHtml(f.error)+"</div>";
+    failHtml+="<details class='kcard-details failed'"+isOpen+" ontoggle='onCardToggle(this,"+f.id+")'>"+
+      "<summary class='kcard-name' title='"+escapeHtml(f.name)+"'>"+escapeHtml(f.name)+"</summary>"+
+      "<div class='kcard-meta failed'>✗ "+escapeHtml(f.error.substring(0,40))+"</div>"+
+      "<div class='kcard-expand'>"+detail+"</div>"+
+    "</details>";
+  });
+  if(failedList.length>listCap) failHtml+="<div class='kcol-more'>+"+(failedList.length-listCap)+" more failed…</div>";
+  document.getElementById("kcol-failed").innerHTML=failHtml;
+
+  // Format breakdown
+  var fmts={DIRECT_MAPPING:0,LINE_SCHEDULE:0,LINE_INDEX:0,PDF:0};
+  fileQueue.forEach(function(f){if(fmts[f.fmt]!==undefined) fmts[f.fmt]++;});
+  var fhtml="";
+  if(fmts.DIRECT_MAPPING) fhtml+="<span class='fbadge fb-dm'>"+fmts.DIRECT_MAPPING+" Direct Mapping</span>";
+  if(fmts.LINE_SCHEDULE)   fhtml+="<span class='fbadge fb-ls'>"+fmts.LINE_SCHEDULE+" Line Schedule</span>";
+  if(fmts.LINE_INDEX)      fhtml+="<span class='fbadge fb-li'>"+fmts.LINE_INDEX+" Line Index</span>";
+  if(fmts.PDF)             fhtml+="<span class='fbadge fb-pdf'>"+fmts.PDF+" PDF</span>";
+  document.getElementById("fmtRow").innerHTML=fhtml;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CONCURRENT POOL PROCESSOR
+// ─────────────────────────────────────────────────────────────
+// Strategy: semaphore-controlled concurrency.
+// At most CONCURRENCY files run simultaneously.
+// When one slot frees, the next pending file immediately starts.
+// Never blocks the UI: all heavy work is in async functions,
+// and yieldUI() is called between batch dispatches.
+// ═══════════════════════════════════════════════════════════════
+async function startBulkProcess(){
+  if(batchRunning||!fileQueue.length) return;
+  batchRunning=true;
+  batchCancelled=false;
+  masterRows=[];
+  masterErrors=[];
+  masterNotes=[];
+  batchStart=Date.now();
+
+  // Resolve ambient temperature for this run — used to split "AMB to X" style
+  // operating-temperature ranges. If the user left it blank, default to 21°C
+  // and warn them so it's never a silent assumption.
+  var ambInput = document.getElementById("ambientTempInput").value.trim();
+  if(ambInput===""||isNaN(parseFloat(ambInput))){
+    AMBIENT_TEMP_C = 21;
+    alert("Ambient temperature not provided — assuming 21°C for \"AMB to X\" operating-temperature range calculations. You can set a specific value in the Ambient Temperature field before processing.");
+  } else {
+    AMBIENT_TEMP_C = parseFloat(ambInput);
+  }
+
+  // Reset all to pending
+  fileQueue.forEach(function(f){
+    f.status="pending"; f.rowCount=0; f.error=null; f.fmt="";
+  });
+  document.getElementById("btnProcess").disabled=true;
+  document.getElementById("btnExport").classList.add("hidden");
+  renderBulkPanel();
+
+  var CONCURRENCY = 1; // sequential — one file at a time, strictly in queue order
+  var idx = 0;  // next file to start
+  var active = 0;
+
+  await new Promise(function(resolve){
+    function tryDispatch(){
+      // Drain: launch as many as we can without exceeding concurrency.
+      // batchCancelled stops new dispatches but never aborts in-flight
+      // files — there's no worker to terminate mid-parse, so "cancel"
+      // means "let what's running finish, don't start anything new."
+      while(!batchCancelled && active < CONCURRENCY && idx < fileQueue.length){
+        (function(fi){
+          active++;
+          fi.status="running";
+          scheduleRender();
+          processOneFile(fi).then(function(rows){
+            // ── SUCCESS: append rows to master accumulator ──
+            for(var i=0;i<rows.length;i++) masterRows.push(rows[i]);
+            fi.status="done";
+            fi.rowCount=rows.length;
+          }).catch(function(err){
+            // ── FAULT ISOLATION: file failed, batch continues ──
+            fi.status="error";
+            fi.error=String((err&&err.message)||err||"Unknown error").substring(0,120);
+            masterErrors.push({
+              FILE_NAME:fi.name,SHEET_NAME:"",ROW_INDEX:"",LINE_NUMBER:"",
+              ERROR_TYPE:"FILE_ERROR",ERROR_DESCRIPTION:fi.error
+            });
+          }).finally(function(){
+            active--;
+            scheduleRender();
+            if(!batchCancelled&&idx < fileQueue.length){
+              tryDispatch(); // fill freed slot immediately
+            } else if(active===0){
+              resolve(); // all done (or cancelled and drained)
+            }
+          });
+        })(fileQueue[idx++]);
+      }
+    }
+    tryDispatch();
+    // Edge case: zero files or instant finish
+    if(active===0) resolve();
+  });
+
+  // Final render
+  batchRunning=false;
+  renderBulkPanel();
+  document.getElementById("btnProcess").disabled=false;
+
+  if(masterRows.length>0){
+    document.getElementById("btnExport").classList.remove("hidden");
+  }
+
+  // Auto-export — skipped when cancelled so a partial/incomplete run never
+  // downloads silently; the Export button above stays available if the
+  // user wants the partial results anyway.
+  if(!batchCancelled) await exportMaster();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PROCESS ONE FILE — isolated, returns rows[]
+// All errors bubble up as thrown exceptions (caught by pool).
+// Memory: workbook (wb) is nulled after rows extracted.
+// ═══════════════════════════════════════════════════════════════
+function processOneFile(fileItem){
+  return new Promise(function(resolve,reject){
+    var file = fileItem.file;
+    var ext  = file.name.split(".").pop().toLowerCase();
+    var reader = new FileReader();
+    reader.onerror = function(){ reject(new Error("FileReader failed: "+file.name)); };
+    if(ext==="pdf"){
+      reader.onload = function(e){
+        handlePDFProcessing(e.target.result, file, fileItem)
+          .then(resolve).catch(reject);
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      reader.onload = function(e){
+        handleExcelProcessing(e.target.result, file, fileItem)
+          .then(resolve).catch(reject);
+      };
+      reader.readAsArrayBuffer(file);
+    }
+  });
+}
+
+// ── Per-file error logger (thread-safe: pushes to master array) ──
+function logError(fileName,sheetName,rowIndex,lineNumber,errorType,errorDescription){
+  masterErrors.push({
+    FILE_NAME:safeStr(fileName)||"",SHEET_NAME:safeStr(sheetName)||"",
+    ROW_INDEX:rowIndex!=null?rowIndex:"",LINE_NUMBER:safeStr(lineNumber)||"",
+    ERROR_TYPE:safeStr(errorType)||"",ERROR_DESCRIPTION:safeStr(errorDescription)||""
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SMART DEDUPLICATION — cross-file, post-processing
+//
+// Rule A (MERGE): Same LINE_NO + same line conditions
+//   → single output row; INSULATION THICKNESS concatenated; PID_NO concatenated
+//
+// Rule B (KEEP SEPARATE): Same LINE_NO but LINE_FROM / LINE_TO
+//   or any process condition differs → reproduce both rows as-is
+//
+// Condition key fields (all must match for a merge to happen):
+//   SERVICE, LINE_CLASS, LINE_FROM, LINE_TO, LINE_SIZE,
+//   DESIGN_TEMP, DESIGN_PRESS, OPERATING_TEMP, OPERATING_PRESS,
+//   MIN_DESIGN_TEMP, MIN_DESIGN_PRESS, MIN_OPERATING_TEMP, MIN_OPERATING_PRESS,
+//   FULL_VACCUM, PHASE (L/V)
+// ═══════════════════════════════════════════════════════════════
+function deduplicateMasterRows(rows){
+  var COND_KEYS=["SERVICE","LINE_CLASS","LINE_FROM","LINE_TO","LINE_SIZE",
+    "DESIGN_TEMP","DESIGN_PRESS","OPERATING_TEMP","OPERATING_PRESS",
+    "MIN_DESIGN_TEMP","MIN_DESIGN_PRESS","MIN_OPERATING_TEMP","MIN_OPERATING_PRESS",
+    "FULL_VACCUM","PHASE (L/V)"];
+
+  function norm(v){return String(v||"").trim().toUpperCase();}
+  // _rowStruck is included in the condition key so that voided (struck) rows are
+  // never merged with their active (non-struck) counterparts — they represent
+  // different engineering states of the same line number.
+  function condKey(row){return (row._rowStruck?"STRUCK:":"ACTIVE:")+COND_KEYS.map(function(k){return norm(row[k]);}).join("||");}
+  function concatUnique(a,b){
+    var av=String(a||"").trim(), bv=String(b||"").trim();
+    if(!av) return bv; if(!bv) return av;
+    if(av===bv) return av;
+    // Already contains b (e.g. after a prior merge)
+    return av+" | "+bv;
+  }
+  function mergeGroup(group){
+    if(group.length===1) return group[0];
+    var base={}; OUTCOLS.forEach(function(c){base[c]="";});
+    // Carry all scalar fields from first row
+    OUTCOLS.forEach(function(c){base[c]=group[0][c]||"";});
+    // Concatenate PID_NO, INSULATION, INSULATION THICKNESS, REMARKS across all rows
+    var pids=[], ins=[], thick=[], remarksList=[];
+    group.forEach(function(r){
+      var p=String(r["PID_NO"]||"").trim();
+      if(p&&pids.indexOf(p)===-1) pids.push(p);
+      var i=String(r["INSULATION"]||"").trim();
+      if(i&&ins.indexOf(i)===-1) ins.push(i);
+      var t=String(r["INSULATION THICKNESS"]||"").trim();
+      if(t&&thick.indexOf(t)===-1) thick.push(t);
+      var rm=String(r["REMARKS"]||"").trim();
+      if(rm&&remarksList.indexOf(rm)===-1) remarksList.push(rm);
+    });
+    base["PID_NO"]             = pids.join(", ");
+    base["INSULATION"]         = ins.join(", ");
+    base["INSULATION THICKNESS"]= thick.join(" | ");
+    base["REMARKS"]            = remarksList.join(" | ");
+    // Merge rich text: first row with a value for each field wins
+    var rt={};
+    group.forEach(function(r){
+      if(!r._richText) return;
+      Object.keys(r._richText).forEach(function(k){
+        if(!rt[k]) rt[k]=r._richText[k];
+      });
+    });
+    if(Object.keys(rt).length) base._richText=rt;
+    // All rows in a merge group share the same _rowStruck state (guaranteed by condKey partitioning)
+    if(group[0]._rowStruck) base._rowStruck=true;
+    return base;
+  }
+
+  // Step 1: group by LINE_NO preserving original order
+  var lineOrder=[], byLine={};
+  rows.forEach(function(row){
+    var ln=norm(row["LINE_NO"])||"__BLANK__";
+    if(!byLine[ln]){byLine[ln]=[];lineOrder.push(ln);}
+    byLine[ln].push(row);
+  });
+
+  var result=[];
+  lineOrder.forEach(function(ln){
+    var group=byLine[ln];
+    if(group.length===1){result.push(group[0]);return;}
+
+    // Step 2: within each LINE_NO group, sub-group by condition key
+    var condOrder=[], byCond={};
+    group.forEach(function(row){
+      var ck=condKey(row);
+      if(!byCond[ck]){byCond[ck]=[];condOrder.push(ck);}
+      byCond[ck].push(row);
+    });
+
+    // Step 3: merge rows sharing identical conditions; keep differing ones separate
+    condOrder.forEach(function(ck){
+      result.push(mergeGroup(byCond[ck]));
+    });
+  });
+
+  return result;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Apply rich-text (struck-out old value + bold new value) to cells.
+// Must run AFTER json_to_sheet builds the plain worksheet, since
+// json_to_sheet has no concept of per-run formatting.
+// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+// Set plain-text fallback for rich-text cells (shows old+new
+// values separated by a space). This is what appears if the
+// JSZip rich-text patch step is unavailable or fails — better
+// than silently dropping the struck-out value.
+// ═══════════════════════════════════════════════════════════════
+function applyRichTextFallback(ws,dataRows,headerCols){
+  dataRows.forEach(function(row,ri){
+    if(!row._richText) return;
+    var sheetRow=ri+1; // +1 because row 0 is the header
+    Object.keys(row._richText).forEach(function(colName){
+      var ci=headerCols.indexOf(colName);
+      if(ci<0) return;
+      var addr=XLSX.utils.encode_cell({r:sheetRow,c:ci});
+      var cell=ws[addr];
+      if(!cell) return;
+      cell.t='s';
+      cell.v=row._richText[colName].value||String(cell.v||"");
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TRUE RICH TEXT PATCH
+// SheetJS's free build can READ rich text runs (struck-out +
+// bold in the same cell) but cannot WRITE them — cell.r is
+// ignored on write. Since an .xlsx is just a zip of XML files,
+// we patch the generated worksheet XML directly with JSZip to
+// inject real <is><r>...</r></is> inline-string runs for any
+// cell flagged with _richText.
+// ═══════════════════════════════════════════════════════════════
+async function patchRichTextIntoXlsx(arrayBuffer,dataRows,headerCols,sheetName){
+  var zip = await JSZip.loadAsync(arrayBuffer);
+  var wbXml = await zip.file("xl/workbook.xml").async("string");
+  var relsXml = await zip.file("xl/_rels/workbook.xml.rels").async("string");
+
+  var sheetTagRe = new RegExp('<sheet[^>]*name="'+sheetName+'"[^>]*/>','i');
+  var sheetTagMatch = sheetTagRe.exec(wbXml);
+  if(!sheetTagMatch) throw new Error("Sheet not found in workbook.xml: "+sheetName);
+  var ridMatch = /r:id="([^"]+)"/.exec(sheetTagMatch[0]);
+  if(!ridMatch) throw new Error("No r:id for sheet: "+sheetName);
+  var rid = ridMatch[1];
+
+  var relRe = new RegExp('<Relationship[^>]*Id="'+rid+'"[^>]*Target="([^"]+)"','i');
+  var relMatch = relRe.exec(relsXml);
+  if(!relMatch) throw new Error("Relationship not found for: "+rid);
+  var target = relMatch[1].replace(/^\//,'');
+  var sheetPath = target.indexOf('xl/')===0 ? target : "xl/"+target;
+
+  var sheetXml = await zip.file(sheetPath).async("string");
+
+  dataRows.forEach(function(row,ri){
+    if(!row._richText) return;
+    var sheetRow=ri+1; // +1 because row 0 is the header
+    Object.keys(row._richText).forEach(function(colName){
+      var ci=headerCols.indexOf(colName);
+      if(ci<0) return;
+      var rt=row._richText[colName];
+      if(!rt||!rt.richXml) return;
+      var addr=XLSX.utils.encode_cell({r:sheetRow,c:ci});
+      var cellRe=new RegExp('<c r="'+addr+'"([^>]*)>([\\s\\S]*?)<\\/c>','i');
+      var selfCloseRe=new RegExp('<c r="'+addr+'"([^>]*)\\/>','i');
+      function cleanAttrs(attrs){return attrs.replace(/\s+t="[^"]*"/,'');}
+      if(cellRe.test(sheetXml)){
+        sheetXml = sheetXml.replace(cellRe,function(m,attrs){
+          return '<c r="'+addr+'"'+cleanAttrs(attrs)+' t="inlineStr"><is>'+rt.richXml+'</is></c>';
+        });
+      } else if(selfCloseRe.test(sheetXml)){
+        sheetXml = sheetXml.replace(selfCloseRe,function(m,attrs){
+          return '<c r="'+addr+'"'+cleanAttrs(attrs)+' t="inlineStr"><is>'+rt.richXml+'</is></c>';
+        });
+      }
+    });
+  });
+
+  // ── Whole-row struck cells: convert every non-empty cell to a single struck run ──
+  // These are rows where the entire source row had font-level strikethrough applied
+  // (voided/deleted lines), as opposed to the mixed struck+bold within a single cell.
+  dataRows.forEach(function(row,ri){
+    if(!row._rowStruck) return;
+    var sheetRow=ri+1;
+    function cleanAttrs(attrs){return attrs.replace(/\s+t="[^"]*"/g,'');}
+    headerCols.forEach(function(colName,ci){
+      var val=String(row[colName]||"").trim();
+      if(!val) return;
+      var addr=XLSX.utils.encode_cell({r:sheetRow,c:ci});
+      function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+      var sp=/^\s|\s$/.test(val)?' xml:space="preserve"':'';
+      var run='<r><rPr><strike/></rPr><t'+sp+'>'+esc(val)+'</t></r>';
+      var cellRe=new RegExp('<c r="'+addr+'"([^>]*)>([\\s\\S]*?)<\\/c>','i');
+      var selfCloseRe=new RegExp('<c r="'+addr+'"([^>]*)\\/>','i');
+      if(cellRe.test(sheetXml)){
+        sheetXml=sheetXml.replace(cellRe,function(m,attrs){
+          return '<c r="'+addr+'"'+cleanAttrs(attrs)+' t="inlineStr"><is>'+run+'</is></c>';
+        });
+      }else if(selfCloseRe.test(sheetXml)){
+        sheetXml=sheetXml.replace(selfCloseRe,function(m,attrs){
+          return '<c r="'+addr+'"'+cleanAttrs(attrs)+' t="inlineStr"><is>'+run+'</is></c>';
+        });
+      }
+    });
+  });
+
+  zip.file(sheetPath, sheetXml);
+  return await zip.generateAsync({type:"blob",
+    mimeType:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PROFESSIONAL STYLING PATCH — OOXML surgery via JSZip
+//
+// Same constraint as the rich-text patch above: this free SheetJS
+// build writes !cols and !autofilter correctly, but silently drops
+// cell fonts/fills/borders, freeze panes, tab colors, and hyperlinks
+// on write (verified empirically — round-tripped a styled workbook
+// through XLSX.write and every one of those came back stripped).
+// So header styling, conditional row highlighting, the Summary
+// dashboard sheet, and cross-sheet links are applied here as a
+// post-write XML patch, following the same JSZip pattern already
+// used by patchRichTextIntoXlsx.
+//
+// Row-level styling is done with a SINGLE regex pass per sheet
+// (patchSheetRows) rather than one regex replace per cell — with
+// 11,000+ rows × 34 columns, per-cell whole-document replace() calls
+// would be O(rows·cols) full-document rescans and effectively hang
+// the tab. Splitting on <row> boundaries first keeps each inner
+// replace scoped to that row's ~2KB of XML.
+// ═══════════════════════════════════════════════════════════════
+var STYLE_COLORS = {
+  header:"FF1F4E78", vacuum:"FFDCE6F1", steam:"FFFDEBD3", warn:"FFFBE0E0",
+  band:"FFF6F6F6", card:"FFF0EEE4", bar:"FF1F4E78", track:"FFE5E5E5",
+  border:"FFBFBFBF",
+  tabSummary:"FF404040", tabLinelist:"FF1F4E78", tabNote:"FF538135", tabErrors:"FFC00000"
+};
+
+function resolveSheetXmlPath(wbXml,relsXml,sheetName){
+  var m=new RegExp('<sheet[^>]*name="'+sheetName+'"[^>]*/>','i').exec(wbXml);
+  if(!m) return null;
+  var rid=/r:id="([^"]+)"/.exec(m[0]); if(!rid) return null;
+  var relM=new RegExp('<Relationship[^>]*Id="'+rid[1]+'"[^>]*Target="([^"]+)"','i').exec(relsXml);
+  if(!relM) return null;
+  var target=relM[1].replace(/^\//,'');
+  return target.indexOf('xl/')===0?target:"xl/"+target;
+}
+
+function xmlTagCount(xml,tag){
+  var m=new RegExp('<'+tag+' count="(\\d+)"').exec(xml);
+  return m?parseInt(m[1],10):0;
+}
+
+// Appends new <font>/<fill>/<border>/<xf> entries into styles.xml and
+// returns {xml, XF} where XF maps friendly style names to cellXfs indices.
+function extendStylesXml(stylesXml){
+  var fontBase=xmlTagCount(stylesXml,'fonts');
+  var fillBase=xmlTagCount(stylesXml,'fills');
+  var borderBase=xmlTagCount(stylesXml,'borders');
+  var xfBase=xmlTagCount(stylesXml,'cellXfs');
+
+  var newFonts=[
+    '<font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>', // header
+    '<font><b/><sz val="11"/><color rgb="FF1A1A18"/><name val="Calibri"/></font>', // card label
+    '<font><b/><sz val="20"/><color rgb="FF1A1A18"/><name val="Calibri"/></font>', // card number
+    '<font><b/><sz val="18"/><color rgb="FF1A1A18"/><name val="Calibri"/></font>', // main title
+    '<font><b/><sz val="13"/><color rgb="FF1A1A18"/><name val="Calibri"/></font>', // section title
+    '<font><i/><sz val="9"/><color rgb="FF6B6A62"/><name val="Calibri"/></font>'   // footnote
+  ];
+  var F={header:fontBase,label:fontBase+1,bignum:fontBase+2,h1:fontBase+3,section:fontBase+4,note:fontBase+5};
+
+  var newFills=[
+    '<fill><patternFill patternType="solid"><fgColor rgb="'+STYLE_COLORS.header+'"/><bgColor indexed="64"/></patternFill></fill>',
+    '<fill><patternFill patternType="solid"><fgColor rgb="'+STYLE_COLORS.vacuum+'"/><bgColor indexed="64"/></patternFill></fill>',
+    '<fill><patternFill patternType="solid"><fgColor rgb="'+STYLE_COLORS.steam+'"/><bgColor indexed="64"/></patternFill></fill>',
+    '<fill><patternFill patternType="solid"><fgColor rgb="'+STYLE_COLORS.warn+'"/><bgColor indexed="64"/></patternFill></fill>',
+    '<fill><patternFill patternType="solid"><fgColor rgb="'+STYLE_COLORS.band+'"/><bgColor indexed="64"/></patternFill></fill>',
+    '<fill><patternFill patternType="solid"><fgColor rgb="'+STYLE_COLORS.card+'"/><bgColor indexed="64"/></patternFill></fill>',
+    '<fill><patternFill patternType="solid"><fgColor rgb="'+STYLE_COLORS.bar+'"/><bgColor indexed="64"/></patternFill></fill>',
+    '<fill><patternFill patternType="solid"><fgColor rgb="'+STYLE_COLORS.track+'"/><bgColor indexed="64"/></patternFill></fill>'
+  ];
+  var L={header:fillBase,vacuum:fillBase+1,steam:fillBase+2,warn:fillBase+3,
+         band:fillBase+4,card:fillBase+5,bar:fillBase+6,track:fillBase+7};
+
+  var newBorders=[
+    '<border><left style="thin"><color rgb="'+STYLE_COLORS.border+'"/></left>'+
+    '<right style="thin"><color rgb="'+STYLE_COLORS.border+'"/></right>'+
+    '<top style="thin"><color rgb="'+STYLE_COLORS.border+'"/></top>'+
+    '<bottom style="thin"><color rgb="'+STYLE_COLORS.border+'"/></bottom><diagonal/></border>'
+  ];
+  var B={thin:borderBase};
+
+  function xfTag(fontId,fillId,borderId,align){
+    var attrs='numFmtId="0" fontId="'+fontId+'" fillId="'+fillId+'" borderId="'+borderId+
+      '" xfId="0" applyFont="1" applyFill="1" applyBorder="1"';
+    if(align) return '<xf '+attrs+' applyAlignment="1"><alignment '+align+'/></xf>';
+    return '<xf '+attrs+'/>';
+  }
+  var newXfs=[
+    xfTag(F.header,L.header,B.thin,'horizontal="center" vertical="center" wrapText="1"'), // 0 HEADER
+    xfTag(0,0,B.thin),                                                                     // 1 PLAIN
+    xfTag(0,L.band,B.thin),                                                                // 2 BAND
+    xfTag(0,L.vacuum,B.thin),                                                              // 3 VACUUM
+    xfTag(0,L.steam,B.thin),                                                               // 4 STEAM
+    xfTag(0,L.warn,B.thin),                                                                // 5 WARN
+    xfTag(F.label,L.card,B.thin,'horizontal="center" vertical="center"'),                  // 6 CARD_LABEL
+    xfTag(F.bignum,L.card,B.thin,'horizontal="center" vertical="center"'),                 // 7 CARD_NUMBER
+    xfTag(F.section,0,0,'horizontal="left" vertical="center"'),                            // 8 SECTION_TITLE
+    xfTag(0,L.bar,0),                                                                      // 9 BAR_FILL
+    xfTag(0,L.track,0),                                                                    // 10 BAR_TRACK
+    xfTag(F.note,0,0,'horizontal="left" vertical="top" wrapText="1"'),                     // 11 FOOTNOTE
+    xfTag(F.h1,0,0,'horizontal="left" vertical="center"'),                                 // 12 MAIN_TITLE
+    xfTag(F.bignum,L.warn,B.thin,'horizontal="center" vertical="center"'),                 // 13 CARD_NUMBER_WARN
+    xfTag(0,L.card,B.thin,'horizontal="left" vertical="center" wrapText="1"'),             // 14 TABLE_LABEL
+    xfTag(F.label,L.card,B.thin,'horizontal="center" vertical="center"')                   // 15 TABLE_VALUE
+  ];
+  var XF={
+    HEADER:xfBase,PLAIN:xfBase+1,BAND:xfBase+2,VACUUM:xfBase+3,STEAM:xfBase+4,WARN:xfBase+5,
+    CARD_LABEL:xfBase+6,CARD_NUMBER:xfBase+7,SECTION_TITLE:xfBase+8,BAR_FILL:xfBase+9,
+    BAR_TRACK:xfBase+10,FOOTNOTE:xfBase+11,MAIN_TITLE:xfBase+12,
+    CARD_NUMBER_WARN:xfBase+13,TABLE_LABEL:xfBase+14,TABLE_VALUE:xfBase+15
+  };
+
+  function appendIntoTag(xml,tagName,newItems){
+    var re=new RegExp('(<'+tagName+' count=")(\\d+)("[^>]*>)([\\s\\S]*?)(<\\/'+tagName+'>)');
+    return xml.replace(re,function(m,p1,cnt,p3,body,close){
+      return p1+(parseInt(cnt,10)+newItems.length)+p3+body+newItems.join("")+close;
+    });
+  }
+  var out=stylesXml;
+  out=appendIntoTag(out,'fonts',newFonts);
+  out=appendIntoTag(out,'fills',newFills);
+  out=appendIntoTag(out,'borders',newBorders);
+  out=appendIntoTag(out,'cellXfs',newXfs);
+  return {xml:out,XF:XF};
+}
+
+// Single-pass row styler: cellStyleFn(sheetRow1Based, colIndex0Based) -> xfIndex|null.
+// Splits on <row> boundaries once, then rewrites each row's small inner XML —
+// avoids O(rows·cols) whole-document regex replace at 11k+ row scale.
+function patchSheetRows(sheetXml,cellStyleFn){
+  return sheetXml.replace(/<row r="(\d+)"([^>]*)>([\s\S]*?)<\/row>/g,function(m,rNumStr,rowAttrs,inner){
+    var rNum=parseInt(rNumStr,10);
+    var newInner=inner.replace(/<c r="([A-Z]+)(\d+)"([^>]*?)(\/>|>([\s\S]*?)<\/c>)/g,
+      function(cm,colLetters,rowNumInAddr,attrs,tail,content){
+        var colIdx=XLSX.utils.decode_col(colLetters);
+        var xfIdx=cellStyleFn(rNum,colIdx);
+        if(xfIdx===null||xfIdx===undefined) return cm;
+        var cleanAttrs=attrs.replace(/\s+s="[^"]*"/,'');
+        var addr=colLetters+rowNumInAddr;
+        if(tail==='/>') return '<c r="'+addr+'"'+cleanAttrs+' s="'+xfIdx+'"/>';
+        return '<c r="'+addr+'"'+cleanAttrs+' s="'+xfIdx+'">'+content+'</c>';
+      });
+    return '<row r="'+rNumStr+'"'+rowAttrs+'>'+newInner+'</row>';
+  });
+}
+
+function applyFreezeHeader(sheetXml){
+  var re=/<sheetViews>[\s\S]*?<\/sheetViews>/;
+  var frozen='<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" '+
+    'activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A2" sqref="A2"/>'+
+    '</sheetView></sheetViews>';
+  return re.test(sheetXml)?sheetXml.replace(re,frozen):sheetXml;
+}
+
+function applyTabColor(sheetXml,rgb){
+  if(/<sheetPr[^>]*>/.test(sheetXml)) return sheetXml.replace(/(<sheetPr[^>]*>)/,'$1<tabColor rgb="'+rgb+'"/>');
+  return sheetXml.replace(/(<worksheet[^>]*>)/,'$1<sheetPr><tabColor rgb="'+rgb+'"/></sheetPr>');
+}
+
+function insertHyperlinksBlock(sheetXml,hyperlinksInner){
+  if(!hyperlinksInner) return sheetXml;
+  var block='<hyperlinks>'+hyperlinksInner+'</hyperlinks>';
+  if(/<autoFilter[^>]*\/>/.test(sheetXml)) return sheetXml.replace(/(<autoFilter[^>]*\/>)/,'$1'+block);
+  if(/<\/sheetData>/.test(sheetXml)) return sheetXml.replace(/(<\/sheetData>)/,'$1'+block);
+  return sheetXml;
+}
+
+function escapeXmlAttr(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Builds the aoa/merges/style-grid for the Summary dashboard sheet.
+// Content-focused rather than conversion-process trivia: what needs
+// review, what kind of warnings exist, and how much got deduplicated.
+// Row count is dynamic (depends on how many distinct warning types
+// occurred), so this builds top-to-bottom with a row cursor instead of
+// fixed indices. Every cell gets an explicit "" so SheetJS always emits
+// a <c> at that address — needed so merged filler cells and bar-track
+// cells can still be styled.
+function buildSummarySpec(stats){
+  var NCOLS=10;
+  var rows=[], merges=[], styleRanges=[];
+  function newRow(){ rows.push(new Array(NCOLS).fill("")); return rows.length-1; }
+  function setRange(r0,c0,r1,c1,key,text){
+    merges.push({s:{r:r0,c:c0},e:{r:r1,c:c1}});
+    styleRanges.push({r0:r0,c0:c0,r1:r1,c1:c1,key:key});
+    if(text!==undefined) rows[r0][c0]=text;
+  }
+
+  var rTitle=newRow();
+  setRange(rTitle,0,rTitle,9,"MAIN_TITLE","PDH MASTER LINE LIST — Summary");
+  var rSub=newRow();
+  setRange(rSub,0,rSub,9,"FOOTNOTE","Generated "+stats.genTs+"  ·  UNIFIED v1 engine  ·  "+stats.totalFiles+" source files uploaded");
+  newRow();
+
+  var rCard1=newRow();
+  setRange(rCard1,0,rCard1,3,"CARD_LABEL","FILES PROCESSED");
+  setRange(rCard1,4,rCard1,9,"CARD_NUMBER",stats.doneFiles+" / "+stats.totalFiles+(stats.failedFiles?"  ("+stats.failedFiles+" failed)":""));
+  var rCard2=newRow();
+  setRange(rCard2,0,rCard2,3,"CARD_LABEL","FINAL UNIQUE LINES");
+  setRange(rCard2,4,rCard2,9,"CARD_NUMBER",String(stats.finalRows));
+  var rCard3=newRow();
+  setRange(rCard3,0,rCard3,3,"CARD_LABEL","ROWS FLAGGED FOR REVIEW");
+  setRange(rCard3,4,rCard3,9,"CARD_NUMBER_WARN",String(stats.reviewCount));
+  newRow();
+
+  var rWarnTitle=newRow();
+  setRange(rWarnTitle,0,rWarnTitle,9,"SECTION_TITLE","Warnings by Type");
+  if(stats.warningsByType.length){
+    stats.warningsByType.forEach(function(w){
+      var rw=newRow();
+      setRange(rw,0,rw,6,"TABLE_LABEL",w.type);
+      setRange(rw,7,rw,9,"TABLE_VALUE",String(w.count));
+    });
+  }else{
+    var rNone=newRow();
+    setRange(rNone,0,rNone,9,"FOOTNOTE","No warnings logged — every row parsed cleanly.");
+  }
+  newRow();
+
+  var rDedupTitle=newRow();
+  setRange(rDedupTitle,0,rDedupTitle,9,"SECTION_TITLE","Row Deduplication");
+  var rBar=newRow();
+  var keptShare=stats.rawRowSum?Math.round((stats.finalRows/stats.rawRowSum)*NCOLS):0;
+  for(var c=0;c<NCOLS;c++) styleRanges.push({r0:rBar,c0:c,r1:rBar,c1:c,key:c<keptShare?"BAR_FILL":"BAR_TRACK"});
+  var rLegend=newRow();
+  setRange(rLegend,0,rLegend,4,"FOOTNOTE","Kept: "+stats.finalRows+" unique lines");
+  setRange(rLegend,5,rLegend,9,"FOOTNOTE","Removed as duplicate revisions: "+(stats.rawRowSum-stats.finalRows));
+  newRow();
+
+  var rNote=newRow();
+  setRange(rNote,0,rNote,9,"FOOTNOTE",
+    "Rows in LINELIST with LINE_CLASS = \"REVIEW - CONFLICTING CONDITIONS\" need manual resolution "+
+    "(duplicate line entries with disagreeing service/class/conditions that couldn't be auto-merged). "+
+    "See the Processing_Errors tab (MULTI_CONDITION_CONFLICT) for full detail on each one.");
+
+  var NROWS=rows.length;
+  var grid=[]; for(var r=0;r<NROWS;r++) grid.push(new Array(NCOLS).fill(null));
+  styleRanges.forEach(function(s){
+    for(var rr=s.r0;rr<=s.r1;rr++) for(var cc=s.c0;cc<=s.c1;cc++) grid[rr][cc]=s.key;
+  });
+  return {rows:rows,merges:merges,grid:grid,nCols:NCOLS,nRows:NROWS};
+}
+
+// Applies header/banding/highlight styling, freeze panes, tab colors,
+// the Summary dashboard, and best-effort Processing_Errors↔LINELIST
+// hyperlinks to the already-written workbook. See module comment above
+// for why this can't just be done via SheetJS cell.s at write time.
+//
+// LINE_NO based cross-referencing (highlighting + hyperlinks) is
+// best-effort: masterErrors/dedupedRows don't retain which UNIT_NO a
+// warning came from, so if the same LINE_NO recurs under a different
+// unit, the link/highlight may land on a same-numbered-but-unrelated
+// row. Still useful for the common case; there's no source-file/unit
+// tracking to disambiguate further without a larger data-model change.
+async function applyProfessionalStyling(input,ctx){
+  var buffer=(input instanceof Blob)?await input.arrayBuffer():input;
+  var zip=await JSZip.loadAsync(buffer);
+  var wbXml=await zip.file("xl/workbook.xml").async("string");
+  var relsXml=await zip.file("xl/_rels/workbook.xml.rels").async("string");
+  var stylesXml=await zip.file("xl/styles.xml").async("string");
+
+  var ext=extendStylesXml(stylesXml);
+  zip.file("xl/styles.xml",ext.xml);
+  var XF=ext.XF;
+
+  async function loadSheet(name){
+    var path=resolveSheetXmlPath(wbXml,relsXml,name);
+    if(!path) return null;
+    return {path:path,xml:await zip.file(path).async("string")};
+  }
+
+  var lineNoToFirstRow={};
+  ctx.dedupedRows.forEach(function(row,ri){
+    var key=String(row.LINE_NO||"");
+    if(key&&!(key in lineNoToFirstRow)) lineNoToFirstRow[key]=ri;
+  });
+  // Line-Schedule-path warnings log the full tag (e.g. "P-305-2101"); Line-Index
+  // -path warnings already log the bare serial (e.g. "13701"). Normalize through
+  // parseLineTag so both match dedupedRows' bare LINE_NO — it's a no-op on
+  // already-bare numbers (parts.length<3 just returns the string unchanged).
+  // Used below for the Processing_Errors→LINELIST hyperlinks only — LINELIST
+  // itself is no longer highlighted per-condition (warnings already live in
+  // the Processing_Errors sheet; duplicating that as row color was redundant).
+  function normalizeLineNo(v){ return safeStr(parseLineTag(v).serialNo||v); }
+
+  // ── LINELIST ── header + zebra banding only, no per-condition highlighting
+  var ll=await loadSheet("LINELIST");
+  if(ll){
+    var nCols=OUTCOLS.length;
+    var xml=ll.xml;
+    xml=applyTabColor(xml,STYLE_COLORS.tabLinelist);
+    xml=applyFreezeHeader(xml);
+    xml=patchSheetRows(xml,function(rNum,colIdx){
+      if(colIdx>=nCols) return null;
+      if(rNum===1) return XF.HEADER;
+      var ri=rNum-2;
+      if(!ctx.dedupedRows[ri]) return null;
+      return (ri%2===1)?XF.BAND:XF.PLAIN;
+    });
+    zip.file(ll.path,xml);
+  }
+
+  // ── Note / Processing_Errors: header + zebra banding, plus best-effort
+  //    hyperlinks from Processing_Errors LINE_NUMBER back to LINELIST ──
+  var simpleSheets=[
+    {name:"Note",nCols:3,rowCount:masterNotes.length||1,tab:STYLE_COLORS.tabNote,linkCol:-1},
+    {name:"Processing_Errors",nCols:ERR_COLS.length,rowCount:masterErrors.length||1,
+     tab:STYLE_COLORS.tabErrors,linkCol:ERR_COLS.indexOf("LINE_NUMBER")}
+  ];
+  for(var si=0;si<simpleSheets.length;si++){
+    var spec=simpleSheets[si];
+    var sh=await loadSheet(spec.name);
+    if(!sh) continue;
+    var sxml=sh.xml;
+    sxml=applyTabColor(sxml,spec.tab);
+    sxml=applyFreezeHeader(sxml);
+    sxml=patchSheetRows(sxml,function(rNum,colIdx){
+      if(colIdx>=spec.nCols) return null;
+      if(rNum===1) return XF.HEADER;
+      var ri=rNum-2;
+      return (ri%2===1)?XF.BAND:XF.PLAIN;
+    });
+    if(spec.linkCol>=0&&masterErrors.length){
+      var linkCol=XLSX.utils.encode_col(spec.linkCol);
+      var lineNoCol=XLSX.utils.encode_col(OUTCOLS.indexOf("LINE_NO"));
+      var links=[];
+      masterErrors.forEach(function(e,ei){
+        var target=e.LINE_NUMBER?lineNoToFirstRow[normalizeLineNo(e.LINE_NUMBER)]:undefined;
+        if(target===undefined) return;
+        var ref=linkCol+(ei+2);
+        var loc="'LINELIST'!"+lineNoCol+(target+2);
+        links.push('<hyperlink ref="'+ref+'" location="'+escapeXmlAttr(loc)+
+          '" display="Jump to LINELIST"/>');
+      });
+      sxml=insertHyperlinksBlock(sxml,links.join(""));
+    }
+    zip.file(sh.path,sxml);
+  }
+
+  // ── Summary dashboard ──
+  var sum=await loadSheet("Summary");
+  if(sum&&ctx.summarySpec){
+    var spec2=ctx.summarySpec;
+    var sxml2=applyTabColor(sum.xml,STYLE_COLORS.tabSummary);
+    sxml2=patchSheetRows(sxml2,function(rNum,colIdx){
+      var ri=rNum-1;
+      if(ri>=spec2.nRows||colIdx>=spec2.nCols) return null;
+      var key=spec2.grid[ri][colIdx];
+      return key?XF[key]:null;
+    });
+    zip.file(sum.path,sxml2);
+  }
+
+  return await zip.generateAsync({type:"blob",
+    mimeType:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+}
+
+// ═══════════════════════════════════════════════════════════════
+// REGULAR DOWNLOAD
+// Standard browser download — same as downloading any file from
+// Chrome. The file lands in the browser's default Downloads folder
+// with an auto-generated timestamped name.
+// ═══════════════════════════════════════════════════════════════
+function downloadBlob(blob,fname){
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url; a.download=fname;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
+  setTimeout(function(){URL.revokeObjectURL(url);},4000);
+}
+
+function resolveOutputFilename(){
+  var ts=new Date().toISOString().slice(0,16).replace(/[:T]/g,"-");
+  return "PDH_MASTER_LINELIST_"+ts+".xlsx";
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SINGLE MASTER EXPORT — one XLSX, two sheets
+// ═══════════════════════════════════════════════════════════════
+async function exportMaster(){
+  if(!masterRows.length&&!masterErrors.length){
+    alert("No data to export.");return;
+  }
+  var owb = XLSX.utils.book_new();
+  var dedupedRows = [];
+  if(masterRows.length) dedupedRows = deduplicateMasterRows(masterRows);
+
+  // Summary dashboard — appended first so it's the leftmost/default tab.
+  // Stats are computed up front from fileQueue/dedupedRows/masterErrors.
+  var warningTypeCounts={};
+  masterErrors.forEach(function(e){
+    var t=e.ERROR_TYPE||"UNKNOWN";
+    warningTypeCounts[t]=(warningTypeCounts[t]||0)+1;
+  });
+  var warningsByType=Object.keys(warningTypeCounts)
+    .map(function(t){return {type:t,count:warningTypeCounts[t]};})
+    .sort(function(a,b){return b.count-a.count;});
+  // "REVIEW - CONFLICTING CONDITIONS" is the exact marker collectLineScheduleRawRows'
+  // dedup step writes into LINE_CLASS when a LINE_NO segment has irreconcilable
+  // duplicate conditions (see MULTI_CONDITION_CONFLICT logging) — counting it here
+  // gives reviewers one number for "how many rows still need a manual decision."
+  var reviewCount=dedupedRows.filter(function(r){return r.LINE_CLASS==="REVIEW - CONFLICTING CONDITIONS";}).length;
+
+  var stats = {
+    totalFiles:fileQueue.length,
+    doneFiles:fileQueue.filter(function(f){return f.status==="done";}).length,
+    failedFiles:fileQueue.filter(function(f){return f.status==="error";}).length,
+    rawRowSum:fileQueue.reduce(function(a,f){return a+(f.rowCount||0);},0),
+    finalRows:dedupedRows.length,
+    warnCount:masterErrors.length,
+    warningsByType:warningsByType,
+    reviewCount:reviewCount,
+    genTs:new Date().toLocaleString()
+  };
+  var summarySpec = buildSummarySpec(stats);
+  var summaryWs = XLSX.utils.aoa_to_sheet(summarySpec.rows);
+  summaryWs["!merges"] = summarySpec.merges;
+  summaryWs["!cols"] = new Array(summarySpec.nCols).fill({wch:12});
+  XLSX.utils.book_append_sheet(owb,summaryWs,"Summary");
+
+  // Sheet: LINELIST — deduplicated
+  if(masterRows.length){
+    // json_to_sheet's `header` option only controls column order/labels for the
+    // keys listed — it does NOT filter out other properties. Internal metadata
+    // fields (_richText, _rowStruck) would otherwise leak into the workbook as
+    // extra trailing columns, so build a clean plain-data copy for export.
+    var cleanRows = dedupedRows.map(function(r){
+      var o={}; OUTCOLS.forEach(function(c){o[c]=r[c]||"";}); return o;
+    });
+    var ws = XLSX.utils.json_to_sheet(cleanRows,{header:OUTCOLS,skipHeader:false});
+    applyRichTextFallback(ws,dedupedRows,OUTCOLS);
+    // Auto column widths
+    ws["!cols"] = OUTCOLS.map(function(c){return {wch:Math.max(c.length*1.2,14)};});
+    ws["!autofilter"] = {ref:ws["!ref"]};
+    XLSX.utils.book_append_sheet(owb,ws,"LINELIST");
+  }
+
+  // Sheet: Note — free-text notes blocks captured from each source file's sheets
+  var NOTE_COLS=["SOURCE_FILE","SHEET_NAME","NOTE_TEXT"];
+  var noteWs = XLSX.utils.json_to_sheet(
+    masterNotes.length ? masterNotes : [{SOURCE_FILE:"(no notes found)",SHEET_NAME:"",NOTE_TEXT:""}],
+    {header:NOTE_COLS}
+  );
+  noteWs["!cols"] = [{wch:32},{wch:20},{wch:90}];
+  noteWs["!autofilter"] = {ref:noteWs["!ref"]};
+  XLSX.utils.book_append_sheet(owb,noteWs,"Note");
+
+  // Sheet: Processing_Errors
+  var errWs = XLSX.utils.json_to_sheet(
+    masterErrors.length ? masterErrors : [{FILE_NAME:"(no errors)",SHEET_NAME:"",ROW_INDEX:"",LINE_NUMBER:"",ERROR_TYPE:"",ERROR_DESCRIPTION:""}],
+    {header:ERR_COLS}
+  );
+  errWs["!cols"] = ERR_COLS.map(function(c){return {wch:Math.max(c.length*1.5,20)};});
+  errWs["!autofilter"] = {ref:errWs["!ref"]};
+  XLSX.utils.book_append_sheet(owb,errWs,"Processing_Errors");
+
+  var fname = resolveOutputFilename();
+
+  var hasRich = dedupedRows.some(function(r){
+    return (r._richText&&Object.keys(r._richText).length) || r._rowStruck;
+  });
+
+  var baseArray = XLSX.write(owb,{bookType:"xlsx",type:"array"});
+  var workingBuffer = baseArray;
+
+  if(hasRich&&typeof JSZip!=="undefined"){
+    try{
+      var patchedBlob = await patchRichTextIntoXlsx(baseArray,dedupedRows,OUTCOLS,"LINELIST");
+      workingBuffer = await patchedBlob.arrayBuffer();
+    }catch(e){
+      console.error("Rich-text patch failed, continuing with plain data:",e);
+      workingBuffer = baseArray;
+    }
+  }
+
+  if(typeof JSZip==="undefined"){
+    var plainBlob = new Blob([workingBuffer],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+    downloadBlob(plainBlob,fname);
+    return;
+  }
+
+  try{
+    var styledBlob = await applyProfessionalStyling(workingBuffer,{
+      dedupedRows:dedupedRows, masterErrors:masterErrors, summarySpec:summarySpec
+    });
+    downloadBlob(styledBlob,fname);
+  }catch(e){
+    console.error("Professional styling patch failed, falling back to unstyled export:",e);
+    var fallbackBlob = new Blob([workingBuffer],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+    downloadBlob(fallbackBlob,fname);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FORMAT DETECTION
+// ═══════════════════════════════════════════════════════════════
+var HKWS_GLOBAL=["SIZE","FLUID CODE","SERIAL NO","PIPE CLASS","FROM","TO","DESIGN","OPER","MDMT","UNIT NO"];
+
+function sampleFirstRows(sh,n){
+  if(!sh||!sh['!ref']) return [];
+  var declared=XLSX.utils.decode_range(sh['!ref']);
+  var range={s:{r:declared.s.r,c:declared.s.c},e:{r:Math.min(declared.e.r,declared.s.r+n-1),c:declared.e.c}};
+  return XLSX.utils.sheet_to_json(sh,{header:1,defval:"",range:range,raw:true});
+}
+
+function findBestDataSheet(wb){
+  var bestSheet=wb.SheetNames[0],bestScore=-1;
+  wb.SheetNames.forEach(function(shName){
+    try{
+      var sh=wb.Sheets[shName]; if(!sh) return;
+      var rows=sampleFirstRows(sh,10);
+      var sampleStr=rows.slice(0,10).map(function(r){return r.join(" ");}).join(" ").toUpperCase();
+      var score=HKWS_GLOBAL.filter(function(k){return sampleStr.indexOf(k)!==-1;}).length;
+      if(score>bestScore){bestScore=score;bestSheet=shName;}
+    }catch(e){}
+  });
+  return bestSheet;
+}
+
+// Direct Mapping: DOCNO + LINENO + LINE_CLASS in row-1 headers
+function isDirectMappingFormat(rawRows){
+  if(!rawRows||rawRows.length<2) return false;
+  var h=(rawRows[0]||[]).map(function(c){return safeStr(c).toUpperCase();}).join(" ");
+  return h.indexOf("LINENO")!==-1&&h.indexOf("DOCNO")!==-1&&h.indexOf("LINE_CLASS")!==-1;
+}
+
+// Line Schedule: fixed-column format with r7 keywords + r8 FROM
+function isLineScheduleFormat(rawRows){
+  if(!rawRows||rawRows.length<8) return false;
+  var r7=(rawRows[6]||[]).map(function(c){return safeStr(c).toUpperCase();}).join(" ");
+  var r8=(rawRows[7]||[]).map(function(c){return safeStr(c).toUpperCase();}).join(" ");
+  return r7.indexOf("LINE")!==-1&&r7.indexOf("NUMBER")!==-1&&
+         r7.indexOf("SERVICE")!==-1&&r7.indexOf("FLUID")!==-1&&r7.indexOf("STATE")!==-1&&
+         r8.indexOf("FROM")!==-1&&r8.indexOf("OPERATING")===-1;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// EXCEL PROCESSING — format-aware dispatcher
+// Returns: rows[] (never writes XLSX — that's done once in exportMaster)
+// Memory: wb is nulled after rows extracted
+// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+// WHOLE-ROW STRIKETHROUGH DETECTION — OOXML / JSZip
+//
+// Two mechanisms Excel uses for whole-row strike:
+//  A) Cell-level s="N": xf N (or inherited via xfId) references a strike font
+//  B) Row-level s="N" customFormat="1": row default style has a strike font
+// ═══════════════════════════════════════════════════════════════
+async function buildOoxmlStrikeMaps(buffer){
+  var result={};
+  if(typeof JSZip==="undefined") return result;
+  try{
+    var zip=await JSZip.loadAsync(buffer);
+
+    // ── Step 1: parse styles.xml → Set of xf indices with effective strike ──
+    var strikeXfSet=new Set();
+    try{
+      var stylesXml=await zip.file("xl/styles.xml").async("string");
+
+      // Find which font indices genuinely have strike ON
+      // <strike/> or <strike val="1"> = ON; <strike val="0"> = explicitly OFF
+      var strikeFontSet=new Set();
+      var fontIdx=0;
+      var fontRe=/<font>([\s\S]*?)<\/font>/g; var fm;
+      while((fm=fontRe.exec(stylesXml))!==null){
+        if(/<strike(?:\s+val\s*=\s*"1"\s*)?\s*\/>/i.test(fm[1])) strikeFontSet.add(fontIdx);
+        fontIdx++;
+      }
+
+      // Build cellStyleXfs parent array (indexed by xfId attribute)
+      var styleXfFontIds=[];
+      var cellStyleXfsM=/<cellStyleXfs[^>]*>([\s\S]*?)<\/cellStyleXfs>/.exec(stylesXml);
+      if(cellStyleXfsM){
+        var sxfRe=/<xf\b[^>]*>/g; var sx;
+        while((sx=sxfRe.exec(cellStyleXfsM[1]))!==null){
+          var sfIdM=/\bfontId="(\d+)"/.exec(sx[0]);
+          styleXfFontIds.push(sfIdM?parseInt(sfIdM[1]):-1);
+        }
+      }
+
+      // Scan cellXfs: effective strike if own fontId → strike font (and applyFont≠0)
+      // OR if xfId → parent cellStyleXf whose fontId → strike font (inheritance)
+      var cellXfsM=/<cellXfs[^>]*>([\s\S]*?)<\/cellXfs>/.exec(stylesXml);
+      if(cellXfsM){
+        var xfIdx=0;
+        var xfRe=/<xf\b[^>]*>/g; var xm;
+        while((xm=xfRe.exec(cellXfsM[1]))!==null){
+          var fIdM=/\bfontId="(\d+)"/.exec(xm[0]);
+          var apM=/\bapplyFont="(\d+)"/.exec(xm[0]);
+          var xfIdM=/\bxfId="(\d+)"/.exec(xm[0]);
+          var ownFontId=fIdM?parseInt(fIdM[1]):-1;
+          // applyFont absent → true by default; applyFont="0" → false (inherit parent)
+          var applyFont=!(apM&&apM[1]==="0");
+          var parentXfId=xfIdM?parseInt(xfIdM[1]):-1;
+          var effectiveFontId=-1;
+          if(applyFont&&ownFontId>=0){
+            effectiveFontId=ownFontId;
+          } else if(parentXfId>=0&&parentXfId<styleXfFontIds.length){
+            effectiveFontId=styleXfFontIds[parentXfId];
+          }
+          if(effectiveFontId>=0&&strikeFontSet.has(effectiveFontId)) strikeXfSet.add(xfIdx);
+          xfIdx++;
+        }
+      }
+    }catch(e){}
+    if(strikeXfSet.size===0) return result;
+
+    // ── Step 2: build sheet name → worksheet XML path map ──
+    var sheetPathMap={};
+    try{
+      var wbXml=await zip.file("xl/workbook.xml").async("string");
+      var relsXml=await zip.file("xl/_rels/workbook.xml.rels").async("string");
+      var shRe=/<sheet\b[^>]+>/g; var sm;
+      while((sm=shRe.exec(wbXml))!==null){
+        var nmM=/\bname="([^"]*)"/.exec(sm[0]);
+        var ridM=/\br:id="([^"]*)"/.exec(sm[0]);
+        if(!nmM||!ridM) continue;
+        var relRe=new RegExp('<Relationship[^>]*\\bId="'+ridM[1]+'"[^>]*\\bTarget="([^"]+)"');
+        var relM=relRe.exec(relsXml);
+        if(!relM) continue;
+        var target=relM[1].replace(/^\//,"");
+        sheetPathMap[nmM[1]]=(target.indexOf("xl/")===0)?target:"xl/"+target;
+      }
+    }catch(e){}
+
+    // ── Step 3: parse each worksheet XML → build Set of wholly-struck rows ──
+    for(var shName in sheetPathMap){
+      try{
+        var sheetXml=await zip.file(sheetPathMap[shName]).async("string");
+        var struckRows=new Set();
+
+        // Mechanism B: row-level s="N" customFormat="1" → entire row inherits that style
+        var rowTagRe=/<row\b([^>]+)>/g; var rm;
+        while((rm=rowTagRe.exec(sheetXml))!==null){
+          var rattrs=rm[1];
+          var rNumM=/\br="(\d+)"/.exec(rattrs);
+          var rSM=/\bs="(\d+)"/.exec(rattrs);
+          var cfM=/\bcustomFormat="1"/.exec(rattrs);
+          if(rNumM&&rSM&&cfM&&strikeXfSet.has(parseInt(rSM[1]))){
+            struckRows.add(parseInt(rNumM[1])-1);
+          }
+        }
+
+        // Mechanism A: cell-level s="N" — count only VALUE-BEARING cells per row.
+        // Sheets often have many empty filler columns with border/fill styles that
+        // inflate the denominator and push the strike percentage below threshold.
+        // Only cells with <v>non-empty</v> represent real data.
+        var rowStrike={};
+        var cFullRe=/<c\b([^>]*)>([\s\S]*?)<\/c>|<c\b([^>]*)\/>/g; var cm;
+        while((cm=cFullRe.exec(sheetXml))!==null){
+          var attrs=cm[1]||cm[3];
+          var inner=cm[2]||"";
+          var rM=/\br="[A-Z]+(\d+)"/.exec(attrs);
+          var sM=/\bs="(\d+)"/.exec(attrs);
+          if(!rM) continue;
+          // Only count cells that actually hold a value
+          var hasValue=/<v>[^<]+<\/v>/.test(inner);
+          if(!hasValue) continue;
+          var rowIdx0=parseInt(rM[1])-1;
+          if(!rowStrike[rowIdx0]) rowStrike[rowIdx0]=[0,0];
+          rowStrike[rowIdx0][0]++;
+          if(sM&&strikeXfSet.has(parseInt(sM[1]))) rowStrike[rowIdx0][1]++;
+        }
+        for(var rk in rowStrike){
+          var c=rowStrike[rk];
+          if(c[1]>=3&&c[0]>0&&c[1]/c[0]>=0.70) struckRows.add(parseInt(rk));
+        }
+
+        result[shName]=struckRows;
+      }catch(e){ result[shName]=new Set(); }
+    }
+  }catch(e){}
+  return result;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// NOTES EXTRACTION
+// Real line-list files often carry a free-text "Notes" block directly
+// below the tabular line data — e.g. a header cell reading "NOTES-" or
+// "Notes:-" followed by numbered lines like "1- All PSV Inlet and
+// outlet line sizes are preliminary, shall be confirmed based on
+// Engineering inputs." This content has no LINE_NO/CLASS/SIZE, so it's
+// correctly excluded from the LINELIST rows already — but until now it
+// was silently discarded rather than preserved anywhere. This scans a
+// sheet's raw rows for that header, then captures every following line
+// verbatim (as one string per line) until the first fully blank row or
+// the end of the sheet.
+// ═══════════════════════════════════════════════════════════════
+var NOTES_HEADER_RE = /^NOTES?\s*[:\-]*\s*$/i;
+function extractNotesFromRows(rawRows,fileName,sheetName){
+  var notes=[];
+  if(!rawRows||!rawRows.length) return notes;
+  var headerRowIdx=-1;
+  for(var r=0;r<rawRows.length;r++){
+    var row=rawRows[r]||[];
+    for(var c=0;c<Math.min(row.length,4);c++){
+      var v=safeStr(row[c]);
+      if(v&&NOTES_HEADER_RE.test(v)){headerRowIdx=r;break;}
+    }
+    if(headerRowIdx>=0) break;
+  }
+  if(headerRowIdx<0) return notes;
+
+  for(var r2=headerRowIdx+1;r2<rawRows.length;r2++){
+    var row2=rawRows[r2]||[];
+    var cells=row2.map(function(v){return safeStr(v);}).filter(function(v){return v!=="";});
+    if(cells.length===0) break; // blank row ends the notes block
+    var noteText;
+    if(cells.length>1&&/^\d+$/.test(cells[0])){
+      // Number and note text landed in separate cells — reconstruct the
+      // natural "N- text" reading order instead of just space-joining.
+      noteText=cells[0]+"- "+cells.slice(1).join(" ");
+    } else {
+      noteText=cells.join(" ");
+    }
+    notes.push({SOURCE_FILE:fileName,SHEET_NAME:sheetName,NOTE_TEXT:noteText});
+  }
+  return notes;
+}
+
+async function handleExcelProcessing(buffer,file,fileItem){
+  var wb = XLSX.read(buffer,{type:"array",cellDates:false,raw:true,cellHTML:true});
+  var rows = [];
+
+  // Build whole-row strikethrough maps from OOXML (non-critical: failure = no strike detection)
+  var sheetStrikeRows={};
+  try{ sheetStrikeRows=await buildOoxmlStrikeMaps(buffer); }catch(e){}
+
+  // ── PER-SHEET FORMAT CLASSIFICATION ──────────────────────────────
+  // A workbook can genuinely mix sheets of different formats (e.g. one
+  // Line Schedule sheet + one Line Index sheet), so format is detected
+  // per sheet rather than once for the whole file from a single
+  // "representative" sheet — that used to let a file's real Direct
+  // Mapping / Line Schedule sheet get missed entirely whenever it wasn't
+  // also the sheet that scored highest against the Line-Index keyword
+  // list, silently routing the whole file down the wrong parsing path.
+  // If a sheet's signature matches both Direct Mapping and Line Schedule,
+  // Direct Mapping wins (confirmed priority rule).
+  var sheetRawCache={};
+  var sheetClass={}; // shName -> "DM" | "LS" | "LI" | null
+  wb.SheetNames.forEach(function(shName){
+    try{
+      var sh=wb.Sheets[shName]; if(!sh){sheetClass[shName]=null;return;}
+      var rawRows=sheetToRowsSafe(sh,{header:1,defval:"",raw:true});
+      sheetRawCache[shName]=rawRows;
+      if(isDirectMappingFormat(rawRows)){ sheetClass[shName]="DM"; return; }
+      if(isLineScheduleFormat(rawRows)){ sheetClass[shName]="LS"; return; }
+      var sampleStr=rawRows.slice(0,10).map(function(r){return r.join(" ");}).join(" ").toUpperCase();
+      var score=HKWS_GLOBAL.filter(function(k){return sampleStr.indexOf(k)!==-1;}).length;
+      sheetClass[shName]=(score>=3)?"LI":null; // threshold matches prior findAllDataSheets behavior
+    }catch(e){ sheetClass[shName]=null; }
+  });
+
+  // Whole-file fallback safety net: if no sheet was classified as anything
+  // (e.g. the only sheet has non-standard headers), fall back to the single
+  // best-scoring sheet as Line Index — same behavior as before this fix,
+  // so files that previously worked aren't regressed by the stricter
+  // per-sheet classification above.
+  var anyClassified=wb.SheetNames.some(function(s){return sheetClass[s];});
+  var fallbackShName=null;
+  if(!anyClassified){
+    fallbackShName=findBestDataSheet(wb);
+    sheetClass[fallbackShName]="LI";
+    if(!sheetRawCache[fallbackShName]) sheetRawCache[fallbackShName]=sheetToRowsSafe(wb.Sheets[fallbackShName],{header:1,defval:"",raw:true});
+  }
+
+  // Badge shows whichever format the first matching sheet (in sheet order) had
+  var FMT_LABEL={DM:"DIRECT_MAPPING",LS:"LINE_SCHEDULE",LI:"LINE_INDEX"};
+  var firstMatch=wb.SheetNames.find(function(s){return sheetClass[s];})||fallbackShName;
+  fileItem.fmt = firstMatch?FMT_LABEL[sheetClass[firstMatch]]:"LINE_INDEX";
+
+  // Scan every sheet for a trailing "Notes" block — independent of which
+  // data format this file matches, since the notes block sits alongside
+  // the data regardless of format.
+  try{
+    wb.SheetNames.forEach(function(shName){
+      var shRaw=sheetRawCache[shName]||sheetToRowsSafe(wb.Sheets[shName],{header:1,defval:"",raw:true});
+      var found=extractNotesFromRows(shRaw,file.name,shName);
+      found.forEach(function(n){masterNotes.push(n);});
+    });
+  }catch(e){}
+
+  try{
+    // ── Direct Mapping sheets (PMS/SmartPlant DB export) ──
+    // processDirectMappingFormat re-verifies isDirectMappingFormat per
+    // sheet internally, so calling it unconditionally is safe — it only
+    // ever picks up sheets classified "DM" above.
+    var hasDM = wb.SheetNames.some(function(s){return sheetClass[s]==="DM";});
+    if(hasDM){
+      rows = rows.concat(processDirectMappingFormat(wb,file.name,sheetStrikeRows));
+    }
+
+    // ── Line Schedule sheets (fixed-column) — excludes anything claimed by DM ──
+    var lsSheets = wb.SheetNames.filter(function(s){return sheetClass[s]==="LS";});
+    if(lsSheets.length){
+      var allRaw=[];
+      lsSheets.forEach(function(shName){
+        try{
+          var sh=wb.Sheets[shName];
+          var rawRows=sheetRawCache[shName];
+          var r2=rawRows[1]||[],r6=rawRows[5]||[];
+          var docNo=safeStr(r2[53]);
+          if(!docNo){for(var ci=0;ci<r2.length;ci++){var v=safeStr(r2[ci]);if(/B224|331-|332-/.test(v)){docNo=v;break;}}}
+          var unitNo=safeStr(r6[55])||safeStr(r6[54]);
+          if(!unitNo){for(var ci=0;ci<r6.length;ci++){var v=safeStr(r6[ci]);if(/^\d{3,4}$/.test(v)){unitNo=v;break;}}}
+          var richMap=buildRichTextMap(sh);
+          var strikeRows=sheetStrikeRows[shName]||new Set();
+          var sheetRows=collectLineScheduleRawRows(rawRows,docNo,unitNo,file.name,shName,richMap,strikeRows);
+          for(var i=0;i<sheetRows.length;i++) allRaw.push(sheetRows[i]);
+        }catch(shErr){
+          logError(file.name,shName,"","","PARSE_FAILURE","Sheet error: "+String(shErr.message||shErr));
+        }
+      });
+      rows = rows.concat(deduplicateLineScheduleRows(allRaw,file.name));
+    }
+
+    // ── Standard Line Index sheets (UOP/Honeywell xlsm) — excludes DM/LS sheets ──
+    var liSheets = wb.SheetNames.filter(function(s){return sheetClass[s]==="LI";});
+    if(liSheets.length){
+      liSheets.forEach(function(shName){
+        try{
+          var shRaw = sheetRawCache[shName]||sheetToRowsSafe(wb.Sheets[shName],{header:1,defval:"",raw:true});
+          var shRows = processStandardLineIndex(wb,file.name,shRaw,shName,sheetStrikeRows[shName]||new Set());
+          rows = rows.concat(shRows);
+        }catch(shErr){
+          logError(file.name,shName,"","","PARSE_FAILURE","Sheet error: "+String(shErr.message||shErr));
+        }
+      });
+    }
+  }finally{
+    // ── MEMORY: release workbook immediately after rows extracted ──
+    wb = null;
+    sheetRawCache = null;
+  }
+
+  await yieldUI(); // let browser breathe before next file starts in this slot
+  return rows;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FORMAT 1: DIRECT MAPPING PROCESSOR
+// ═══════════════════════════════════════════════════════════════
+function processDirectMappingFormat(wb,fileName,sheetStrikeRows){
+  sheetStrikeRows=sheetStrikeRows||{};
+  var allRows=[];
+  wb.SheetNames.forEach(function(shName){
+    try{
+      var sh=wb.Sheets[shName]; if(!sh) return;
+      var rawRows=sheetToRowsSafe(sh,{header:1,defval:"",raw:true});
+      if(!isDirectMappingFormat(rawRows)) return;
+      var headers=rawRows[0].map(function(h){return safeStr(h).trim();});
+      var hi={};
+      headers.forEach(function(h,ci){if(h&&hi[h]===undefined) hi[h]=ci;});
+      var richMap=buildRichTextMap(sh);
+      function gv(row,col){
+        var ci=hi[col]; if(ci===undefined||ci>=row.length) return "";
+        var v=row[ci]; return (v!==null&&v!==undefined)?safeStr(v):"";
+      }
+      // Return {richXml,value} for a source column in the current sheet row, or null
+      function gr(sheetRowIdx,srcHeader){
+        var ci=hi[srcHeader]; if(ci===undefined) return null;
+        return richMap[sheetRowIdx+'_'+ci]||null;
+      }
+      var sizeUnitCol="LINE_SIZE_UNIT";
+      for(var ri=1;ri<rawRows.length;ri++){
+        try{
+          var row=rawRows[ri];
+          if(!row||!row.some(function(c){return safeStr(c)!="";})) continue;
+          var lineno=gv(row,"LINENO"); if(!lineno) continue;
+          var lnParts=lineno.split("-");
+          var unitNo=lnParts.length>=3?lnParts[1]:"";
+          var out={}; OUTCOLS.forEach(function(c){out[c]="";});
+          out["PID_NO"]              =gv(row,"DOCNO");
+          out["SERVICE"]             =gv(row,"SERVICE");
+          out["UNIT_NO"]             =unitNo;
+          out["LINE_NO"]             =lineno;
+          out["LINE_SIZE"]           =gv(row,"LINE_SIZE");
+          out["LINE_SIZE_UNIT"]      =gv(row,sizeUnitCol);
+          out["LINE_CLASS"]          =gv(row,"LINE_CLASS");
+          out["LINE_FROM"]           =gv(row,"LINE_FROM");
+          out["LINE_TO"]             =gv(row,"LINE_TO");
+          out["MIN_DESIGN_PRESS"]    =gv(row,"MIN_DESIGN_PRESS");
+          out["MIN_DESIGN_PRESS_UNIT"]=gv(row,"MIN_DESIGN_PRESS_UNIT");
+          out["MIN_DESIGN_TEMP"]     =gv(row,"MIN_DESIGN_TEMP");
+          out["MIN_DESIGN_TEMP_UNIT"]=gv(row,"MIN_DESIGN_TEMP_UNIT");
+          out["MIN_OPERATING_PRESS"] =gv(row,"MIN_OPERATING_PRESS");
+          out["MIN_OPERATING_PRESS_UNIT"]=gv(row,"MIN_OPERATING_PRESS_UNIT");
+          out["MIN_OPERATING_TEMP"]  =gv(row,"MIN_OPERATING_TEMP");
+          out["MIN_OPERATING_TEMP_UNIT"]=gv(row,"MIN_OPERATING_TEMP_UNIT");
+          out["OPERATING_TEMP"]      =gv(row,"OPERATING_TEMP");
+          out["OPERATING_TEMP_UNIT"] =gv(row,"OPERATING_TEMP_UNIT");
+          out["OPERATING_PRESS"]     =gv(row,"OPERATING_PRESS");
+          out["OPERATING_PRESS_UNIT"]=gv(row,"OPERATING_PRESS_UNIT");
+          out["DESIGN_TEMP"]         =gv(row,"DESIGN_TEMP");
+          out["DESIGN_TEMP_UNIT"]    =gv(row,"DESIGN_TEMP_UNIT");
+          out["DESIGN_PRESS"]        =gv(row,"DESIGN_PRESS");
+          out["DESIGN_PRESS_UNIT"]   =gv(row,"DESIGN_PRESS_UNIT");
+          out["INSULATION"]         =gv(row,"INS_TYPE");
+          out["FULL_VACCUM"]         =gv(row,"FULL_VACCUM");
+          out["PHASE (L/V)"]         =gv(row,"FLUID_STATE");
+          out["MULTI PHASE (FLOW REGIME)"]=gv(row,"MULTI PHASE (FLOW REGIME)")||gv(row,"MULTI_PHASE")||"";
+          out["STEAM OUT"]           =gv(row,"STEAM OUT")||gv(row,"STEAM_OUT")||"";
+          // Steam-out temperature: only meaningful when STEAM OUT is Yes/Y.
+          // Direct Mapping already pairs every value column with an exact-name
+          // _UNIT column, so the temperature's unit is read the same way.
+          var steamOutIsYes=/^Y(ES)?$/i.test(String(out["STEAM OUT"]).trim());
+          var sotVal="",sotUnit="",sotSrcHeader="";
+          if(steamOutIsYes){
+            var sotCandidates=["STEAM OUT TEMPERATURE","STEAM OUT TEMP","STEAM_OUT_TEMPERATURE","STEAM_OUT_TEMP"];
+            for(var sk=0;sk<sotCandidates.length;sk++){
+              var sv=gv(row,sotCandidates[sk]);
+              if(sv){ sotVal=sv; sotSrcHeader=sotCandidates[sk]; sotUnit=gv(row,sotCandidates[sk]+"_UNIT"); break; }
+            }
+          }
+          out["STEAM OUT TEMPERATURE"]     =sotVal;
+          out["STEAM OUT TEMPERATURE UNIT"]=sotUnit;
+          out["REMARKS"]             =gv(row,"REMARKS")||"";
+          // Insulation thickness: check multiple possible source column names
+          var insThkSrc=["INSULATION THICKNESS","INSULATION_THICKNESS","INS_THICKNESS","INS_THICK"];
+          var insThkVal="",insThkRt=null;
+          for(var k=0;k<insThkSrc.length;k++){
+            var v=gv(row,insThkSrc[k]);
+            if(v){insThkVal=v;insThkRt=gr(ri,insThkSrc[k]);break;}
+          }
+          out["INSULATION THICKNESS"]=insThkVal;
+          // Build _richText map for this row
+          var rt={};
+          var dm=[["PID_NO","DOCNO"],["SERVICE","SERVICE"],["LINE_CLASS","LINE_CLASS"],
+                  ["LINE_FROM","LINE_FROM"],["LINE_TO","LINE_TO"],
+                  ["DESIGN_TEMP","DESIGN_TEMP"],["DESIGN_PRESS","DESIGN_PRESS"],
+                  ["OPERATING_TEMP","OPERATING_TEMP"],["OPERATING_PRESS","OPERATING_PRESS"],
+                  ["MIN_DESIGN_TEMP","MIN_DESIGN_TEMP"],["MIN_DESIGN_PRESS","MIN_DESIGN_PRESS"],
+                  ["MIN_OPERATING_TEMP","MIN_OPERATING_TEMP"],["MIN_OPERATING_PRESS","MIN_OPERATING_PRESS"],
+                  ["INSULATION","INS_TYPE"],["PHASE (L/V)","FLUID_STATE"],
+                  ["REMARKS","REMARKS"],["STEAM OUT","STEAM OUT"],
+                  ["LINE_SIZE","LINE_SIZE"]];
+          if(sotSrcHeader) dm.push(["STEAM OUT TEMPERATURE",sotSrcHeader]);
+          dm.forEach(function(pair){var v=gr(ri,pair[1]);if(v) rt[pair[0]]=v;});
+          if(insThkRt) rt["INSULATION THICKNESS"]=insThkRt;
+          if(Object.keys(rt).length) out._richText=rt;
+          // Detect whole-row strikethrough (voided line) via OOXML strike map
+          // ri is 0-based rawRows index = 0-based sheet row index
+          var strikeRowsForSheet=sheetStrikeRows[shName]||new Set();
+          if(strikeRowsForSheet.has(ri)) out._rowStruck=true;
+          allRows.push(out);
+        }catch(rowErr){
+          logError(fileName,shName,ri+1,"","PARSE_FAILURE","Row error: "+String(rowErr.message||rowErr));
+        }
+      }
+    }catch(shErr){
+      logError(fileName,shName,"","","PARSE_FAILURE","Sheet error: "+String(shErr.message||shErr));
+    }
+  });
+  return allRows;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FORMAT 2: LINE SCHEDULE — collect raw rows (fixed-column)
+// ═══════════════════════════════════════════════════════════════
+function collectLineScheduleRawRows(rawRows,docNo,unitNo,fileName,sheetName,richMap,strikeRows){
+  strikeRows=strikeRows||new Set();
+  var COL={lineNo:0,service:6,fluidState:11,size:15,cls:17,
+           from:20,to:25,operTemp:30,operPress:34,desTemp:38,desPress:42,insulation:58,insThickness:59};
+  // REMARKS / STEAM OUT positions are not fixed in this layout across all known
+  // samples, so detect them dynamically from the header rows (rows 7-8, 0-based
+  // indices 6-7) rather than guessing a hardcoded column index. Steam-out
+  // temperature is a separate column from the Yes/No steam-out flag, so it's
+  // checked first (and excluded from the flag match) to avoid the flag
+  // detector grabbing the temperature column by mistake.
+  var remarksCol=-1, steamOutCol=-1, steamOutTempCol=-1;
+  [6,7].forEach(function(hr){
+    var hRow=rawRows[hr]||[];
+    hRow.forEach(function(cellVal,ci){
+      var v=safeStr(cellVal).toUpperCase();
+      if(remarksCol<0&&/REMARK/.test(v)) remarksCol=ci;
+      if(steamOutTempCol<0&&/STEAM.*OUT.*TEMP/.test(v)) steamOutTempCol=ci;
+      else if(steamOutCol<0&&/STEAM.*OUT/.test(v)&&!/TEMP/.test(v)) steamOutCol=ci;
+    });
+  });
+  var SKIP=/^(NOTES?|FORMAT|DELETED|DATE|PREPARED|REVIEWED|APPROVED|REVISION)/i;
+  var result=[],lastLineKey=null;
+  function gr(sheetRowIdx,colIdx){
+    if(!richMap||colIdx<0) return null;
+    return richMap[sheetRowIdx+'_'+colIdx]||null;
+  }
+  for(var ri=9;ri<rawRows.length;ri++){
+    try{
+      var row=rawRows[ri];
+      if(!row||row.length<30) continue;
+      var col1=safeStr(row[COL.lineNo]);
+      var svc=safeStr(row[COL.service]);
+      if(!svc) continue;
+      if(col1&&SKIP.test(col1)) continue;
+      var lineKey; if(col1){lineKey=col1;lastLineKey=col1;}else{lineKey=lastLineKey;}
+      if(!lineKey){
+        logError(fileName,sheetName,ri+1,"","MISSING_PRIMARY_KEY",
+          "Row SERVICE='"+svc+"' no LINE NUMBER resolved");
+        continue;
+      }
+      var parsed=parseLineTag(lineKey);
+      if(parsed.parseError==="UNPARSEABLE_LINE_NUMBER")
+        logError(fileName,sheetName,ri+1,lineKey,"UNPARSEABLE_LINE_NUMBER",
+          "LINE NUMBER '"+lineKey+"' has no hyphens.");
+      // SERVICE comes from the LINE NUMBER's own fluid-code segment (e.g. "FL"
+      // in "FL-305-2101"), not the raw SERVICE column (which holds a fluid/
+      // commodity name like "Propylene" — a different concept). Only fall
+      // back to the raw column when the line number doesn't parse into the
+      // expected Service-Unit-Serial segments.
+      var svcOut=parsed.fluidCode||svc;
+      // Build per-cell rich text for this row
+      var rt={};
+      var rtCols=[["SERVICE",COL.service],["LINE_CLASS",COL.cls],["LINE_FROM",COL.from],
+                  ["LINE_TO",COL.to],["INSULATION",COL.insulation],["INS_THICKNESS",COL.insThickness],
+                  ["FLUID_STATE",COL.fluidState],["size_raw",COL.size],
+                  ["OPER_T_raw",COL.operTemp],["OPER_P_raw",COL.operPress],
+                  ["DES_T_raw",COL.desTemp],["DES_P_raw",COL.desPress],
+                  ["REMARKS",remarksCol],["STEAM_OUT",steamOutCol],["STEAM_OUT_TEMP",steamOutTempCol]];
+      rtCols.forEach(function(pair){var v=gr(ri,pair[1]);if(v) rt[pair[0]]=v;});
+      var rawRow={
+        line_key:lineKey,PID_NO:docNo||"",SERVICE:svcOut,
+        UNIT_NO:unitNo||parsed.unitFromLine||"",
+        LINE_NO:parsed.serialNo,
+        size_raw:safeStr(row[COL.size]),
+        LINE_CLASS:safeStr(row[COL.cls]),
+        LINE_FROM:safeStr(row[COL.from]),
+        LINE_TO:safeStr(row[COL.to]),
+        OPER_T_raw:safeStr(row[COL.operTemp]),
+        OPER_P_raw:safeStr(row[COL.operPress]),
+        DES_T_raw:safeStr(row[COL.desTemp]),
+        DES_P_raw:safeStr(row[COL.desPress]),
+        INSULATION:safeStr(row[COL.insulation]),
+        INS_THICKNESS:safeStr(row[COL.insThickness]),
+        FLUID_STATE:safeStr(row[COL.fluidState]),
+        REMARKS:remarksCol>=0?safeStr(row[remarksCol]):"",
+        STEAM_OUT:steamOutCol>=0?safeStr(row[steamOutCol]):"",
+        STEAM_OUT_TEMP_raw:steamOutTempCol>=0?safeStr(row[steamOutTempCol]):"",
+        _ri:ri+1,_sheet:sheetName
+      };
+      if(Object.keys(rt).length) rawRow._richText=rt;
+      // ri is 0-based rawRows index = 0-based sheet row index
+      if(strikeRows.has(ri)) rawRow._rowStruck=true;
+      result.push(rawRow);
+    }catch(rowErr){
+      logError(fileName,sheetName,ri+1,safeStr((rawRows[ri]||[])[0]),
+        "PARSE_FAILURE","Row error: "+String(rowErr.message||rowErr));
+    }
+  }
+  return result;
+}
+
+function deduplicateLineScheduleRows(rawRows,fileName){
+  // ── Grouping model ──
+  // Level 1: LINE_NO (line_key) — organizational only.
+  // Level 2: within a LINE_NO, group by (LINE_FROM, LINE_TO) — this pair
+  // identifies a distinct PHYSICAL PIPE SEGMENT. A single line number can
+  // legitimately span any number of segments (e.g. Manifold → Expander →
+  // Spec Break → destination), each with its own class/size/conditions as
+  // the pipe changes across equipment. Every distinct FROM/TO pair always
+  // becomes its own output row — there is no cap on how many segments a
+  // line can have.
+  // Level 3: within one FROM/TO segment, rows should agree on the
+  // remaining condition fields (Service, Class, Oper Temp, Oper Press,
+  // Design Temp, Design Press, Fluid State) — they're just multiple raw-row
+  // captures of the very same physical segment. If they DON'T agree,
+  // that's a genuine same-segment data conflict with no routing-based way
+  // to resolve it: the row is flagged for manual review with every field
+  // blanked except LINE_NO/PID_NO/UNIT_NO, and every conflicting variant
+  // is logged for traceability.
+  //
+  // LINE_SIZE is excluded from all grouping/conflict checks — rows that
+  // agree on FROM/TO and other conditions but differ only in size are
+  // still one segment, with sizes merged into one cell (e.g. "18\",3/4\"").
+  function normSig(v){return String(v||"").trim().toUpperCase();}
+  var SEG_KEY_FIELDS=["LINE_FROM","LINE_TO"];
+  var COND_FIELDS=["SERVICE","LINE_CLASS","OPER_T_raw","OPER_P_raw","DES_T_raw","DES_P_raw","FLUID_STATE"];
+  function segKeyOf(r){return SEG_KEY_FIELDS.map(function(f){return normSig(r[f]);}).join("||");}
+  function condSigOf(r){return COND_FIELDS.map(function(f){return normSig(r[f]);}).join("||");}
+
+  var lineOrder=[],byLine={};
+  rawRows.forEach(function(r){
+    var key=r.line_key;
+    if(!byLine[key]){byLine[key]=[];lineOrder.push(key);}
+    byLine[key].push(r);
+  });
+
+  function mergeSubgroup(rows){
+    var base=rows[0];
+    var sizeRaw=base.size_raw||"", insulation=base.INSULATION||"", insThickness=base.INS_THICKNESS||"";
+    var remarks=base.REMARKS||"", steamOut=base.STEAM_OUT||"", steamOutTemp=base.STEAM_OUT_TEMP_raw||"";
+    for(var i=1;i<rows.length;i++){
+      var r=rows[i];
+      if(r.size_raw&&sizeRaw!==r.size_raw) sizeRaw=sizeRaw?sizeRaw+", "+r.size_raw:r.size_raw;
+      if(!insulation&&r.INSULATION) insulation=r.INSULATION;
+      if(!insThickness&&r.INS_THICKNESS) insThickness=r.INS_THICKNESS;
+      if(r.REMARKS&&remarks.indexOf(r.REMARKS)===-1) remarks=remarks?remarks+" | "+r.REMARKS:r.REMARKS;
+      if(!steamOut&&r.STEAM_OUT) steamOut=r.STEAM_OUT;
+      if(!steamOutTemp&&r.STEAM_OUT_TEMP_raw) steamOutTemp=r.STEAM_OUT_TEMP_raw;
+    }
+    return {base:base,size_raw:sizeRaw,insulation:insulation,insThickness:insThickness,remarks:remarks,steamOut:steamOut,steamOutTemp:steamOutTemp};
+  }
+
+  function buildOutputRow(g){
+    var base=g.base;
+    var oTp=parseOperatingTempAMB(base.OPER_T_raw,"TEMP (\u00b0C)",AMBIENT_TEMP_C);
+    var dTp=parseDesignTemp(base.DES_T_raw,"TEMP (\u00b0C)");
+    var oPp=parseDesignPress(base.OPER_P_raw,"PRESS (kg/cm2g)");
+    var dPp=parseDesignPress(base.DES_P_raw,"PRESS (kg/cm2g)");
+    var steamOutVal=g.steamOut||base.STEAM_OUT||"";
+    var steamOutIsYes=/^Y(ES)?$/i.test(String(steamOutVal).trim());
+    var sotTp=steamOutIsYes?parseDesignTemp(g.steamOutTemp||base.STEAM_OUT_TEMP_raw||"","TEMP (\u00b0C)"):{design:"",unit:""};
+    var outRow={
+      PID_NO:base.PID_NO,SERVICE:base.SERVICE,UNIT_NO:base.UNIT_NO,LINE_NO:base.LINE_NO,
+      LINE_SIZE:g.size_raw,LINE_SIZE_UNIT:g.size_raw?"INCHES":"",
+      LINE_CLASS:base.LINE_CLASS,
+      LINE_FROM:base.LINE_FROM,LINE_TO:base.LINE_TO,
+      MIN_DESIGN_PRESS:dPp.min,MIN_DESIGN_PRESS_UNIT:dPp.min?dPp.unit:"",
+      MIN_DESIGN_TEMP:dTp.min,MIN_DESIGN_TEMP_UNIT:dTp.min?"\u00b0C":"",
+      MIN_OPERATING_PRESS:oPp.min,MIN_OPERATING_PRESS_UNIT:oPp.min?oPp.unit:"",
+      MIN_OPERATING_TEMP:oTp.min,MIN_OPERATING_TEMP_UNIT:oTp.min?"\u00b0C":"",
+      OPERATING_TEMP:oTp.design,OPERATING_TEMP_UNIT:oTp.design?"\u00b0C":"",
+      OPERATING_PRESS:oPp.design,OPERATING_PRESS_UNIT:oPp.design?oPp.unit:"",
+      DESIGN_TEMP:dTp.design,DESIGN_TEMP_UNIT:dTp.design?"\u00b0C":"",
+      DESIGN_PRESS:dPp.design,DESIGN_PRESS_UNIT:dPp.design?dPp.unit:"",
+      "INSULATION":g.insulation||base.INSULATION||"",
+      FULL_VACCUM:dPp.fv||(dPp.min==="FV"?"Yes":"No"),
+      "PHASE (L/V)":base.FLUID_STATE,"MULTI PHASE (FLOW REGIME)":"",
+      "INSULATION THICKNESS":g.insThickness||base.INS_THICKNESS||"",
+      "STEAM OUT":steamOutVal,
+      "STEAM OUT TEMPERATURE":sotTp.design||"",
+      "STEAM OUT TEMPERATURE UNIT":sotTp.design?"\u00b0C":"",
+      "REMARKS":g.remarks||base.REMARKS||""
+    };
+    if(base._richText){
+      var LS_RT_MAP={"SERVICE":"SERVICE","LINE_CLASS":"LINE_CLASS","LINE_FROM":"LINE_FROM",
+        "LINE_TO":"LINE_TO","INSULATION":"INSULATION","INS_THICKNESS":"INSULATION THICKNESS",
+        "FLUID_STATE":"PHASE (L/V)","size_raw":"LINE_SIZE",
+        "OPER_T_raw":"OPERATING_TEMP","OPER_P_raw":"OPERATING_PRESS",
+        "DES_T_raw":"DESIGN_TEMP","DES_P_raw":"DESIGN_PRESS",
+        "REMARKS":"REMARKS","STEAM_OUT":"STEAM OUT","STEAM_OUT_TEMP":"STEAM OUT TEMPERATURE"};
+      var rt={};
+      Object.keys(LS_RT_MAP).forEach(function(rawKey){
+        if(base._richText[rawKey]) rt[LS_RT_MAP[rawKey]]=base._richText[rawKey];
+      });
+      if(Object.keys(rt).length) outRow._richText=rt;
+    }
+    if(base._rowStruck) outRow._rowStruck=true;
+    return outRow;
+  }
+
+  var out=[];
+  lineOrder.forEach(function(lineKey){
+    var rowsForLine=byLine[lineKey];
+    try{
+      // Sub-group by physical segment (FROM/TO) — unlimited segments allowed
+      var segOrder=[],bySeg={};
+      rowsForLine.forEach(function(r){
+        var s=segKeyOf(r);
+        if(!bySeg[s]){bySeg[s]=[];segOrder.push(s);}
+        bySeg[s].push(r);
+      });
+
+      segOrder.forEach(function(segKey){
+        var segRows=bySeg[segKey];
+        // Within this one physical segment, rows should agree on the
+        // remaining condition fields
+        var condOrder=[],byCond={};
+        segRows.forEach(function(r){
+          var c=condSigOf(r);
+          if(!byCond[c]){byCond[c]=[];condOrder.push(c);}
+          byCond[c].push(r);
+        });
+
+        if(condOrder.length===1){
+          // Clean: this segment's rows agree on everything — normal merge
+          out.push(buildOutputRow(mergeSubgroup(byCond[condOrder[0]])));
+        } else {
+          // Same physical segment (identical FROM/TO) but conflicting
+          // conditions across rows — can't be resolved by routing.
+          // Flag for manual review: blank everything except identifiers.
+          var base=segRows[0];
+          var flaggedRow={}; OUTCOLS.forEach(function(c){flaggedRow[c]="";});
+          flaggedRow["PID_NO"]=base.PID_NO||"";
+          flaggedRow["UNIT_NO"]=base.UNIT_NO||"";
+          flaggedRow["LINE_NO"]=base.LINE_NO||"";
+          flaggedRow["LINE_CLASS"]="REVIEW - CONFLICTING CONDITIONS";
+          out.push(flaggedRow);
+
+          var detail=condOrder.map(function(csig,i){
+            var r=byCond[csig][0];
+            return "variant "+(i+1)+" (row "+r._ri+"): SERVICE="+r.SERVICE+", CLASS="+r.LINE_CLASS+
+              ", OPER_T="+r.OPER_T_raw+", OPER_P="+r.OPER_P_raw+", DES_T="+r.DES_T_raw+", DES_P="+r.DES_P_raw+
+              ", STATE="+r.FLUID_STATE;
+          }).join(" | ");
+          logError(fileName,base._sheet,base._ri,lineKey,"MULTI_CONDITION_CONFLICT",
+            "LINE_NO '"+lineKey+"' segment (FROM='"+base.LINE_FROM+"', TO='"+base.LINE_TO+"') has "+
+            condOrder.length+" conflicting condition sets — too ambiguous to auto-resolve, needs manual review. "+detail);
+        }
+      });
+
+      // Traceability note whenever a LINE_NO genuinely spans multiple segments
+      if(segOrder.length>1){
+        var segList=segOrder.map(function(s,i){
+          var r=bySeg[s][0];
+          return "segment "+(i+1)+": "+r.LINE_FROM+" \u2192 "+r.LINE_TO;
+        }).join(" | ");
+        logError(fileName,rowsForLine[0]._sheet,rowsForLine[0]._ri,lineKey,"LINE_SPLIT_DIFFERENT_CONDITIONS",
+          "LINE_NO '"+lineKey+"' spans "+segOrder.length+" distinct FROM/TO segments — output as "+
+          segOrder.length+" separate rows. "+segList);
+      }
+    }catch(e){
+      logError(fileName,rowsForLine&&rowsForLine[0]?rowsForLine[0]._sheet:"",
+        rowsForLine&&rowsForLine[0]?rowsForLine[0]._ri:"",lineKey,"PARSE_FAILURE","Build row: "+String(e.message||e));
+    }
+  });
+  return out;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FORMAT 3: STANDARD LINE INDEX (UOP / Honeywell xlsm)
+// ═══════════════════════════════════════════════════════════════
+function processStandardLineIndex(wb,fileName,firstRaw,bestShName,strikeRows){
+  strikeRows=strikeRows||new Set();
+  var rawRows=firstRaw;
+  var sh=wb.Sheets[bestShName];
+  var richMap=buildRichTextMap(sh);
+  var HKWS=["SIZE","FLUID CODE","SERIAL NO","PIPE CLASS","FROM","TO","DESIGN","OPER","MDMT","UNIT NO"];
+  var bestScore=0,headerRowIdx=0;
+  for(var i=0;i<Math.min(rawRows.length,25);i++){
+    var rowStr=rawRows[i].map(function(c){return String(c);}).join(" ").toUpperCase();
+    var score=HKWS.filter(function(k){return rowStr.indexOf(k)!==-1;}).length;
+    if(score>bestScore){bestScore=score;headerRowIdx=i;}
+  }
+  var headers=rawRows[headerRowIdx].map(function(h){return String(h).trim();});
+  var firstColIdx={};
+  headers.forEach(function(h,ci){if(h&&firstColIdx[h]===undefined) firstColIdx[h]=ci;});
+
+  var data=[],dataSheetRowIdx=[]; // dataSheetRowIdx[i] = original 0-based sheet row for data[i]
+  for(var r=headerRowIdx+1;r<rawRows.length;r++){
+    var rowArr=rawRows[r];
+    if(!rowArr||!rowArr.some(function(c){return String(c).trim()!=="";}) ) continue;
+    var rowObj={};
+    headers.forEach(function(h,ci){
+      if(h&&firstColIdx[h]===ci) rowObj[h]=(rowArr[ci]!==undefined)?rowArr[ci]:"";
+    });
+    data.push(rowObj);
+    dataSheetRowIdx.push(r);
+  }
+
+  var cm=getColMap(headers,false);
+  var remarksKey=headers.find(function(h){return /REMARK/i.test(h);})||null;
+  var processed=[];
+  for(var i=0;i<data.length;i++){
+    try{
+      if(remarksKey&&safeStr(data[i][remarksKey]).toUpperCase().indexOf("NOT USED")!==-1) continue;
+      var hasKey=cm.lineNo&&safeStr(data[i][cm.lineNo]);
+      var hasData=(cm.size&&safeStr(data[i][cm.size]))||(cm.lineClass&&safeStr(data[i][cm.lineClass]));
+      if(!hasKey&&!hasData) continue;
+      var row=transformRow(data[i],cm,false,fileName,headerRowIdx+1+i+1,richMap,dataSheetRowIdx[i],firstColIdx);
+      // dataSheetRowIdx[i] is 0-based sheet row — check against whole-row strike map
+      if(strikeRows.has(dataSheetRowIdx[i])) row._rowStruck=true;
+      if(row.LINE_NO||row.SERVICE||row.PID_NO) processed.push(row);
+    }catch(rowErr){
+      logError(fileName,bestShName,headerRowIdx+1+i+1,
+        safeStr(data[i][cm.lineNo]),"PARSE_FAILURE","Transform: "+String(rowErr.message||rowErr));
+    }
+  }
+  return processed;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PDF PROCESSING
+// ═══════════════════════════════════════════════════════════════
+async function handlePDFProcessing(buffer,file,fileItem){
+  fileItem.fmt="PDF";
+  var uint8=new Uint8Array(buffer);
+  var pdf=await pdfjsLib.getDocument({data:uint8}).promise;
+  var pagePromises=[];
+  for(var p=1;p<=pdf.numPages;p++){
+    pagePromises.push(pdf.getPage(p).then(function(page){
+      return page.getTextContent().then(function(tc){
+        return {items:tc.items,pageNum:page.pageNumber};
+      });
+    }));
+  }
+  var pages=await Promise.all(pagePromises);
+  pages.sort(function(a,b){return a.pageNum-b.pageNum;});
+  var allSections=[];
+  pages.forEach(function(pg){
+    try{
+      var items=pg.items.map(function(item){
+        return {text:safeStr(item.str),x:Math.round(item.transform[4]/10)*10,
+                y:Math.round(item.transform[5]/10)*10,page:pg.pageNum};
+      });
+      var section=extractPDFSection(items);
+      if(section&&section.rows&&section.rows.length>0) allSections.push(section);
+    }catch(pgErr){
+      logError(file.name,"Page "+pg.pageNum,"","","PARSE_FAILURE","PDF page: "+String(pgErr.message||pgErr));
+    }
+  });
+  var rawPdfData=[];
+  allSections.forEach(function(sec){rawPdfData=rawPdfData.concat(sec.rows);});
+  var processed=[];
+  if(rawPdfData.length>0){
+    var cm=getColMap(Object.keys(rawPdfData[0]),true);
+    rawPdfData.forEach(function(r,idx){
+      try{
+        var row=transformRow(r,cm,true,file.name,idx+1);
+        if(row.LINE_NO||row.SERVICE||row.PID_NO) processed.push(row);
+      }catch(rowErr){
+        logError(file.name,"PDF",idx+1,safeStr(r["LINE_NO"]),"PARSE_FAILURE","Transform: "+String(rowErr.message||rowErr));
+      }
+    });
+  }
+  await yieldUI();
+  return processed;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// LINE NUMBER PARSER
+// ═══════════════════════════════════════════════════════════════
+function parseLineTag(lineVal){
+  try{
+    var s=safeStr(lineVal);
+    if(!s) return {fluidCode:"",unitFromLine:"",serialNo:"",parseError:"MISSING_PRIMARY_KEY"};
+    var parts=s.split("-");
+    if(parts.length>=3)
+      return {fluidCode:safeStr(parts[0]),unitFromLine:safeStr(parts[1]),
+              serialNo:parts.slice(2).map(safeStr).join("-"),parseError:""};
+    return {fluidCode:"",unitFromLine:"",serialNo:s,
+            parseError:parts.length===1?"UNPARSEABLE_LINE_NUMBER":""};
+  }catch(e){return {fluidCode:"",unitFromLine:"",serialNo:safeStr(lineVal),parseError:"PARSE_FAILURE"};}
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PRESSURE PARSER — dash-range & negative fix
+// ═══════════════════════════════════════════════════════════════
+function parseDesignPress(val,header){
+  try{
+    var unit="";
+    if(header){var h=String(header);var pm=h.match(/\((.+)\)/);
+      if(pm) unit=pm[1].trim();}
+    var s=safeStr(val);
+    if(!s||s==="*") return {design:"",min:"",unit:"",fv:"No"};
+    var hasBackslash=s.indexOf("\\")!==-1;
+    var isTextNote=/[A-Za-z]{4,}/.test(s)&&!/^(FV|HV)$/i.test(s.trim());
+    if(hasBackslash||isTextNote) return {design:s,min:"",unit:unit,fv:"No",malformed:true};
+    var hasFV=/\bFV\b/i.test(s);
+    var hasHV=/\bHV\b/i.test(s);
+    if(s.indexOf("/")!==-1){
+      var parts=s.split("/");
+      var p1=parts[0].trim(),p2=parts.slice(1).join("/").trim();
+      var fv1=/^(FV|HV)$/i.test(p1),fv2=/^(FV|HV)$/i.test(p2);
+      if(fv1||fv2){
+        var realVal=fv1?p2:p1;var n=parseFloat(realVal);
+        var vacTag=(fv1?p1:p2).toUpperCase();
+        return {design:isNaN(n)?realVal:String(n),min:"",unit:unit,fv:"Yes",vacuumType:vacTag};
+      }
+      var n1=parseFloat(p1),n2=parseFloat(p2);
+      if(!isNaN(n1)&&!isNaN(n2)){
+        if(n1>=n2) return {design:String(n1),min:String(n2),unit:unit,fv:(hasFV||hasHV)?"Yes":"No",vacuumType:hasHV?"HV":(hasFV?"FV":"")};
+        else return {design:String(n2),min:String(n1),unit:unit,fv:(hasFV||hasHV)?"Yes":"No",vacuumType:hasHV?"HV":(hasFV?"FV":"")};
+      }
+      return {design:p1,min:"",unit:unit,fv:(hasFV||hasHV)?"Yes":"No",vacuumType:hasHV?"HV":(hasFV?"FV":"")};
+    }
+    var dr=s.match(/^([\d.]+)\s*-\s*([\d.]+)$/);
+    if(dr){
+      var v1=parseFloat(dr[1]),v2=parseFloat(dr[2]);
+      if(v1>=0&&v2>0){
+        var lo=Math.min(v1,v2),hi=Math.max(v1,v2);
+        return {design:String(hi),min:String(lo),unit:unit,fv:"No"};
+      }
+    }
+    var n=parseFloat(s);
+    return {design:isNaN(n)?s:String(n),min:"",unit:unit,fv:(hasFV||hasHV)?"Yes":"No",vacuumType:hasHV?"HV":(hasFV?"FV":"")};
+  }catch(e){return {design:safeStr(val),min:"",unit:"",fv:"No"};}
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TEMPERATURE PARSER
+// ═══════════════════════════════════════════════════════════════
+function parseDesignTemp(val,header){
+  try{
+    var unit="";
+    if(header){var h=String(header);var pm=h.match(/\((.+)\)/);
+      if(pm) unit=pm[1].trim();}
+    var s=safeStr(val);
+    if(!s||s==="*") return {design:"",min:"",unit:""};
+    var isTextNote=/[A-Za-z]{4,}/.test(s);
+    if(isTextNote) return {design:s,min:"",unit:unit,malformed:true};
+    function numOrNull(x){var n=parseFloat(x);return isNaN(n)?null:n;}
+    var minVal="",designVal="";
+    var slashIdx=s.indexOf("/");
+    if(slashIdx>0){
+      var t1=s.slice(0,slashIdx).trim(),t2=s.slice(slashIdx+1).trim();
+      var n1=numOrNull(t1),n2=numOrNull(t2);
+      if(n1!=null&&n2!=null){minVal=n1<n2?t1:t2;designVal=n1<n2?t2:t1;}
+      else{minVal=t1;designVal=t2;}
+    }else{
+      var dm=s.match(/^([-]?[\d.]+)-([\d.]+)$/);
+      if(dm){
+        var n1=numOrNull(dm[1]),n2=numOrNull(dm[2]);
+        if(n1!=null&&n2!=null){minVal=n1<n2?dm[1]:dm[2];designVal=n1<n2?dm[2]:dm[1];}
+        else{designVal=s;}
+      }else{designVal=s;}
+    }
+    return {design:designVal,min:minVal,unit:(designVal||minVal)?unit:""};
+  }catch(e){return {design:safeStr(val),min:"",unit:""};}
+}
+
+// ═══════════════════════════════════════════════════════════════
+// OPERATING TEMPERATURE PARSER — AMB-aware
+//
+// Real line-list files express operating-temperature ranges relative
+// to ambient, e.g. "AMB TO -170", "AMB/195", "AMB-145", "AMB-(-)170",
+// as well as plain number ranges like "-180/100" or "100-200".
+//
+// Rule (confirmed with the person): compare the numeric side against
+// a user-provided ambient temperature (default 21°C). Whichever side
+// is numerically smaller goes to MIN_OPERATING_TEMP, the larger goes
+// to OPERATING_TEMP. The literal word "AMB" is written as-is (never
+// replaced by the ambient number) whenever it wins a side.
+//
+// Recognized AMB forms (case-insensitive, either AMB-first or number-first):
+//   AMB TO <n>      /  <n> TO AMB
+//   AMB/<n>         /  <n>/AMB
+//   AMB-<n>         /  <n>-AMB        (bare dash = "to", n stays positive)
+//   AMB-(-)<n>      /  (-)<n>-AMB     ("(-)" marks the number negative)
+//
+// Plain number/number ranges (no AMB) fall through to the existing
+// parseDesignTemp logic, which already applies the same smaller→min rule.
+// ═══════════════════════════════════════════════════════════════
+function parseOperatingTempAMB(val,header,ambientC){
+  try{
+    if(ambientC===undefined||ambientC===null||isNaN(ambientC)) ambientC=21;
+    var unit="";
+    if(header){var h=String(header);var pm=h.match(/\((.+)\)/);
+      if(pm) unit=pm[1].trim();}
+    var s=safeStr(val);
+    if(!s||s==="*") return {design:"",min:"",unit:""};
+
+    function assignAmbVsNumber(numStr){
+      var n=parseFloat(numStr);
+      if(isNaN(n)) return null;
+      if(n<ambientC) return {design:"AMB",min:numStr,unit:unit};
+      else return {design:numStr,min:"AMB",unit:unit};
+    }
+
+    // AMB TO <n>  or  AMB/<n>   (number keeps its own sign)
+    var m1=/^AMB\s*(?:TO|\/)\s*(-?[\d.]+)$/i.exec(s);
+    if(m1) return assignAmbVsNumber(m1[1])||{design:s,min:"",unit:unit,malformed:true};
+
+    // <n> TO AMB  or  <n>/AMB
+    var m2=/^(-?[\d.]+)\s*(?:TO|\/)\s*AMB$/i.exec(s);
+    if(m2) return assignAmbVsNumber(m2[1])||{design:s,min:"",unit:unit,malformed:true};
+
+    // AMB-(-)<n>  (explicit negative marker)  or  AMB-<n>  (bare dash = positive "to")
+    var m3=/^AMB-(\(-\)\s*)?([\d.]+)$/i.exec(s);
+    if(m3){
+      var numStr3=(m3[1]?"-":"")+m3[2];
+      return assignAmbVsNumber(numStr3)||{design:s,min:"",unit:unit,malformed:true};
+    }
+
+    // (-)<n>-AMB  or  <n>-AMB  (reversed form of the above)
+    var m4=/^(\(-\)\s*)?([\d.]+)-AMB$/i.exec(s);
+    if(m4){
+      var numStr4=(m4[1]?"-":"")+m4[2];
+      return assignAmbVsNumber(numStr4)||{design:s,min:"",unit:unit,malformed:true};
+    }
+
+    // No AMB pattern matched — fall back to the standard numeric-range parser
+    // (handles plain "X/Y", "X-Y", single values, MDMT-style text, etc.)
+    return parseDesignTemp(val,header);
+  }catch(e){return {design:safeStr(val),min:"",unit:""};}
+}
+
+// ═══════════════════════════════════════════════════════════════
+// COLUMN MAP + TRANSFORM (Line Index path)
+// ═══════════════════════════════════════════════════════════════
+function gv(row,col){try{return col&&row[col]!==undefined?row[col]:""}catch(e){return "";}}
+function buildPidFromHeaderAndCell(header,cell){
+  try{
+    var h=safeStr(header),v=safeStr(cell); if(!h) return "";
+    var m=h.match(/P&ID\s*(.*)/i);
+    var tail=m?m[1].trim():"";
+    var prefix=tail&&/^[0-9-].*[0-9]/.test(tail)?tail:"";
+    if(!v) return ""; return prefix?prefix+v:v;
+  }catch(e){return safeStr(cell);}
+}
+function findCol(headers,candidates){
+  try{
+    for(var i=0;i<candidates.length;i++){
+      var c=candidates[i];
+      var found=(typeof c==="string")?
+        headers.find(function(h){return h.trim().toUpperCase()===c.trim().toUpperCase();}):
+        headers.find(function(h){return c.test(h);});
+      if(found) return found;
+    }
+    return null;
+  }catch(e){return null;}
+}
+function getColMap(headers,isPdf){
+  function f(c){return findCol(headers,c);}
+  if(isPdf){
+    var cmPdf = {
+      pid:f(["PID_NO"]),service:f(["SERVICE",/SERVICE/i,/FLUID.*CODE/i]),
+      unitNo:f(["UNIT_NO_COL",/UNIT.*NO/i]),lineNo:f(["LINE_NO",/LINE.*NO/i]),
+      size:f(["LINE_SIZE",/^SIZE/i]),lineClass:f(["LINE_CLASS",/CLASS/i]),
+      from:f(["LINE_FROM"]),to:f(["LINE_TO"]),
+      designPress:f(["DESIGN_PRESS",/DESIGN.*PRESS/i]),
+      designTemp:f(["DESIGN_TEMP",/DESIGN.*TEMP/i]),
+      operPress:f(["OPERATING_PRESS",/OPER.*PRESS/i]),
+      operTemp:f(["OPERATING_TEMP",/OPER.*TEMP/i]),
+      mdmt:f(["MDMT"]),phase:f(["FLUID_STATE",/STATE/i]),
+      insulation:f(["INSULATION",/^INSUL(?!.*THICK)/i]),
+      insThickness:f(["INSULATION THICKNESS","INSULATION_THICKNESS",/INSUL.*THICK/i,/INS.*THICK/i]),
+      multiPhase:f(["MULTIPHASE(FLOWREGIME)",/MULTIPHASE.*FLOW/i,/MULTI.*PHASE/i]),
+      remarks:f(["REMARKS",/REMARK/i]),
+      steamOut:f(["STEAM OUT","STEAM_OUT",/STEAM.*OUT(?!.*TEMP)/i]),
+      steamOutTemp:f(["STEAM OUT TEMPERATURE","STEAM OUT TEMP","STEAM_OUT_TEMPERATURE","STEAM_OUT_TEMP",/STEAM.*OUT.*TEMP/i])
+    };
+    if(cmPdf.unitNo&&cmPdf.lineNo&&cmPdf.unitNo===cmPdf.lineNo) cmPdf.unitNo=null;
+    return cmPdf;
+  }
+  var cm = {
+    pid:f(["P&ID Name",/^P&ID/i]),
+    service:f(["SERVICE","FLUID CODE.1","FLUID CODE",/FLUID.*CODE/i,/SERVICE/i]),
+    unitNo:f(["UNIT NO.1","UNIT NO","UNIT NO.","UNIT",/UNIT.*NO/i]),
+    lineNo:f(["LINE NUMBER","SERIAL NO..1","SERIAL NO.",/SERIAL.*NO/i]),
+    size:f(["SIZE INCHES","SIZE (INCHES)","SIZE MM","SIZE (MM)","SIZE (in).1","SIZE (in)",/^SIZE/i]),
+    lineClass:f(["CLASS","PIPE CLASS.1","PIPE CLASS",/PIPE.*CLASS/i,/PIPING.*CLASS/i,/MATERIAL.*CLASS/i,/CLASS/i]),
+    from:f(["FROM","LOCATION FROM","FROM.1",/^FROM\b/i]),
+    to:f(["TO","LOCATION TO","TO.1",/^TO\b/i]),
+    designPress:f(["DESIGN PRESS (kg/cm2g).1","DESIGN PRESS (kg/cm2g)",
+      "DESIGN PRESS (kg/cm2g) / FV)","DESIGN PRESS (kg/cm2g) / FV",
+      "PRESSURE KGCM2 G (DESIGN)",/DESIGN.*PRESS/i,/DESIGN CONDITIONS.*PRESSURE/i]),
+    designTemp:f(["DESIGN TEMP (\u00b0C).1","DESIGN TEMP (\u00b0C)","TEMP DEG.C",
+      /DESIGN.*TEMP/i,/DESIGN CONDITIONS.*TEMP/i]),
+    operPress:f(["OPER. PRESS (kg/cm2g).1","OPER. PRESS (kg/cm2g)",
+      "OPER. PRESS (kg/cm\u00b2 g)","PRESSURE KGCM2 G",/OPER.*PRESS/i,/OPERATING CONDITIONS.*PRESSURE/i]),
+    operTemp:f(["OPER. TEMP (\u00b0C).1","OPER. TEMP (\u00b0C)","TEMP DEG. C",
+      /OPER.*TEMP/i,/OPERATING CONDITIONS.*TEMP/i]),
+    mdmt:f(["MDMT (\u00b0C).1","MDMT (\u00b0C)",/^MDMT/i]),
+    insulation:f(["INSULATION.1","INSULATION",/^INSUL(?!.*THICK)/i]),
+    insThickness:f(["INSULATION THICKNESS.1","INSULATION THICKNESS","INSULATION_THICKNESS",
+      /INSUL.*THICK/i,/INS.*THICK/i]),
+    phase:f(["FLUID STATE","PHASE (L/V)",/^PHASE/i,/FLUID.*STATE/i,/\bSTATE\b/i]),
+    multiPhase:f(["MULTIPHASE(FLOWREGIME)",/MULTIPHASE.*FLOW/i,/MULTI.*PHASE/i]),
+    remarks:f(["REMARKS","REMARKS.1",/REMARK/i]),
+    steamOut:f(["STEAM OUT","STEAM_OUT","STEAM OUT.1",/STEAM.*OUT(?!.*TEMP)/i]),
+    steamOutTemp:f(["STEAM OUT TEMPERATURE","STEAM OUT TEMP","STEAM_OUT_TEMPERATURE","STEAM_OUT_TEMP",/STEAM.*OUT.*TEMP/i])
+  };
+  // Guard: if UNIT_NO regex accidentally resolved to the SAME header as LINE_NO
+  // (e.g. a combined "Unit-Serial No." column), treat unitNo as unmapped so the
+  // line-number parser's unit extraction is used instead of the raw combined value.
+  if(cm.unitNo&&cm.lineNo&&cm.unitNo===cm.lineNo) cm.unitNo=null;
+  return cm;
+}
+
+function transformRow(row,cm,isPdf,_fileName,_rowIdx,_richMap,_sheetRowIdx,_colIdxMap){
+  var out={};OUTCOLS.forEach(function(c){out[c]="";});
+  var _rt={};
+  // Rich-text lookup: only meaningful for non-PDF Line Index rows (xlsx cellHTML)
+  function gr(cmField){
+    if(isPdf||!_richMap||_sheetRowIdx==null||!_colIdxMap) return null;
+    var header=cm[cmField]; if(!header) return null;
+    var ci=_colIdxMap[header]; if(ci===undefined) return null;
+    return _richMap[_sheetRowIdx+'_'+ci]||null;
+  }
+  var rawLineStr="",lnParsed={serviceFromLine:"",unitFromLine:"",lineNo:""};
+  try{rawLineStr=safeStr(gv(row,cm.lineNo));lnParsed=parseLineNumber(rawLineStr);}
+  catch(e){if(_fileName) logError(_fileName,"",_rowIdx,rawLineStr,"PARSE_FAILURE","LINE_NO: "+e.message);}
+  var rawLineNo=lnParsed.lineNo,finalLineNo=lnParsed.lineNo,finalUnitNo="";
+  try{
+    finalUnitNo=safeStr(gv(row,cm.unitNo))||lnParsed.unitFromLine;
+    if(isPdf&&rawLineNo){
+      var parts=rawLineNo.split("-");
+      if(parts.length>=3){finalUnitNo=parts[1];finalLineNo=parts.slice(2).join("-");}
+      var colUnit=gv(row,"UNIT_NO_COL");
+      if(colUnit&&safeStr(colUnit)) finalUnitNo=safeStr(colUnit);
+    }
+    if(!isPdf&&rawLineNo){
+      var n=parseFloat(rawLineNo);
+      if(!isNaN(n)&&String(rawLineNo).indexOf(".")!==-1) finalLineNo=String(Math.round(n));
+    }
+  }catch(e){if(_fileName) logError(_fileName,"",_rowIdx,rawLineStr,"PARSE_FAILURE","UNIT_NO: "+e.message);}
+  out["LINE_NO"]=finalLineNo;out["UNIT_NO"]=finalUnitNo;
+  try{
+    if(isPdf) out["PID_NO"]=safeStr(gv(row,"PID_NO"));
+    else if(cm.pid) out["PID_NO"]=buildPidFromHeaderAndCell(cm.pid,gv(row,cm.pid));
+  }catch(e){}
+  try{out["SERVICE"]=safeStr(gv(row,cm.service))||lnParsed.serviceFromLine;}catch(e){}
+  try{out["LINE_CLASS"]=safeStr(gv(row,cm.lineClass));}catch(e){}
+  try{out["LINE_FROM"]=safeStr(gv(row,cm.from));}catch(e){}
+  try{out["LINE_TO"]=safeStr(gv(row,cm.to));}catch(e){}
+  try{out["PHASE (L/V)"]=safeStr(gv(row,cm.phase));}catch(e){}
+  try{out["MULTI PHASE (FLOW REGIME)"]=safeStr(gv(row,cm.multiPhase));}catch(e){}
+  try{out["INSULATION"]=safeStr(gv(row,cm.insulation));}catch(e){}
+  try{out["INSULATION THICKNESS"]=safeStr(gv(row,cm.insThickness));}catch(e){}
+  try{out["REMARKS"]=safeStr(gv(row,cm.remarks));}catch(e){}
+  try{out["STEAM OUT"]=safeStr(gv(row,cm.steamOut));}catch(e){}
+  try{
+    var steamOutIsYes=/^Y(ES)?$/i.test(out["STEAM OUT"].trim());
+    if(steamOutIsYes&&cm.steamOutTemp){
+      var sotRaw=gv(row,cm.steamOutTemp);var sot=parseDesignTemp(sotRaw,cm.steamOutTemp);
+      out["STEAM OUT TEMPERATURE"]=sot.design;
+      out["STEAM OUT TEMPERATURE UNIT"]=sot.design?sot.unit:"";
+    }
+  }catch(e){}
+  // LINE_SIZE: raw passthrough — no parsing (preserves 3/4", 1-1/2", HOLD, 6"/8", etc.)
+  try{
+    var szRaw=safeStr(gv(row,cm.size));
+    out["LINE_SIZE"]=szRaw;
+    var unit="";
+    if(cm.size){var h=String(cm.size).toUpperCase();
+      if(h.indexOf("INCH")!==-1||/\(IN\b/.test(h)) unit="INCHES";
+      else if(h.indexOf("MM")!==-1) unit="MM";}
+    out["LINE_SIZE_UNIT"]=szRaw?unit:"";
+  }catch(e){}
+  try{
+    var dpRaw=gv(row,cm.designPress);var dp=parseDesignPress(dpRaw,cm.designPress);
+    out["DESIGN_PRESS"]=dp.design;out["DESIGN_PRESS_UNIT"]=dp.design?dp.unit:"";
+    out["MIN_DESIGN_PRESS"]=dp.min;out["MIN_DESIGN_PRESS_UNIT"]=dp.min?dp.unit:"";
+    out["FULL_VACCUM"]=dp.min==="FV"?"Yes":dp.fv||"No";
+    if(dp.vacuumType==="HV"&&_fileName)
+      logError(_fileName,"",_rowIdx,out["LINE_NO"],"HIGH_VACUUM_NOTATION",
+        "DESIGN_PRESS raw value '"+dpRaw+"' contains HV (High Vacuum) — treated as FULL_VACCUM=Yes, please verify.");
+  }catch(e){}
+  try{
+    var opRaw=gv(row,cm.operPress);var op=parseDesignPress(opRaw,cm.operPress);
+    out["OPERATING_PRESS"]=op.design;out["OPERATING_PRESS_UNIT"]=op.design?op.unit:"";
+    out["MIN_OPERATING_PRESS"]=op.min;out["MIN_OPERATING_PRESS_UNIT"]=op.min?op.unit:"";
+    if(op.vacuumType==="HV"&&_fileName)
+      logError(_fileName,"",_rowIdx,out["LINE_NO"],"HIGH_VACUUM_NOTATION",
+        "OPERATING_PRESS raw value '"+opRaw+"' contains HV (High Vacuum) — please verify.");
+  }catch(e){}
+  try{
+    var dtRaw=gv(row,cm.designTemp);var dt=parseDesignTemp(dtRaw,cm.designTemp);
+    var mdmtRaw=safeStr(gv(row,cm.mdmt));var minDT=mdmtRaw||dt.min||"";
+    out["DESIGN_TEMP"]=dt.design;out["DESIGN_TEMP_UNIT"]=dt.design?dt.unit:"";
+    out["MIN_DESIGN_TEMP"]=minDT;out["MIN_DESIGN_TEMP_UNIT"]=minDT?dt.unit:"";
+  }catch(e){}
+  try{
+    var otRaw=gv(row,cm.operTemp);var ot=parseOperatingTempAMB(otRaw,cm.operTemp,AMBIENT_TEMP_C);
+    out["OPERATING_TEMP"]=ot.design;out["OPERATING_TEMP_UNIT"]=ot.design?ot.unit:"";
+    out["MIN_OPERATING_TEMP"]=ot.min;out["MIN_OPERATING_TEMP_UNIT"]=ot.min?ot.unit:"";
+  }catch(e){}
+  // Capture rich text (struck-out + new value) for relevant columns
+  try{
+    var RT_FIELDS=[["SERVICE","service"],["LINE_CLASS","lineClass"],["LINE_FROM","from"],
+      ["LINE_TO","to"],["PHASE (L/V)","phase"],["INSULATION","insulation"],
+      ["INSULATION THICKNESS","insThickness"],["LINE_SIZE","size"],
+      ["DESIGN_TEMP","designTemp"],["DESIGN_PRESS","designPress"],
+      ["OPERATING_TEMP","operTemp"],["OPERATING_PRESS","operPress"],
+      ["REMARKS","remarks"],["STEAM OUT","steamOut"],["STEAM OUT TEMPERATURE","steamOutTemp"]];
+    RT_FIELDS.forEach(function(pair){var v=gr(pair[1]);if(v) _rt[pair[0]]=v;});
+    if(Object.keys(_rt).length) out._richText=_rt;
+  }catch(e){}
+  return out;
+}
+
+function parseLineNumber(raw){
+  try{
+    var s=safeStr(raw);var parts=s.split("-");
+    if(parts.length<3) return {serviceFromLine:"",unitFromLine:"",lineNo:s};
+    // 3 segments: Service-Unit-Serial (standard).
+    // 4+ segments: Service-Unit-Serial-Class(-...) — keep everything after the
+    // unit segment joined back together so no information is silently dropped,
+    // while UNIT_NO is still correctly extracted from segment 2.
+    return {serviceFromLine:parts[0]||"",unitFromLine:parts[1]||"",lineNo:parts.slice(2).join("-")||""};
+  }catch(e){return {serviceFromLine:"",unitFromLine:"",lineNo:safeStr(raw)};}
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PDF TABLE EXTRACTOR (unchanged from v16)
+// ═══════════════════════════════════════════════════════════════
+function extractPDFSection(items){
+  try{
+    items.sort(function(a,b){return b.y-a.y;});
+    var rows=[],currentRow=[],currentY=items.length>0?items[0].y:0;
+    items.forEach(function(item){
+      if(Math.abs(item.y-currentY)>5){
+        if(currentRow.length>0) rows.push({y:currentY,cells:currentRow.sort(function(a,b){return a.x-b.x;})});
+        currentRow=[];currentY=item.y;
+      }
+      currentRow.push(item);
+    });
+    if(currentRow.length>0) rows.push({y:currentY,cells:currentRow.sort(function(a,b){return a.x-b.x;})});
+    var operX=-1,designX=-1,groupRowIdx=-1;
+    for(var gi=0;gi<Math.min(rows.length,60);gi++){
+      var rowTxt=rows[gi].cells.map(function(c){return c.text;}).join(" ");
+      if(/oper/i.test(rowTxt)&&/design/i.test(rowTxt)){
+        rows[gi].cells.forEach(function(cell){
+          if(/oper/i.test(cell.text)&&operX<0) operX=cell.x;
+          if(/design/i.test(cell.text)&&designX<0) designX=cell.x;
+        });
+        groupRowIdx=gi;break;
+      }
+    }
+    var LINERE=/[A-Z0-9]{1,6}-[0-9]{2,4}-[0-9]{3,6}/i;
+    var dataStartIdx=-1;
+    for(var di=0;di<rows.length;di++){
+      for(var ci=0;ci<Math.min(4,rows[di].cells.length);ci++){
+        if(LINERE.test(rows[di].cells[ci].text.trim())){dataStartIdx=di;break;}
+      }
+      if(dataStartIdx>=0) break;
+    }
+    if(dataStartIdx<0&&groupRowIdx>=0) dataStartIdx=groupRowIdx+4;
+    if(dataStartIdx<0) return null;
+    var hStart=groupRowIdx>=0?groupRowIdx:Math.max(0,dataStartIdx-10);
+    var headerCells=[],docNo="";
+    for(var hi=hStart;hi<dataStartIdx;hi++){
+      rows[hi].cells.forEach(function(cell){
+        var t=safeStr(cell.text);if(!t||t.length>80) return;
+        if(/[A-Z0-9]{3,4}-[0-9]{2,3}-[0-9]{2,3}-[A-Z\-0-9]/.test(t)){docNo=t;return;}
+        if(/PDH|PETRONET|PROPYLENE|ETHANE|PROPANE|EILB|EDP|DS|IS|Copyright|Format No|Issued|Prepared|Reviewed|Approved|Purpose|Date|Rev\. No/i.test(t)) return;
+        if(/Process|Utility|interconnecting|Mounded Bullet|Hydrogen Bullet/i.test(t)) return;
+        headerCells.push({text:t,x:cell.x});
+      });
+    }
+    var XTOL=20,clusters=[];
+    headerCells.forEach(function(cell){
+      var found=false;
+      for(var k=0;k<clusters.length;k++){
+        if(Math.abs(clusters[k].x-cell.x)<=XTOL){
+          clusters[k].texts.push(cell.text);
+          clusters[k].x=(clusters[k].x*clusters[k].n+cell.x)/(clusters[k].n+1);
+          clusters[k].n++;found=true;break;
+        }
+      }
+      if(!found) clusters.push({x:cell.x,texts:[cell.text],n:1});
+    });
+    clusters.sort(function(a,b){return a.x-b.x;});
+    var colDefs=clusters.map(function(cl,i){
+      var seen={};
+      var uniq=cl.texts.filter(function(t){
+        var k=t.toLowerCase().replace(/[^a-z0-9]/g,"");
+        if(!k||/[0-9]/.test(t)||seen[k]) return false;seen[k]=true;return true;
+      });
+      var combined=uniq.join(" ").replace(/  +/g," ").trim();
+      var x=cl.x,xEnd=clusters[i+1]?clusters[i+1].x-1:99999;
+      var inOper=operX>=0&&designX>=0&&x>operX-15&&x<designX-15;
+      var u=combined.toUpperCase(),name=combined;
+      if(/S\.No|S\.No\./i.test(u)) name="SNO_IGNORE";
+      else if(/LINE\.NO|SERIAL\.NO/i.test(u)) name="LINE_NO";
+      else if(/SERVICE/i.test(u)) name="SERVICE";
+      else if(/FLUID\.STATE|STATE|FLUID/i.test(u)) name="FLUID_STATE";
+      else if(/CLASS/i.test(u)) name="LINE_CLASS";
+      else if(/SIZE/i.test(u)) name="LINE_SIZE";
+      else if(/FROM/i.test(u)||/ TO/i.test(u)) name=(/FROM/i.test(u))?"LINE_FROM":"LINE_TO";
+      else if(/MDMT/i.test(u)) name="MDMT";
+      else if(/P\.?I\.?D/i.test(u)) name="PID_NO";
+      else if(/UNIT\.NO/i.test(u)) name="UNIT_NO_COL";
+      else if(/INSUL.*THICK|INS.*THICK/i.test(u)) name="INSULATION THICKNESS";
+      else if(/^INSUL/i.test(u)) name="INSULATION";
+      else if(/TEMP|TEMPERATURE/i.test(u)){
+        if(operX>=0&&designX>=0) name=inOper?"OPERATING_TEMP":"DESIGN_TEMP";
+        else name="TEMP_"+i;
+      }
+      else if(/PRESS|PRESSSURE/i.test(u)&&!/SIZE|MEDIUM|MED/i.test(u)){
+        if(operX>=0&&designX>=0) name=inOper?"OPERATING_PRESS":"DESIGN_PRESS";
+        else name="PRESS_"+i;
+      }
+      return {name:name,x:x,xStart:x-XTOL,xEnd:xEnd};
+    });
+    var tempAmb=colDefs.filter(function(c){return c.name.indexOf("TEMP")===0;});
+    var pressAmb=colDefs.filter(function(c){return c.name.indexOf("PRESS")===0;});
+    if(tempAmb.length===2){tempAmb[0].name="OPERATING_TEMP";tempAmb[1].name="DESIGN_TEMP";}
+    else if(tempAmb.length===1) tempAmb[0].name="OPERATING_TEMP";
+    if(pressAmb.length===2){pressAmb[0].name="OPERATING_PRESS";pressAmb[1].name="DESIGN_PRESS";}
+    else if(pressAmb.length===1) pressAmb[0].name="OPERATING_PRESS";
+    var tableData=[];
+    rows.slice(dataStartIdx).forEach(function(row){
+      try{
+        var rowObj={PID_NO:docNo};
+        colDefs.forEach(function(c){rowObj[c.name]="";});
+        row.cells.forEach(function(cell){
+          var best=null,bestDist=99999;
+          colDefs.forEach(function(col){
+            if(cell.x>=col.xStart&&cell.x<=col.xEnd){
+              var d=Math.abs(cell.x-col.x);if(d<bestDist){bestDist=d;best=col;}
+            }
+          });
+          if(!best){colDefs.forEach(function(col){var d=Math.abs(cell.x-col.x);if(d<bestDist){bestDist=d;best=col;}});}
+          if(best) rowObj[best.name]=rowObj[best.name]?rowObj[best.name]+" "+safeStr(cell.text):safeStr(cell.text);
+        });
+        var ln=safeStr(rowObj["LINE_NO"]);
+        if(LINERE.test(ln)||/[0-9]/.test(ln)) tableData.push(rowObj);
+      }catch(e){}
+    });
+    return {rows:tableData,colNames:colDefs.map(function(c){return c.name;}),operX:operX,designX:designX};
+  }catch(e){return null;}
+}
+</script>
+</body>
+</html>

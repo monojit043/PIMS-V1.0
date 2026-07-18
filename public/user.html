@@ -97,7 +97,7 @@
           </a>
         </div>
 
-        <div class="sb-section-label">Workspace</div>
+        <div class="sb-section-label">My Work</div>
 
         <div class="nav-group" data-group="inbox">
           <button class="nav-group-btn" data-target="inbox">
@@ -138,13 +138,10 @@
         </div>
 
         <div class="nav-group" data-group="lots">
-          <button class="nav-group-btn" id="issued-lots-nav-btn">
+          <button class="nav-group-btn">
             <span class="nav-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-                <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
-                <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
-                <line x1="12" y1="12" x2="12" y2="17"/>
-                <line x1="9" y1="14.5" x2="15" y2="14.5"/>
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
               </svg>
             </span>
             <span class="nav-label">Lots</span>
@@ -155,9 +152,16 @@
             </span>
           </button>
           <div class="nav-children" id="lots-children">
-            <div id="lots-sidebar-tree" style="padding:4px 0;"></div>
+            <button id="planned-lots-nav-btn" class="nav-child" onclick="openPlannedLotsView()">
+              <span class="nav-child-dot"></span>Planned Lots
+            </button>
+            <button id="issued-lots-nav-btn" class="nav-child" onclick="openIssuedLotsView()">
+              <span class="nav-child-dot"></span>Issued Lots
+            </button>
           </div>
         </div>
+
+        <div class="sb-section-label" style="margin-top:1rem;">Projects</div>
 
         <div class="nav-group" data-group="projects">
           <button class="nav-group-btn" data-target="projects">
@@ -464,6 +468,18 @@
             </div>
             <div class="panel-actions">
               <span class="lines-chip" id="tasks-summary">(Tasks = –)</span>
+              <div class="task-sort-bar" id="task-sort-bar">
+                <span class="task-sort-label">Sort</span>
+                <select id="task-sort-field" class="task-sort-select">
+                  <option value="date">Date</option>
+                  <option value="jobNo">Job No</option>
+                  <option value="unitNo">Unit No</option>
+                  <option value="lineNo">Line No</option>
+                  <option value="revNo">Rev No</option>
+                  <option value="crit">Stress Critical</option>
+                </select>
+                <button id="task-sort-dir" class="task-sort-dir-btn" title="Toggle sort direction">↓</button>
+              </div>
               <div class="search-pill">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                   <circle cx="11" cy="11" r="8" />
@@ -1208,6 +1224,34 @@
             <span class="lines-chip" id="notif-selected-count" style="display:none;"></span>
           </div>
           <div id="role-notification-title" style="display:none;"></div>
+
+          <!-- Lines on Hold section — shown below the pool when held lines exist -->
+          <div id="hold-lines-section" style="display:none;margin-top:18px;">
+            <div style="display:flex;align-items:center;gap:10px;padding:0 0 8px 0;border-bottom:2px solid #fee2e2;margin-bottom:10px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#e53935" stroke-width="1.8" style="width:16px;height:16px;flex-shrink:0;">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+              </svg>
+              <span style="font-size:13px;font-weight:700;color:#e53935;">Lines on Hold</span>
+              <span id="hold-lines-count" style="background:#fee2e2;color:#e53935;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;">0</span>
+            </div>
+            <div class="table-card" style="overflow-x:auto;">
+              <table class="data-table" style="min-width:700px;">
+                <thead>
+                  <tr>
+                    <th>Line No</th>
+                    <th>Job / Unit</th>
+                    <th>Hold Type</th>
+                    <th>Held By</th>
+                    <th>Description</th>
+                    <th>Since</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="hold-lines-body"></tbody>
+              </table>
+            </div>
+          </div>
         </div>
 
         <!-- ── PC NOTIFICATIONS ── -->
@@ -1359,12 +1403,66 @@
           </div>
         </div>
 
-        <!-- LOT DETAIL PANEL -->
-        <div id="lot-detail-panel" style="display:none;">
+        <!-- PLANNED LOTS PANEL -->
+        <div id="planned-lots-panel" class="view-panel" style="display:none;">
           <div class="panel-header">
             <div>
-              <p class="panel-eyebrow" id="lot-detail-eyebrow">Issued Lots</p>
-              <h2 class="panel-title" id="lot-detail-title">Lot <em>Detail</em></h2>
+              <p class="panel-eyebrow">Lots</p>
+              <h2 class="panel-title">Planned <em>Lots</em></h2>
+            </div>
+          </div>
+          <div class="table-card">
+            <table class="data-table">
+              <thead>
+                <tr><th>Job No</th><th>Unit</th><th>Lot #</th><th style="text-align:right;">Lines</th></tr>
+              </thead>
+              <tbody id="planned-lots-body">
+                <tr><td colspan="4" class="no-data">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ISSUED LOTS PANEL (two-state: job summary → lot table) -->
+        <div id="issued-lots-panel" class="view-panel" style="display:none;">
+          <div class="panel-header">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <div id="issued-lots-back-wrap" style="display:none;">
+                <button onclick="openIssuedLotsView()" style="background:none;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;padding:6px 10px;font-size:12px;color:#64748b;display:flex;align-items:center;gap:4px;white-space:nowrap;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:13px;height:13px;"><path d="M19 12H5"/><polyline points="12 5 5 12 12 19"/></svg>
+                  All Jobs
+                </button>
+              </div>
+              <div>
+                <p class="panel-eyebrow" id="issued-lots-eyebrow">Lots</p>
+                <h2 class="panel-title" id="issued-lots-title">Issued <em>Lots</em></h2>
+              </div>
+            </div>
+          </div>
+          <div class="table-card">
+            <table class="data-table">
+              <thead id="issued-lots-thead"></thead>
+              <tbody id="issued-lots-body">
+                <tr><td colspan="6" class="no-data">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- LOT DETAIL PANEL -->
+        <div id="lot-detail-panel" class="view-panel" style="display:none;">
+          <div class="panel-header">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <div id="lot-detail-back-wrap" style="display:none;">
+                <button onclick="if(window._lotDetailBackFn){window._lotDetailBackFn();}" style="background:none;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;padding:6px 10px;font-size:12px;color:#64748b;display:flex;align-items:center;gap:4px;white-space:nowrap;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="width:13px;height:13px;"><path d="M19 12H5"/><polyline points="12 5 5 12 12 19"/></svg>
+                  Back
+                </button>
+              </div>
+              <div>
+                <p class="panel-eyebrow" id="lot-detail-eyebrow">Issued Lots</p>
+                <h2 class="panel-title" id="lot-detail-title">Lot <em>Detail</em></h2>
+              </div>
             </div>
             <div class="panel-actions" style="display:flex;align-items:center;gap:8px;">
               <button id="lot-engdms-btn" style="display:none;align-items:center;gap:6px;padding:8px 16px;background:#fff;color:#64748b;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;font-weight:600;cursor:not-allowed;opacity:0.6;" disabled title="ENGDMS integration coming soon">
@@ -1576,6 +1674,13 @@
         <line x1="7" y1="7" x2="7.01" y2="7"/>
       </svg>
       Tag Line
+    </li>
+    <li data-action="unblock-line" id="ctx-unblock-line" style="display:none;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+        <path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+      </svg>
+      Unblock Line
     </li>
     <li data-action="view-holds">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
@@ -2012,6 +2117,8 @@
       });
       var fi = document.getElementById('final-isometrics-table-container');
       if (fi) fi.style.display = 'none';
+      var lotPanel = document.getElementById('lot-detail-panel');
+      if (lotPanel) lotPanel.style.display = 'none';
       // Show My Tasks panel directly
       var panel = document.getElementById('default-task-table-container');
       if (panel) {
@@ -2044,27 +2151,71 @@
       var panel = document.getElementById('checker-review-panel');
       if (panel) { panel.style.display = 'block'; panel.classList.add('active-panel'); }
 
-      // Good for Supporting section — show only when PC is in claimed roles
+      // Good for Supporting section — show only when PC is in claimed roles AND
+      // no SC engineer has already claimed this line (active or completed).
+      // For non-critical lines SC is in the normal pool and claims independently,
+      // so GFS is meaningless once SC has picked it up. For critical lines SC
+      // cannot claim at all without GFS, so sc_claimed will always be false here.
       var claimedRoles = Array.isArray(task.claimedRoles) ? task.claimedRoles : (task.claimedRoles ? [task.claimedRoles] : []);
       var gfsSection = document.getElementById('crp-gfs-section');
       var scDropdown = document.getElementById('crp-sc-dropdown');
-      if (claimedRoles.includes('PC')) {
+      gfsSection.style.display = 'none'; // reset before every open
+      if (claimedRoles.includes('PC') && !claimedRoles.includes('SC') && !task.scClaimed) {
         gfsSection.style.display = 'block';
-        // Populate SC engineer dropdown
-        scDropdown.innerHTML = '<option value="">— SC Pool (any SC engineer) —</option>';
-        fetch('/api/sc-users?jobNo=' + encodeURIComponent(task.jobNo) + '&unitNo=' + encodeURIComponent(task.unitNo))
-          .then(function(r) { return r.json(); })
-          .then(function(data) {
-            if (data.ok && data.users && data.users.length) {
-              data.users.forEach(function(u) {
-                var opt = document.createElement('option');
-                opt.value = u.id;
-                opt.textContent = u.name + ' (' + u.id + ')';
-                scDropdown.appendChild(opt);
-              });
+        if (task.status === 'Sent for Supporting Check') {
+          // Already sent — render locked state so user cannot re-send on refresh
+          scDropdown.innerHTML = '<option value="">— SC already assigned —</option>';
+          scDropdown.disabled = true;
+          var gfsBtnEl = document.getElementById('crp-gfs-btn');
+          if (gfsBtnEl) {
+            gfsBtnEl.textContent = '✓ Sent for Stress Check';
+            gfsBtnEl.disabled = true;
+            gfsBtnEl.style.opacity = '0.65';
+          }
+          var gfsBodyEl = gfsSection.querySelector('.crp-gfs-body');
+          var sentNoteEl = null;
+          if (gfsBodyEl) {
+            sentNoteEl = gfsBodyEl.querySelector('.crp-gfs-sent-note');
+            if (!sentNoteEl) {
+              sentNoteEl = document.createElement('p');
+              sentNoteEl.className = 'crp-gfs-sent-note';
+              sentNoteEl.textContent = 'Loading SC assignment…';
+              sentNoteEl.style.cssText = 'margin:6px 0 0;font-size:12px;color:var(--green,#15803d);font-weight:500;';
+              gfsBodyEl.appendChild(sentNoteEl);
             }
-          })
-          .catch(function() {});
+          }
+          fetch('/api/drawing-sc-claimer?jobNo=' + encodeURIComponent(task.jobNo) + '&unitNo=' + encodeURIComponent(task.unitNo) + '&lineNo=' + encodeURIComponent(task.lineNo))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+              if (!sentNoteEl) return;
+              if (data.ok && data.claimers && data.claimers.length > 0) {
+                var names = data.claimers.map(function(u) { return u.name + ' (' + u.id + ')'; }).join(', ');
+                sentNoteEl.textContent = 'Forwarded to: ' + names;
+              } else {
+                sentNoteEl.textContent = 'Forwarded to SC pool — no SC engineer assigned yet.';
+              }
+            })
+            .catch(function() {
+              if (sentNoteEl) sentNoteEl.textContent = 'Stress check request already sent.';
+            });
+        } else {
+          // Normal state — populate SC dropdown
+          scDropdown.disabled = false;
+          scDropdown.innerHTML = '<option value="">— SC Pool (any SC engineer) —</option>';
+          fetch('/api/sc-users?jobNo=' + encodeURIComponent(task.jobNo) + '&unitNo=' + encodeURIComponent(task.unitNo))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+              if (data.ok && data.users && data.users.length) {
+                data.users.forEach(function(u) {
+                  var opt = document.createElement('option');
+                  opt.value = u.id;
+                  opt.textContent = u.name + ' (' + u.id + ')';
+                  scDropdown.appendChild(opt);
+                });
+              }
+            })
+            .catch(function() {});
+        }
       } else {
         gfsSection.style.display = 'none';
       }
@@ -2199,7 +2350,7 @@
       // "Sending…" stuck-on-success pattern (Good for Supporting, Send to
       // Modeller, and the GL-edit-panel's confirm button).
       var gfsBtn = document.getElementById('crp-gfs-btn');
-      if (gfsBtn) { gfsBtn.disabled = false; gfsBtn.textContent = 'Good for Supporting ✓'; }
+      if (gfsBtn && task.status !== 'Sent for Supporting Check') { gfsBtn.disabled = false; gfsBtn.textContent = 'Good for Supporting ✓'; }
       var fwdDirectBtn = document.getElementById('crp-fwd-direct-btn');
       if (fwdDirectBtn) { fwdDirectBtn.disabled = false; fwdDirectBtn.textContent = 'Send to Modeller'; }
       var fwdEditBtn = document.querySelector('#crp-gl-edit-panel .post-btn');
@@ -3230,10 +3381,23 @@
         });
         var result = await resp.json();
         if (result.ok) {
-          closeCheckerReviewPanel();
-          alert(assignedScUserId
-            ? 'Line sent directly to ' + assignedName + ' for Stress Check.'
-            : 'Line sent to SC pool. Any SC engineer in this unit can claim it.');
+          // Stay in CRP — PC/MC review continues. Just lock the GFS button.
+          btn.textContent = '✓ Sent for Stress Check';
+          btn.style.opacity = '0.65';
+          var scDropdownEl = document.getElementById('crp-sc-dropdown');
+          if (scDropdownEl) scDropdownEl.disabled = true;
+          var msg = assignedScUserId
+            ? 'Sent directly to ' + assignedName + ' for Stress Check.'
+            : 'Sent to SC pool. Any SC engineer in this unit can claim it.';
+          var gfsBody = btn.closest('.crp-gfs-body');
+          if (gfsBody) {
+            var note = document.createElement('p');
+            note.textContent = msg;
+            note.style.cssText = 'margin:6px 0 0;font-size:12px;color:var(--green,#15803d);font-weight:500;';
+            gfsBody.appendChild(note);
+          }
+          // Keep in-memory task status in sync so locked state persists if CRP is re-opened this session
+          if (_crpTask) _crpTask.status = 'Sent for Supporting Check';
         } else {
           alert('Error: ' + (result.error || 'Failed to send'));
           btn.disabled = false;
@@ -3617,6 +3781,19 @@
         );
       }
 
+      function renderISOManager(d) {
+        var stats = '<div class="hd-stats">' +
+          statCard(ICONS.warn,   '#fef2f2', '#ef4444', d.pendingGLReview, 'Pending GL Review') +
+          statCard(ICONS.check,  '#f0fdf4', '#22c55e', d.finalLines,      'Final Lines') +
+          statCard(ICONS.folder, '#eff6ff', '#3b82f6', d.assignedJobs,    'Assigned Units') +
+          statCard(ICONS.clock,  '#fefce8', '#eab308', 0,                 'Lots Active') +
+        '</div>';
+        return stats + twoCol(
+          activityCard(d.recentActivity, '📋 ISO Manager Activity', 'iso'),
+          guideCard('ISO Manager', 'iso')
+        );
+      }
+
       function renderGeneric() {
         return '<div class="hd-card" style="padding:2.5rem;text-align:center;">' +
           '<p style="color:var(--text-muted);font-size:14px;line-height:1.7;">' +
@@ -3678,10 +3855,11 @@
           if (!data.ok) throw new Error('api');
 
           var RENDERERS = {
-            Modeller: { key: 'mdl', label: 'Modeller Dashboard', render: function(){ return renderModeller(data); },        init: 'initModellerJobTabs' },
-            Checker:  { key: 'chk', label: 'Checker Dashboard',  render: function(){ return renderChecker(data); },         init: 'initCheckerJobTabs'  },
-            GL:       { key: 'gl',  label: 'GL Dashboard',       render: function(){ return renderGL(data.gl); },           init: null },
-            SGL:      { key: 'sgl', label: 'SGL Dashboard',      render: function(){ return renderSGL(data.sgl); },         init: null }
+            Modeller:       { key: 'mdl', label: 'Modeller Dashboard',     render: function(){ return renderModeller(data); },            init: 'initModellerJobTabs' },
+            Checker:        { key: 'chk', label: 'Checker Dashboard',      render: function(){ return renderChecker(data); },             init: 'initCheckerJobTabs'  },
+            GL:             { key: 'gl',  label: 'GL Dashboard',           render: function(){ return renderGL(data.gl); },               init: null },
+            SGL:            { key: 'sgl', label: 'SGL Dashboard',          render: function(){ return renderSGL(data.sgl); },             init: null },
+            'ISO Manager':  { key: 'iso', label: 'ISO Manager Dashboard',  render: function(){ return renderISOManager(data.isoManager); }, init: null }
           };
 
           var sections = (data.sections && data.sections.length) ? data.sections : [];
@@ -4257,116 +4435,209 @@
     })();
   </script>
 
-  <!-- Issued Lots -->
+  <!-- Lots Views -->
   <script>
     (function () {
-      var _lotsLoaded = false;
+      var _currentLotId = null;
 
-      // ── Render tree into sidebar ──────────────────────────────────────────
-      function renderSidebarTree(tree) {
-        var el = document.getElementById('lots-sidebar-tree');
-        var jobs = Object.keys(tree);
-        if (!jobs.length) {
-          el.innerHTML = '<div class="tree-empty" style="padding-left:10px;">No lots yet.</div>';
-          return;
-        }
-        var chevron   = '<svg class="tree-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>';
-        var folderIco = '<svg class="tree-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
-        var unitIco   = '<svg class="tree-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>';
-
-        function toggle(el) { var c=el.nextElementSibling; c.style.display=c.style.display==='none'?'block':'none'; }
-
-        function makeLotBtn(lot, job, unit, dotColor) {
-          return '<button class="nav-child" style="padding-left:52px;" ' +
-            'onclick="openLotDetail(' + lot.id + ',\'' + job.replace(/'/g,"\\'") + '\',\'' + unit.replace(/'/g,"\\'") + '\',' + lot.lotNumber + ',' + (lot.issued ? 'true' : 'false') + ')">' +
-            '<span class="nav-child-dot" style="background:' + dotColor + ';"></span>' +
-            'Lot ' + lot.lotNumber +
-            '<span class="tree-count">' + lot.lineCount + '</span>' +
-            '</button>';
-        }
-
-        function makeUnitBlock(unit, lots, color, dotColor) {
-          if (!lots.length) return '';
-          var s = '<div>' +
-            '<div class="lst-unit" style="padding-left:24px;" onclick="(function(el){var c=el.nextElementSibling;c.style.display=c.style.display===\'none\'?\'block\':\'none\';})(this)">' +
-              chevron + unitIco + 'Unit ' + unit +
-            '</div>' +
-            '<div style="display:block;">';
-          lots.forEach(function(lot) { s += makeLotBtn(lot, lots._job, unit, dotColor); });
-          s += '</div></div>';
-          return s;
-        }
-
-        // Flatten all lots into planned / issued buckets keyed by job → unit
-        var plannedTree = {}, issuedTree = {};
-        jobs.forEach(function(job) {
-          Object.keys(tree[job]).forEach(function(unit) {
-            tree[job][unit].forEach(function(lot) {
-              if (!lot.issued && lot.lineCount === 0) return; // skip empty planned lots
-              var bucket = lot.issued ? issuedTree : plannedTree;
-              if (!bucket[job]) bucket[job] = {};
-              if (!bucket[job][unit]) { bucket[job][unit] = []; bucket[job][unit]._job = job; }
-              bucket[job][unit].push(lot);
-            });
-          });
+      // ── Hide all lot-related panels and view-panels ───────────────────────
+      function _hideAllLotsViews() {
+        document.querySelectorAll('.view-panel').forEach(function(p) {
+          p.style.display = 'none'; p.classList.remove('active-panel');
         });
-
-        function renderSection(sectionTree, label, sectionColor, dotColor, badgeBg) {
-          var sJobs = Object.keys(sectionTree);
-          if (!sJobs.length) return '';
-          var totalLots = 0;
-          sJobs.forEach(function(j) { Object.keys(sectionTree[j]).forEach(function(u) { totalLots += sectionTree[j][u].length; }); });
-
-          var s = '<div style="margin-bottom:4px;">' +
-            '<div style="display:flex;align-items:center;gap:4px;padding:6px 8px 6px 8px;cursor:pointer;font-size:12px;font-weight:700;color:' + sectionColor + ';letter-spacing:.02em;user-select:none;border-left:3px solid ' + sectionColor + ';margin:2px 0;" ' +
-            'onclick="(function(el){var c=el.nextElementSibling;c.style.display=c.style.display===\'none\'?\'block\':\'none\';})(this)">' +
-              chevron + folderIco.replace('currentColor', sectionColor) +
-              label + '<span style="background:' + badgeBg + ';color:' + sectionColor + ';border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px;">' + totalLots + '</span>' +
-            '</div>' +
-            '<div style="display:block;">';
-
-          sJobs.forEach(function(job) {
-            s += '<div>' +
-              '<div class="lst-job" style="padding-left:14px;" onclick="(function(el){var c=el.nextElementSibling;c.style.display=c.style.display===\'none\'?\'block\':\'none\';})(this)">' +
-                chevron + folderIco + job +
-              '</div>' +
-              '<div style="display:block;">';
-            Object.keys(sectionTree[job]).forEach(function(unit) {
-              s += makeUnitBlock(unit, sectionTree[job][unit], sectionColor, dotColor);
-            });
-            s += '</div></div>';
-          });
-
-          s += '</div></div>';
-          return s;
-        }
-
-        el.innerHTML =
-          renderSection(plannedTree, 'Planned', '#7c3aed', '#7c3aed', '#ede9fe') +
-          renderSection(issuedTree,  'Issued',  '#15803d', '#15803d', '#dcfce7');
+        var fi = document.getElementById('final-isometrics-table-container');
+        if (fi) fi.style.display = 'none';
+        var ld = document.getElementById('lot-detail-panel');
+        if (ld) ld.style.display = 'none';
+        var pl = document.getElementById('planned-lots-panel');
+        if (pl) pl.style.display = 'none';
+        var il = document.getElementById('issued-lots-panel');
+        if (il) il.style.display = 'none';
       }
 
-      // ── Fetch tree from API and render ───────────────────────────────────
-      window.reloadLotsTree = async function() {
-        var el = document.getElementById('lots-sidebar-tree');
-        el.innerHTML = '<div class="tree-empty" style="padding-left:10px;">Loading…</div>';
+      // ── Shared date formatter ─────────────────────────────────────────────
+      function _fmtDate(d) {
+        if (!d) return '—';
+        var dt = new Date(d);
+        return String(dt.getDate()).padStart(2,'0') + '-' +
+               String(dt.getMonth()+1).padStart(2,'0') + '-' +
+               dt.getFullYear();
+      }
+
+      // ── Shared number formatter ───────────────────────────────────────────
+      function _fmtN(v) {
+        return (v != null && v !== 0)
+          ? Number(v).toLocaleString(undefined, { maximumFractionDigits: 1 })
+          : '—';
+      }
+
+      // ── PLANNED LOTS VIEW ─────────────────────────────────────────────────
+      window.openPlannedLotsView = async function() {
+        _hideAllLotsViews();
+        var panel = document.getElementById('planned-lots-panel');
+        panel.style.display = 'block';
+        window.currentView = 'PlannedLots';
+
+        var tbody = document.getElementById('planned-lots-body');
+        tbody.innerHTML = '<tr><td colspan="4" class="no-data">Loading…</td></tr>';
+
         try {
           var resp = await fetch('/api/lots');
           var data = await resp.json();
-          renderSidebarTree(data.ok ? data.tree : {});
-          _lotsLoaded = true;
+          var tree = data.ok ? data.tree : {};
+
+          var rows = [];
+          Object.keys(tree).forEach(function(job) {
+            Object.keys(tree[job]).forEach(function(unit) {
+              tree[job][unit].forEach(function(lot) {
+                if (!lot.issued && lot.lineCount > 0) {
+                  rows.push({ id: lot.id, jobNo: job, unitNo: unit, lotNumber: lot.lotNumber, lineCount: lot.lineCount });
+                }
+              });
+            });
+          });
+
+          if (!rows.length) {
+            tbody.innerHTML = '<tr><td colspan="4" class="no-data">No planned lots.</td></tr>';
+            return;
+          }
+
+          tbody.innerHTML = rows.map(function(r) {
+            var jE = r.jobNo.replace(/'/g,"\\'");
+            var uE = r.unitNo.replace(/'/g,"\\'");
+            return '<tr style="cursor:pointer;" onclick="_openLotFromPlanned(' + r.id + ',\'' + jE + '\',\'' + uE + '\',' + r.lotNumber + ')">' +
+              '<td>' + r.jobNo + '</td>' +
+              '<td>' + r.unitNo + '</td>' +
+              '<td style="font-weight:700;">Lot ' + r.lotNumber + '</td>' +
+              '<td style="text-align:right;">' + r.lineCount + '</td>' +
+              '</tr>';
+          }).join('');
         } catch(e) {
-          el.innerHTML = '<div class="tree-empty" style="padding-left:10px;">Failed to load.</div>';
+          tbody.innerHTML = '<tr><td colspan="4" class="no-data">Failed to load.</td></tr>';
         }
       };
 
-      // ── Open lot detail in main content ───────────────────────────────────
-      var _currentLotId = null;
+      // ── ISSUED LOTS VIEW — State 1: job summary ───────────────────────────
+      window.openIssuedLotsView = async function() {
+        _hideAllLotsViews();
+        var panel = document.getElementById('issued-lots-panel');
+        panel.style.display = 'block';
+        window.currentView = 'IssuedLots';
 
+        document.getElementById('issued-lots-eyebrow').textContent = 'Lots';
+        document.getElementById('issued-lots-title').innerHTML = 'Issued <em>Lots</em>';
+        document.getElementById('issued-lots-back-wrap').style.display = 'none';
+        document.getElementById('issued-lots-thead').innerHTML =
+          '<tr>' +
+            '<th>Job No</th>' +
+            '<th style="text-align:right;">Lots</th>' +
+            '<th style="text-align:right;">Lines</th>' +
+            '<th style="text-align:right;">Inch Dia</th>' +
+            '<th style="text-align:right;">Inch Mtr</th>' +
+            '<th>Last Issued</th>' +
+          '</tr>';
+
+        var tbody = document.getElementById('issued-lots-body');
+        tbody.innerHTML = '<tr><td colspan="6" class="no-data">Loading…</td></tr>';
+
+        try {
+          var resp = await fetch('/api/lots/issued-jobs');
+          var data = await resp.json();
+
+          if (!data.ok || !Array.isArray(data.jobs) || !data.jobs.length) {
+            tbody.innerHTML = '<tr><td colspan="6" class="no-data">' + (data.error ? 'Error: ' + data.error : 'No issued lots yet.') + '</td></tr>';
+            return;
+          }
+
+          tbody.innerHTML = data.jobs.map(function(j) {
+            var jE = (j.jobNo || '').replace(/'/g,"\\'");
+            return '<tr style="cursor:pointer;" onclick="openIssuedLotsForJob(\'' + jE + '\')">' +
+              '<td style="font-weight:700;">' + (j.jobNo || '') + '</td>' +
+              '<td style="text-align:right;">' + j.lotCount + '</td>' +
+              '<td style="text-align:right;">' + j.lineCount + '</td>' +
+              '<td style="text-align:right;color:#0f766e;font-weight:600;">' + _fmtN(j.totalInchDia) + '</td>' +
+              '<td style="text-align:right;color:#0891b2;font-weight:600;">' + _fmtN(j.totalInchMeter) + '</td>' +
+              '<td>' + _fmtDate(j.lastIssuedAt) + '</td>' +
+              '</tr>';
+          }).join('');
+        } catch(e) {
+          console.error('openIssuedLotsView error:', e);
+          tbody.innerHTML = '<tr><td colspan="6" class="no-data">Failed to load: ' + e.message + '</td></tr>';
+        }
+      };
+
+      // ── ISSUED LOTS VIEW — State 2: lot table for one job ─────────────────
+      window.openIssuedLotsForJob = async function(jobNo) {
+        _hideAllLotsViews();
+        var panel = document.getElementById('issued-lots-panel');
+        panel.style.display = 'block';
+        window.currentView = 'IssuedLots';
+
+        document.getElementById('issued-lots-eyebrow').textContent = jobNo;
+        document.getElementById('issued-lots-title').innerHTML = 'Issued <em>Lots</em>';
+        document.getElementById('issued-lots-back-wrap').style.display = 'block';
+        document.getElementById('issued-lots-thead').innerHTML =
+          '<tr>' +
+            '<th>Lot #</th>' +
+            '<th>Unit</th>' +
+            '<th>Issued Date</th>' +
+            '<th style="text-align:right;">Lines</th>' +
+            '<th style="text-align:right;">Inch Dia</th>' +
+            '<th style="text-align:right;">Inch Mtr</th>' +
+          '</tr>';
+
+        var tbody = document.getElementById('issued-lots-body');
+        tbody.innerHTML = '<tr><td colspan="6" class="no-data">Loading…</td></tr>';
+
+        try {
+          var resp = await fetch('/api/lots/issued-by-job?jobNo=' + encodeURIComponent(jobNo));
+          var data = await resp.json();
+
+          if (!data.ok || !data.lots.length) {
+            tbody.innerHTML = '<tr><td colspan="6" class="no-data">No issued lots for this job.</td></tr>';
+            return;
+          }
+
+          tbody.innerHTML = data.lots.map(function(l) {
+            var jE = jobNo.replace(/'/g,"\\'");
+            var uE = l.unitNo.replace(/'/g,"\\'");
+            return '<tr style="cursor:pointer;" onclick="_openLotFromIssued(' + l.id + ',\'' + jE + '\',\'' + uE + '\',' + l.lotNumber + ',\'' + jE + '\')">' +
+              '<td style="font-weight:700;">Lot ' + l.lotNumber + '</td>' +
+              '<td>' + l.unitNo + '</td>' +
+              '<td>' + _fmtDate(l.issuedAt) + '</td>' +
+              '<td style="text-align:right;">' + l.lineCount + '</td>' +
+              '<td style="text-align:right;color:#0f766e;font-weight:600;">' + _fmtN(l.inchDia) + '</td>' +
+              '<td style="text-align:right;color:#0891b2;font-weight:600;">' + _fmtN(l.inchMeter) + '</td>' +
+              '</tr>';
+          }).join('');
+        } catch(e) {
+          tbody.innerHTML = '<tr><td colspan="6" class="no-data">Failed to load.</td></tr>';
+        }
+      };
+
+      // ── Back-navigation helpers (called via onclick in table rows) ─────────
+      window._openLotFromPlanned = function(lotId, job, unit, lotNumber) {
+        window._lotDetailBackFn = window.openPlannedLotsView;
+        openLotDetail(lotId, job, unit, lotNumber, false);
+      };
+
+      window._openLotFromIssued = function(lotId, job, unit, lotNumber, jobNo) {
+        window._lotDetailBackFn = function() { openIssuedLotsForJob(jobNo); };
+        openLotDetail(lotId, job, unit, lotNumber, true);
+      };
+
+      // ── reloadLotsTree — called by left-bottom.js after lot issue/remove ──
+      // Refreshes whichever lot view is currently active; no-op otherwise.
+      window.reloadLotsTree = function() {
+        if (window.currentView === 'PlannedLots') openPlannedLotsView();
+        else if (window.currentView === 'IssuedLots') openIssuedLotsView();
+      };
+
+      // ── Open lot detail (lines table) ──────────────────────────────────────
       window.openLotDetail = async function(lotId, job, unit, lotNumber, issued) {
         _currentLotId = lotId;
 
-        // Show action buttons only for issued lots
+        // Show/hide export buttons (issued lots only)
         var exportWrap = document.getElementById('lot-export-wrap');
         if (exportWrap) exportWrap.style.display = issued ? 'block' : 'none';
         var engdmsBtn = document.getElementById('lot-engdms-btn');
@@ -4374,12 +4645,12 @@
         var exportMenu = document.getElementById('lot-export-menu');
         if (exportMenu) exportMenu.style.display = 'none';
 
-        // Hide everything — view-panels, welcome, final-iso table
-        document.querySelectorAll('.view-panel').forEach(function(p) {
-          p.style.display = 'none'; p.classList.remove('active-panel');
-        });
-        var fi = document.getElementById('final-isometrics-table-container');
-        if (fi) fi.style.display = 'none';
+        // Hide all other panels
+        _hideAllLotsViews();
+
+        // Show/hide back button
+        var backWrap = document.getElementById('lot-detail-back-wrap');
+        if (backWrap) backWrap.style.display = window._lotDetailBackFn ? 'block' : 'none';
 
         var panel = document.getElementById('lot-detail-panel');
         panel.style.display = 'block';
@@ -4389,7 +4660,6 @@
           : '<span style="display:inline-block;margin-left:12px;padding:2px 10px;background:#ede9fe;color:#7c3aed;border-radius:10px;font-size:13px;font-weight:600;vertical-align:middle;">Planned</span>';
         document.getElementById('lot-detail-title').innerHTML = 'Lot <em>' + lotNumber + '</em>' + badge;
 
-
         var tbody = document.getElementById('lot-detail-body');
         tbody.innerHTML = '<tr><td colspan="8" class="no-data">Loading…</td></tr>';
         document.getElementById('lot-detail-foot').style.display = 'none';
@@ -4398,7 +4668,6 @@
           var data = await resp.json();
           if (!data.ok || !data.lines.length) {
             tbody.innerHTML = '<tr><td colspan="8" class="no-data">No lines in this lot.</td></tr>';
-            document.getElementById('lot-detail-foot').style.display = 'none';
             return;
           }
           function fmtN(v) { return (v != null) ? Number(v).toLocaleString(undefined, { maximumFractionDigits: 3 }) : '—'; }
@@ -4430,7 +4699,6 @@
         }
       };
 
-
       // ── Lot export menu ───────────────────────────────────────────────────
       window.toggleLotExportMenu = function() {
         var menu = document.getElementById('lot-export-menu');
@@ -4445,14 +4713,12 @@
         var orig = btn ? btn.innerHTML : '';
         if (btn) { btn.textContent = 'Preparing…'; btn.disabled = true; }
         var url = '/api/lots/' + _currentLotId + '/export?format=' + format;
-        // Trigger download via hidden anchor
         var a = document.createElement('a');
         a.href = url;
         a.style.display = 'none';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        // Restore button after a short delay (download starts in background)
         setTimeout(function() {
           if (btn) { btn.innerHTML = orig; btn.disabled = false; }
         }, 2000);
@@ -4489,9 +4755,6 @@
         if (master) master.checked = all.length > 0 && checked.length === all.length;
       };
 
-      // Header "select all" checkbox — same pattern as #notif-select-all for
-      // the notification tables, driven through syncCreateLotBtn() so the
-      // Issue Lot button state and selected-count chip stay correct.
       window.toggleAllFinalIso = function(masterCheckbox) {
         var state = masterCheckbox.checked;
         document.querySelectorAll('.final-iso-cb').forEach(function(cb) { cb.checked = state; });
@@ -4503,31 +4766,22 @@
         var checked = document.querySelectorAll('.final-iso-cb:checked');
         if (!checked.length) return;
 
-        var lines = [], job = null, unit = null;
-        var groupCounts = {}; // "job|unit" -> count, used to report a breakdown if selection spans units
+        var lines = [], jobs = new Set();
         checked.forEach(function(cb) {
           var tr = cb.closest('tr');
-          var j = tr.dataset.job, u = tr.dataset.unit, l = tr.dataset.line;
-          if (job === null) { job = j; unit = u; }
-          var key = j + '|' + u;
-          groupCounts[key] = (groupCounts[key] || 0) + 1;
-          lines.push(l);
+          jobs.add(tr.dataset.job);
+          lines.push(tr.dataset.line);
         });
 
-        var groupKeys = Object.keys(groupCounts);
-        if (groupKeys.length > 1) {
-          var breakdown = groupKeys.map(function(key) {
-            var parts = key.split('|');
-            return groupCounts[key] + ' ISO selected in Job ' + parts[0] + ', Unit ' + parts[1];
-          }).join('; ');
-          alert(breakdown + '. Please issue lots separately for each job/unit.');
+        if (jobs.size > 1) {
+          alert('Lines from multiple jobs selected. Please issue lots for one job at a time.');
           return;
         }
+        var job = [...jobs][0];
 
         var btn = document.getElementById('create-lot-btn');
         btn.disabled = true; btn.textContent = 'Creating…';
 
-        // Compute inch totals from the inch map before creating
         var totalInchDia = 0, totalInchMtr = 0;
         lines.forEach(function(ln) {
           var inch = (window._finalIsoInchMap || {})[ln] || {};
@@ -4539,7 +4793,7 @@
           var resp = await fetch('/api/lots/issue-selected', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ jobNo: job, unitNo: unit, lineNos: lines }),
+            body: JSON.stringify({ jobNo: job, lineNos: lines }),
           });
           var data = await resp.json();
           if (data.ok) {
@@ -4566,19 +4820,6 @@
         }
       };
 
-      // ── Watch for nav-group open class — load tree on first expand ─────────
-      // user.js owns the toggle; we just observe when it adds/removes 'open'.
-      document.addEventListener('DOMContentLoaded', function() {
-        var navGroup = document.querySelector('.nav-group[data-group="lots"]');
-        if (!navGroup) return;
-        new MutationObserver(function(mutations) {
-          mutations.forEach(function(m) {
-            if (m.attributeName === 'class' && navGroup.classList.contains('open') && !_lotsLoaded) {
-              reloadLotsTree();
-            }
-          });
-        }).observe(navGroup, { attributes: true });
-      });
     })();
   </script>
 

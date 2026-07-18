@@ -253,6 +253,18 @@ html, body {
 .sidebar.collapsed .sb-brand      { justify-content: center; padding: 14px 8px; gap: 0; }
 .sidebar.collapsed .sb-collapse-btn { margin-left: 0; }
 
+/* ── Collapsed sidebar — icon-only layout fixes ── */
+/* Force open children to collapse; !important wins over .nav-group.open specificity */
+.sidebar.collapsed .nav-children    { max-height: 0 !important; padding: 0 !important; }
+/* Remove vertical space from section labels */
+.sidebar.collapsed .sb-section-label { height: 0; margin: 0 !important; padding: 0; }
+/* Centre icon in button; remove gap artefact from hidden label/badge/chevron */
+.sidebar.collapsed .nav-group-btn   { justify-content: center; gap: 0; }
+/* Centre avatar in user chip */
+.sidebar.collapsed .sb-user         { justify-content: center; padding: 8px; margin: 6px 4px; gap: 0; }
+/* Badge padding causes the icon to shift left; zero it so it takes no box space */
+.sidebar.collapsed .nav-badge       { padding: 0; }
+
 /* â”€â”€ User chip â”€â”€ */
 .sb-user {
   display: flex;
@@ -464,6 +476,82 @@ html, body {
 }
 
 .nav-child.active-nav .nav-child-dot { background: var(--blue-400); }
+
+/* ── Collapsed sidebar flyout ────────────────────────────── */
+.sb-flyout-panel {
+  position: fixed;
+  z-index: 2000;
+  background: var(--sb-bg);
+  border: 1px solid var(--sb-border);
+  border-radius: 10px;
+  padding: 4px;
+  min-width: 178px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.2);
+  pointer-events: auto;
+}
+
+.sb-flyout-hdr {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--sb-muted);
+  padding: 6px 10px 4px;
+  white-space: nowrap;
+}
+
+.sb-flyout-divider {
+  height: 1px;
+  background: var(--sb-border);
+  margin: 2px 6px 4px;
+}
+
+.sb-flyout-section-hdr {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--sb-muted);
+  opacity: 0.6;
+  padding: 6px 10px 2px;
+}
+
+.sb-flyout-panel .nav-child {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--sb-muted);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12.5px;
+  font-weight: 400;
+  text-align: left;
+  text-decoration: none;
+  box-sizing: border-box;
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+
+.sb-flyout-panel .nav-child:hover  { background: var(--sb-bg-hover); color: var(--sb-text); }
+.sb-flyout-panel .nav-child.active-nav {
+  color: var(--blue-300);
+  font-weight: 500;
+  background: rgba(0,123,255,0.1);
+}
+
+.sb-flyout-panel .nav-child-dot {
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: rgba(148,163,184,0.4);
+  flex-shrink: 0;
+}
+.sb-flyout-panel .nav-child.active-nav .nav-child-dot { background: var(--blue-400); }
 
 /* Sidebar footer */
 .sb-footer {
@@ -1322,6 +1410,35 @@ html, body {
   border-radius: 6px; padding: 4px 10px; white-space: nowrap;
 }
 
+/* ── My Tasks sort bar ── */
+.task-sort-bar {
+  display: flex; align-items: center; gap: 5px;
+}
+.task-sort-label {
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em;
+  text-transform: uppercase; color: var(--text-muted); white-space: nowrap;
+}
+.task-sort-select {
+  font-family: 'DM Sans', sans-serif; font-size: 12px;
+  padding: 4px 6px; border: 1px solid var(--border);
+  border-radius: 6px; background: var(--white);
+  color: var(--text-primary); cursor: pointer; outline: none;
+  transition: border-color var(--dur-fast);
+}
+.task-sort-select:focus { border-color: var(--blue-500); }
+.task-sort-dir-btn {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px solid var(--border); border-radius: 6px;
+  background: var(--white); color: var(--text-muted);
+  cursor: pointer; font-size: 14px; line-height: 1;
+  transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
+}
+.task-sort-dir-btn:hover {
+  background: var(--blue-50); color: var(--blue-600);
+  border-color: var(--blue-300);
+}
+
 
 /* â”€â”€ 11. TABLE CARD â”€â”€ */
 .table-card {
@@ -2000,18 +2117,6 @@ tr .role-claim-checkbox:enabled { pointer-events: auto; }
   text-transform: uppercase; color: var(--text-muted);
 }
 
-.supporting-check-section {
-  margin-bottom: 1.1rem; padding: 11px 15px;
-  background: var(--blue-50);
-  border: 1px solid var(--blue-200);
-  border-radius: 8px;
-  display: flex; align-items: center; gap: 12px;
-}
-
-.supporting-check-label {
-  display: flex; align-items: center; gap: 8px;
-  font-weight: 500; color: var(--blue-700); font-size: 13px;
-}
 
 .checker-main-content {
   display: grid; grid-template-columns: 1fr 1fr;

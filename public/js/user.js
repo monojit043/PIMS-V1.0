@@ -117,34 +117,34 @@ window.addEventListener('click', e => {
     sidebar && sidebar.classList.toggle('collapsed');
   });
 
-  // Nav groups
+  // Nav groups — accordion only; nav-active is NOT tied to open/closed
   $$('.nav-group-btn').forEach(btn => {
     on(btn, 'click', () => {
       const group = btn.closest('.nav-group');
       if (!group) return;
-
-      // Handle links (no children)
       if (!group.querySelector('.nav-children')) return;
 
       const isOpen = group.classList.contains('open');
-      // Close all
       $$('.nav-group.open').forEach(g => g.classList.remove('open'));
       if (!isOpen) group.classList.add('open');
-
-      btn.classList.toggle('nav-active', !isOpen);
     });
   });
 
-  // Open inbox by default
+  // Pre-open inbox accordion so children are visible when sidebar is expanded,
+  // but do NOT mark it nav-active — the user lands on the welcome view, not Inbox.
   const inboxGroup = document.querySelector('[data-group="inbox"]');
   if (inboxGroup) inboxGroup.classList.add('open');
 
-  // Nav children clicks
+  // Nav children clicks — mark the clicked child AND its parent group as active
   $$('.nav-child').forEach(child => {
     on(child, 'click', () => {
       if (child.classList.contains('disabled-nav')) return;
       $$('.nav-child').forEach(c => c.classList.remove('active-nav'));
       child.classList.add('active-nav');
+      $$('.nav-group-btn').forEach(b => b.classList.remove('nav-active'));
+      const parentGroup = child.closest('.nav-group');
+      const parentBtn = parentGroup && parentGroup.querySelector(':scope > .nav-group-btn');
+      if (parentBtn) parentBtn.classList.add('nav-active');
       const view = child.dataset.view;
       if (view) navigateTo(view);
     });
@@ -551,5 +551,116 @@ window.addEventListener('click', e => {
   };
 
   console.log('%cPIMS NEXT loaded ✦', 'color:#c8922a; font-family:serif; font-size:14px;');
+
+  /* ════════════════════════════════════════════════
+     COLLAPSED SIDEBAR FLYOUT
+     Shows label + children as a fixed panel when
+     hovering a nav icon in icon-only (collapsed) mode.
+  ════════════════════════════════════════════════ */
+  const sbFlyout = document.createElement('div');
+  sbFlyout.id        = 'sb-flyout';
+  sbFlyout.className = 'sb-flyout-panel';
+  sbFlyout.innerHTML =
+    '<div class="sb-flyout-hdr"></div>' +
+    '<div class="sb-flyout-body"></div>';
+  sbFlyout.style.display = 'none';
+  document.body.appendChild(sbFlyout);
+
+  let _flyTimer = null;
+
+  function _showFlyout(btn) {
+    if (!sidebar || !sidebar.classList.contains('collapsed')) return;
+    clearTimeout(_flyTimer);
+
+    const group = btn.closest('.nav-group');
+
+    /* ── Label ── */
+    const labelEl = btn.querySelector('.nav-label');
+    const label   = labelEl ? labelEl.textContent.trim() : '';
+    sbFlyout.querySelector('.sb-flyout-hdr').textContent = label;
+
+    /* ── Children ── */
+    const body        = sbFlyout.querySelector('.sb-flyout-body');
+    body.innerHTML    = '';
+    const navChildren = group && group.querySelector('.nav-children');
+    let   hasItems    = false;
+
+    if (navChildren) {
+      Array.from(navChildren.children).forEach(function (el) {
+        /* skip: inline-hidden (role-gated) or project tree containers */
+        if (el.style.display === 'none') return;
+        if (el.classList.contains('mp-tree-container') ||
+            el.classList.contains('mp-tree')) return;
+
+        hasItems = true;
+
+        if (el.classList.contains('nav-child-hdr')) {
+          const hdr = document.createElement('div');
+          hdr.className   = 'sb-flyout-section-hdr';
+          hdr.textContent = el.textContent.trim();
+          body.appendChild(hdr);
+
+        } else if (el.classList.contains('nav-child')) {
+          const isLink  = el.tagName === 'A';
+          const clone   = document.createElement(isLink ? 'a' : 'button');
+          clone.className = 'nav-child' +
+            (el.classList.contains('active-nav') ? ' active-nav' : '');
+          if (isLink) {
+            clone.href   = el.href;
+            clone.target = el.target || '';
+            clone.rel    = el.rel    || '';
+          }
+          clone.innerHTML = el.innerHTML;
+          clone.addEventListener('click', function () {
+            _hideFlyout(true);
+            if (!isLink) el.click(); /* fire all attached listeners; <a> follows href naturally */
+          });
+          body.appendChild(clone);
+        }
+      });
+
+      if (hasItems) {
+        const divider = document.createElement('div');
+        divider.className = 'sb-flyout-divider';
+        body.insertBefore(divider, body.firstChild);
+      }
+    }
+
+    /* ── Position (hidden first to avoid flash) ── */
+    sbFlyout.style.visibility = 'hidden';
+    sbFlyout.style.display    = 'block';
+    const rect  = btn.getBoundingClientRect();
+    const flyH  = sbFlyout.offsetHeight;
+    const winH  = window.innerHeight;
+    let   top   = rect.top;
+    if (top + flyH > winH - 8) top = winH - flyH - 8;
+    sbFlyout.style.left       = (rect.right + 6) + 'px';
+    sbFlyout.style.top        = top + 'px';
+    sbFlyout.style.visibility = '';
+  }
+
+  function _hideFlyout(immediate) {
+    if (immediate) {
+      sbFlyout.style.display = 'none';
+    } else {
+      _flyTimer = setTimeout(function () { sbFlyout.style.display = 'none'; }, 130);
+    }
+  }
+
+  /* Attach hover to every nav-group row */
+  $$('.nav-group').forEach(function (group) {
+    const btn = group.querySelector(':scope > .nav-group-btn') ||
+                group.querySelector(':scope > a');
+    if (!btn) return;
+    group.addEventListener('mouseenter', function () { _showFlyout(btn); });
+    group.addEventListener('mouseleave', function () { _hideFlyout(false); });
+  });
+
+  /* Keep flyout alive while mouse is over it */
+  sbFlyout.addEventListener('mouseenter', function () { clearTimeout(_flyTimer); });
+  sbFlyout.addEventListener('mouseleave', function () { _hideFlyout(false); });
+
+  /* Hide immediately when sidebar is expanded */
+  on(sbCollapseBtn, 'click', function () { _hideFlyout(true); });
 
 })();

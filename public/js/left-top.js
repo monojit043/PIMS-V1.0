@@ -287,6 +287,7 @@ async function refreshCurrentNotificationView() {
     updateNotificationTableHeaders(role);
     renderNotificationsTable(uniqueNotifications);
     setupClaimButton();
+    if (['GL', 'SGL'].includes(role)) loadHoldLines();
     // ✅ Ensure "Lines available to Claim" count is always up to date and retained
     if (["Modeller", "GL", "SGL"].includes(window.currentSelectedRole?.role)) {
       updateAvailableLinesSummary(uniqueNotifications);
@@ -431,9 +432,15 @@ function showMyTasks() {
     sglView.remove();
   }
 
-  // Hide final isometrics table if open
+  // Hide final isometrics table and all lot panels if open
   const fi = document.getElementById('final-isometrics-table-container');
   if (fi) fi.style.display = 'none';
+  const lotPanel = document.getElementById('lot-detail-panel');
+  if (lotPanel) lotPanel.style.display = 'none';
+  const plannedPanel = document.getElementById('planned-lots-panel');
+  if (plannedPanel) plannedPanel.style.display = 'none';
+  const issuedPanel = document.getElementById('issued-lots-panel');
+  if (issuedPanel) issuedPanel.style.display = 'none';
 
   // Hide ALL view-panels and show task panel
   document.querySelectorAll('.view-panel').forEach(p => {
@@ -497,6 +504,14 @@ async function showNotifications() {
     p.classList.remove('active-panel');
     p.style.display = 'none';
   });
+  const _lotPanelN = document.getElementById('lot-detail-panel');
+  if (_lotPanelN) _lotPanelN.style.display = 'none';
+  const _fiN = document.getElementById('final-isometrics-table-container');
+  if (_fiN) _fiN.style.display = 'none';
+  const _plannedN = document.getElementById('planned-lots-panel');
+  if (_plannedN) _plannedN.style.display = 'none';
+  const _issuedN = document.getElementById('issued-lots-panel');
+  if (_issuedN) _issuedN.style.display = 'none';
 
   const defaultNotificationTable = document.getElementById('default-notification-table-container');
   if (defaultNotificationTable) {
@@ -529,17 +544,20 @@ async function autoLoadNotifications() {
     }
 
     const roles = data.roles;
-    const hasChecker = roles.some(r => CHECKER_ROLES.includes(r.role));
-    const hasGL      = roles.some(r => r.role === 'GL');
-    const hasSGL     = roles.some(r => r.role === 'SGL');
-    const hasModeller = roles.some(r => r.role === 'Modeller');
+    const hasChecker    = roles.some(r => CHECKER_ROLES.includes(r.role));
+    const hasGL         = roles.some(r => r.role === 'GL');
+    const hasSGL        = roles.some(r => r.role === 'SGL');
+    const hasModeller   = roles.some(r => r.role === 'Modeller');
+    const hasISOManager = roles.some(r => r.role === 'ISO Manager');
 
-    // Load by highest role in hierarchy: SGL > GL > Checker > Modeller
-    // Superior inherits inferior's notification queue too — add tabs later
+    // Load by highest role in hierarchy: SGL > GL > ISO Manager > Checker > Modeller
+    // ISO Manager sees the GL pool read-only (no claim button).
     if (hasSGL) {
       await loadNotificationsForMainRole('SGL');
     } else if (hasGL) {
       await loadNotificationsForMainRole('GL');
+    } else if (hasISOManager) {
+      await loadNotificationsForMainRole('ISO Manager');
     } else if (hasChecker) {
       await loadCheckerNotifications();
     } else if (hasModeller) {
@@ -703,6 +721,7 @@ async function loadCheckerNotifications() {
       updateNotificationTableHeaders("Checker");
       renderNotificationsTable(notifications);
       setupClaimButton();
+      loadHoldLines();
     }
   } catch (error) {
     console.error("Error loading checker notifications:", error);
@@ -947,8 +966,8 @@ function renderNotificationsTable(notifications) {
     let dateHtml = '—';
     if (notification.uploadedOn) {
       const d = new Date(notification.uploadedOn);
-      const datePart = d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
-      const timePart = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+      const datePart = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+      const timePart = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
       dateHtml = `<span class="dt-date">${datePart}</span><span class="dt-time">${timePart}</span>`;
     }
 
@@ -1840,6 +1859,13 @@ function setupClaimButton() {
   );
   if (!claimBtn) return;
 
+  // ISO Manager sees the GL pool read-only — cannot claim lines
+  if (window.currentSelectedRole?.role === 'ISO Manager') {
+    claimBtn.style.display = 'none';
+    return;
+  }
+
+  claimBtn.style.display = '';
   // Use onclick to prevent duplicate listeners from multiple setupClaimButton() calls
   claimBtn.onclick = async function () {
     await processNotificationClaims();
@@ -2037,6 +2063,80 @@ function renderClaimedTasksTable(tasks, currentRole = "Process Checker") {
   });
 }
 
+// ── My Tasks sort helpers ────────────────────────────────────────────────────
+
+/* Apply the user's saved sort preference.
+   Role rank is always the primary key so SGL/GL/Checker/Modeller stay grouped.
+   The user's choice is the secondary key within each group. */
+function _applyTaskSort(tasks) {
+  const field = localStorage.getItem('taskSortField') || 'date';
+  const dir   = localStorage.getItem('taskSortDir')   || 'desc';
+  const mult  = dir === 'asc' ? 1 : -1;
+
+  return [...tasks].sort((a, b) => {
+    const rankDiff = getTaskRank(a) - getTaskRank(b);
+    if (rankDiff !== 0) return rankDiff;
+
+    switch (field) {
+      case 'jobNo':
+        return mult * (a.jobNo  || '').localeCompare(b.jobNo  || '');
+      case 'unitNo':
+        return mult * (a.unitNo || '').localeCompare(b.unitNo || '');
+      case 'lineNo':
+        return mult * (a.lineNo || '').localeCompare(b.lineNo || '');
+      case 'revNo': {
+        const va = parseInt((a.revNo || 'R0').replace(/\D/g, ''), 10) || 0;
+        const vb = parseInt((b.revNo || 'R0').replace(/\D/g, ''), 10) || 0;
+        return mult * (va - vb);
+      }
+      case 'crit': {
+        const va = a.stressCritical === 'Y' ? 1 : 0;
+        const vb = b.stressCritical === 'Y' ? 1 : 0;
+        return mult * (vb - va); // Y first when asc
+      }
+      default: { // date
+        const ta = new Date(a.claimedOn || a.uploadedOn || 0).getTime();
+        const tb = new Date(b.claimedOn || b.uploadedOn || 0).getTime();
+        return mult * (tb - ta); // newest first when desc
+      }
+    }
+  });
+}
+
+let _sortBarListenersAttached = false;
+
+/* Sync the sort bar UI to localStorage values and attach listeners once. */
+function _initTaskSortBar() {
+  const fieldSel = document.getElementById('task-sort-field');
+  const dirBtn   = document.getElementById('task-sort-dir');
+  if (!fieldSel || !dirBtn) return;
+
+  // Always sync UI state to saved preference
+  const savedField = localStorage.getItem('taskSortField') || 'date';
+  const savedDir   = localStorage.getItem('taskSortDir')   || 'desc';
+  fieldSel.value     = savedField;
+  dirBtn.textContent = savedDir === 'asc' ? '↑' : '↓';
+  dirBtn.dataset.dir = savedDir;
+
+  if (_sortBarListenersAttached) return;
+  _sortBarListenersAttached = true;
+
+  fieldSel.addEventListener('change', function () {
+    localStorage.setItem('taskSortField', this.value);
+    if (window._lastTasksData) renderUniversalTasksTable(window._lastTasksData);
+  });
+
+  dirBtn.addEventListener('click', function () {
+    const next        = (this.dataset.dir || 'desc') === 'desc' ? 'asc' : 'desc';
+    this.dataset.dir  = next;
+    this.textContent  = next === 'asc' ? '↑' : '↓';
+    localStorage.setItem('taskSortDir', next);
+    if (window._lastTasksData) renderUniversalTasksTable(window._lastTasksData);
+  });
+}
+
+// ── Task precedence rank ─────────────────────────────────────────────────────
+
 // Helper to compute precedence rank for My Tasks
 function getTaskRank(task) {
   const roles = task.claimedRoles || [];
@@ -2082,19 +2182,13 @@ function renderUniversalTasksTable(tasks) {
     return;
   }
 
-  // 🔑 NEW: sort tasks by precedence before rendering
-  tasks.sort((a, b) => {
-    const rankA = getTaskRank(a);
-    const rankB = getTaskRank(b);
-    if (rankA !== rankB) return rankA - rankB;
+  // Store for re-sort when user changes sort preference
+  window._lastTasksData = tasks;
 
-    // Secondary sort: most recent first
-    const timeA = new Date(a.claimedOn || a.uploadedOn || 0).getTime();
-    const timeB = new Date(b.claimedOn || b.uploadedOn || 0).getTime();
-    return timeB - timeA;
-  });
+  // Sort: role rank primary, user preference secondary
+  const sorted = _applyTaskSort(tasks);
 
-  tasks.forEach((task, index) => {
+  sorted.forEach((task, index) => {
     const row = document.createElement("tr");
     row.style.cursor = "pointer";
     row.title = "Click to review this line";
@@ -2143,6 +2237,9 @@ function renderUniversalTasksTable(tasks) {
 
   // Setup filters for universal task table
   setupUniversalTaskFilters(tasks);
+
+  // Sync sort bar UI and attach listeners (idempotent)
+  _initTaskSortBar();
 
   // "My Tasks" is one unified list across all roles — this breaks the total
   // down by role (a task with multiple claimed roles, e.g. a Modeller+PC+MC+SC
@@ -3172,7 +3269,7 @@ function formatDateTime(dateString) {
 
   try {
     const date = new Date(dateString);
-    return date.toLocaleString();
+    return date.toLocaleString('en-GB');
   } catch (error) {
     return dateString;
   }
@@ -3468,3 +3565,77 @@ document.addEventListener("DOMContentLoaded", function () {
     materialCheckerBtn.addEventListener("click", switchToMaterialChecker);
   }
 });
+
+// ── Lines on Hold section ──────────────────────────────────────────────────────
+
+async function loadHoldLines() {
+  const section  = document.getElementById('hold-lines-section');
+  const body     = document.getElementById('hold-lines-body');
+  const countEl  = document.getElementById('hold-lines-count');
+  if (!section || !body) return;
+
+  try {
+    const resp = await fetch('/api/hold-lines', { credentials: 'same-origin' });
+    const data = await resp.json();
+    if (!data.ok || !data.lines || data.lines.length === 0) {
+      section.style.display = 'none';
+      return;
+    }
+
+    const holdLabel = { 'Checker Hold': 'Checker', 'GL Hold': 'GL', 'SGL Hold': 'SGL' };
+    const holdColor = { 'Checker Hold': '#1d4ed8', 'GL Hold': '#7c3aed', 'SGL Hold': '#b91c1c' };
+    const holdBg    = { 'Checker Hold': '#dbeafe', 'GL Hold': '#ede9fe', 'SGL Hold': '#fee2e2' };
+
+    countEl.textContent = data.lines.length;
+    body.innerHTML = data.lines.map(function(line) {
+      var label = holdLabel[line.status] || line.status;
+      var color = holdColor[line.status] || '#64748b';
+      var bg    = holdBg[line.status]    || '#f1f5f9';
+      var heldAt = line.held_at ? new Date(line.held_at).toLocaleDateString('en-GB') : '—';
+      var desc = (line.hold_description || '—');
+      var descTrunc = desc.length > 60 ? desc.slice(0, 57) + '…' : desc;
+      var safeJob  = (line.job_no  || '').replace(/'/g, "\\'");
+      var safeUnit = (line.unit_no || '').replace(/'/g, "\\'");
+      var safeLine = (line.line_no || '').replace(/'/g, "\\'");
+      return '<tr>' +
+        '<td style="font-weight:600;">' + (line.line_no || '—') + '</td>' +
+        '<td>' + (line.job_no || '—') + ' / ' + (line.unit_no || '—') + '</td>' +
+        '<td><span style="display:inline-block;padding:2px 8px;border-radius:9px;font-size:11px;font-weight:700;background:' + bg + ';color:' + color + ';">' + label + '</span></td>' +
+        '<td>' + (line.hold_declarer_name || line.hold_declarer_id || '—') + '</td>' +
+        '<td title="' + desc.replace(/"/g, '&quot;') + '" style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + descTrunc + '</td>' +
+        '<td>' + heldAt + '</td>' +
+        '<td><button onclick="unblockFromHoldSection(\'' + safeJob + '\',\'' + safeUnit + '\',\'' + safeLine + '\')" ' +
+          'style="padding:3px 10px;background:#fee2e2;color:#e53935;border:1px solid #fecaca;border-radius:4px;font-size:11px;font-weight:600;cursor:pointer;">' +
+          'Unblock</button></td>' +
+      '</tr>';
+    }).join('');
+
+    section.style.display = '';
+  } catch (err) {
+    console.error('loadHoldLines error:', err);
+    section.style.display = 'none';
+  }
+}
+window.loadHoldLines = loadHoldLines;
+
+window.unblockFromHoldSection = async function(jobNo, unitNo, lineNo) {
+  if (!confirm('Remove hold on line ' + lineNo + '?\n\nThe line will be returned to the checker pool as if newly uploaded.')) return;
+  try {
+    var resp = await fetch('/api/unblock-line', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jobNo: jobNo, unitNo: unitNo, lineNo: lineNo }),
+      credentials: 'same-origin',
+    });
+    var result = await resp.json();
+    if (result.ok) {
+      alert(result.message);
+      loadHoldLines();
+      if (typeof refreshCurrentNotificationView === 'function') refreshCurrentNotificationView();
+    } else {
+      alert('Error: ' + (result.error || 'Failed to unblock'));
+    }
+  } catch (err) {
+    alert('Network error: ' + err.message);
+  }
+};

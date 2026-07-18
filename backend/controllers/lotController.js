@@ -27,39 +27,36 @@ function fmtDate(d) {
   return `${dd}-${mm}-${yy}`;
 }
 
-pool.query(`
-  CREATE TABLE IF NOT EXISTS lots (
-    id          SERIAL PRIMARY KEY,
-    lot_number  INTEGER      NOT NULL,
-    job_no      VARCHAR(50)  NOT NULL,
-    unit_no     VARCHAR(50)  NOT NULL,
-    created_by  VARCHAR(50)  NOT NULL,
-    created_at  TIMESTAMPTZ  DEFAULT NOW(),
-    issued_at   TIMESTAMPTZ  DEFAULT NULL
-  );
-  CREATE TABLE IF NOT EXISTS lot_lines (
-    lot_id      INTEGER NOT NULL REFERENCES lots(id) ON DELETE CASCADE,
-    drawing_id  INTEGER NOT NULL REFERENCES drawings(id),
-    PRIMARY KEY (lot_id, drawing_id)
-  );
-  ALTER TABLE lots ADD COLUMN IF NOT EXISTS issued_at TIMESTAMPTZ DEFAULT NULL;
-  ALTER TABLE lot_lines ADD COLUMN IF NOT EXISTS file_path TEXT DEFAULT NULL;
-`).catch(console.error);
-
-// One-time backfill: issued lot_lines rows from before file_path snapshotting
-// existed have NULL file_path. Without a value there, the revision-aware
-// "already issued" checks elsewhere can't match them and would wrongly treat
-// them as never-issued. Backfilling with each drawing's CURRENT file is safe —
-// correct for the common case (no revision since issuance), and no worse than
-// today's behavior for the rare case where one occurred unnoticed. Idempotent:
-// only touches rows still NULL, so it's a no-op after the first run.
-pool.query(`
-  UPDATE lot_lines ll
-  SET file_path = 'uploads/' || d.job_no || '/' || d.unit_no || '/' || d.zone || '/' || d.stored_file
-  FROM drawings d, lots l
-  WHERE ll.drawing_id = d.id AND ll.lot_id = l.id
-    AND l.issued_at IS NOT NULL AND ll.file_path IS NULL
-`).catch(console.error);
+// Called from server.js before app.listen() so DDL completes before any request arrives.
+async function initLotTables() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS lots (
+      id          SERIAL PRIMARY KEY,
+      lot_number  INTEGER      NOT NULL,
+      job_no      VARCHAR(50)  NOT NULL,
+      unit_no     VARCHAR(50)  NOT NULL,
+      created_by  VARCHAR(50)  NOT NULL,
+      created_at  TIMESTAMPTZ  DEFAULT NOW(),
+      issued_at   TIMESTAMPTZ  DEFAULT NULL
+    );
+    CREATE TABLE IF NOT EXISTS lot_lines (
+      lot_id      INTEGER NOT NULL REFERENCES lots(id) ON DELETE CASCADE,
+      drawing_id  INTEGER NOT NULL REFERENCES drawings(id),
+      PRIMARY KEY (lot_id, drawing_id)
+    );
+    ALTER TABLE lots     ADD COLUMN IF NOT EXISTS issued_at  TIMESTAMPTZ DEFAULT NULL;
+    ALTER TABLE lot_lines ADD COLUMN IF NOT EXISTS file_path TEXT        DEFAULT NULL;
+  `);
+  // One-time backfill: issued lot_lines rows from before file_path snapshotting
+  // existed have NULL file_path. Idempotent — only touches rows still NULL.
+  await pool.query(`
+    UPDATE lot_lines ll
+    SET file_path = 'uploads/' || d.job_no || '/' || d.unit_no || '/' || d.zone || '/' || d.stored_file
+    FROM drawings d, lots l
+    WHERE ll.drawing_id = d.id AND ll.lot_id = l.id
+      AND l.issued_at IS NOT NULL AND ll.file_path IS NULL
+  `);
+}
 
 // Extracts the revision number (R<n>) from a stored-file path/name like
 // ".../LINE_R1-3.pdf". Used to show the revision that was ACTUALLY issued
@@ -71,6 +68,36 @@ function extractRevNo(fileNameOrPath) {
   return m ? parseInt(m[1], 10) : null;
 }
 
+// Resolve the effective master unit and child units for a given unit in a project.
+// If unit is a child of a master group  → returns { masterUnit, childUnits: all children }
+// If unit is itself a master unit       → returns { masterUnit: unit, childUnits: all children }
+// If unit is standalone (no mapping)   → returns { masterUnit: unit, childUnits: [unit] }
+async function getEffectiveUnits(jobNo, unit) {
+  // Check if this unit is a child of a master group
+  const { rows: asChild } = await pool.query(
+    `SELECT master_unit FROM master_units WHERE project_id=$1 AND child_unit=$2 LIMIT 1`,
+    [jobNo, unit]
+  );
+  if (asChild.length > 0) {
+    const masterUnit = asChild[0].master_unit;
+    const { rows: siblings } = await pool.query(
+      `SELECT child_unit FROM master_units WHERE project_id=$1 AND master_unit=$2 ORDER BY child_unit`,
+      [jobNo, masterUnit]
+    );
+    return { masterUnit, childUnits: siblings.map(r => r.child_unit) };
+  }
+  // Check if this unit is itself a master (has children)
+  const { rows: asMaster } = await pool.query(
+    `SELECT child_unit FROM master_units WHERE project_id=$1 AND master_unit=$2 ORDER BY child_unit`,
+    [jobNo, unit]
+  );
+  if (asMaster.length > 0) {
+    return { masterUnit: unit, childUnits: asMaster.map(r => r.child_unit) };
+  }
+  // Standalone unit
+  return { masterUnit: unit, childUnits: [unit] };
+}
+
 // POST /api/lots/create
 async function createLot(req, res) {
   const { jobNo, unitNo, lineNos } = req.body;
@@ -79,28 +106,30 @@ async function createLot(req, res) {
     return res.status(400).json({ ok: false, error: "jobNo, unitNo, lineNos[] required" });
 
   try {
+    const { masterUnit, childUnits } = await getEffectiveUnits(jobNo, unitNo);
+
     const { rows: seq } = await pool.query(
       `SELECT COALESCE(MAX(lot_number), 0) + 1 AS next_lot FROM lots WHERE job_no=$1 AND unit_no=$2`,
-      [jobNo, unitNo]
+      [jobNo, masterUnit]
     );
     const lotNumber = seq[0].next_lot;
 
     const { rows } = await pool.query(
       `INSERT INTO lots (lot_number, job_no, unit_no, created_by) VALUES ($1,$2,$3,$4) RETURNING id`,
-      [lotNumber, jobNo, unitNo, userId]
+      [lotNumber, jobNo, masterUnit, userId]
     );
     const lotId = rows[0].id;
 
     for (const lineNo of lineNos) {
       const { rows: drw } = await pool.query(
-        `SELECT id FROM drawings WHERE job_no=$1 AND unit_no=$2 AND line_no=$3 LIMIT 1`,
-        [jobNo, unitNo, lineNo]
+        `SELECT id FROM drawings WHERE job_no=$1 AND unit_no=ANY($2) AND line_no=$3 LIMIT 1`,
+        [jobNo, childUnits, lineNo]
       );
       if (drw[0]) {
-        // Remove from any other planned (unissued) lot first
+        // Remove from any other planned (unissued) lot in this master unit group first
         await pool.query(
           `DELETE FROM lot_lines WHERE drawing_id=$1 AND lot_id IN (SELECT id FROM lots WHERE issued_at IS NULL AND job_no=$2 AND unit_no=$3)`,
-          [drw[0].id, jobNo, unitNo]
+          [drw[0].id, jobNo, masterUnit]
         );
         await pool.query(
           `INSERT INTO lot_lines (lot_id, drawing_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`,
@@ -113,7 +142,7 @@ async function createLot(req, res) {
     await pool.query(
       `DELETE FROM lots WHERE job_no=$1 AND unit_no=$2 AND issued_at IS NULL
        AND id NOT IN (SELECT DISTINCT lot_id FROM lot_lines)`,
-      [jobNo, unitNo]
+      [jobNo, masterUnit]
     );
 
     res.json({ ok: true, lotId, lotNumber, message: `Lot ${lotNumber} created with ${lineNos.length} line(s)` });
@@ -124,12 +153,14 @@ async function createLot(req, res) {
 }
 
 // GET /api/lots/planned?project=X&unit=Y
+// unit may be child unit or master unit — resolves automatically
 async function getPlannedLots(req, res) {
   const { project, unit } = req.query;
   if (!project || !unit)
     return res.status(400).json({ ok: false, error: "project and unit required" });
 
   try {
+    const { masterUnit } = await getEffectiveUnits(project, unit);
     const { rows } = await pool.query(
       `SELECT l.id, l.lot_number, COUNT(ll.drawing_id)::int AS line_count
        FROM lots l
@@ -137,7 +168,7 @@ async function getPlannedLots(req, res) {
        WHERE l.job_no=$1 AND l.unit_no=$2 AND l.issued_at IS NULL
        GROUP BY l.id
        ORDER BY l.lot_number`,
-      [project, unit]
+      [project, masterUnit]
     );
     res.json({ ok: true, lots: rows.map(r => ({ id: r.id, lotNumber: r.lot_number, lineCount: r.line_count })) });
   } catch (err) {
@@ -230,16 +261,18 @@ async function assignLinesToLot(req, res) {
     if (!lotRows[0])
       return res.status(404).json({ ok: false, error: "Lot not found or already issued" });
 
+    const { masterUnit, childUnits } = await getEffectiveUnits(jobNo, unitNo);
+
     for (const lineNo of lineNos) {
       const { rows: drw } = await pool.query(
-        `SELECT id FROM drawings WHERE job_no=$1 AND unit_no=$2 AND line_no=$3 LIMIT 1`,
-        [jobNo, unitNo, lineNo]
+        `SELECT id FROM drawings WHERE job_no=$1 AND unit_no=ANY($2) AND line_no=$3 LIMIT 1`,
+        [jobNo, childUnits, lineNo]
       );
       if (drw[0]) {
-        // Remove from any other planned lot first
+        // Remove from any other planned lot in this master unit group first
         await pool.query(
           `DELETE FROM lot_lines WHERE drawing_id=$1 AND lot_id IN (SELECT id FROM lots WHERE issued_at IS NULL AND job_no=$2 AND unit_no=$3)`,
-          [drw[0].id, jobNo, unitNo]
+          [drw[0].id, jobNo, masterUnit]
         );
         await pool.query(
           `INSERT INTO lot_lines (lot_id, drawing_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`,
@@ -252,7 +285,7 @@ async function assignLinesToLot(req, res) {
     await pool.query(
       `DELETE FROM lots WHERE job_no=$1 AND unit_no=$2 AND issued_at IS NULL
        AND id NOT IN (SELECT DISTINCT lot_id FROM lot_lines)`,
-      [jobNo, unitNo]
+      [jobNo, masterUnit]
     );
 
     res.json({ ok: true });
@@ -385,39 +418,51 @@ async function getLotLines(req, res) {
 
 // POST /api/lots/issue-selected
 // GL selects finalized lines from Final Isometrics and issues the current planned lot.
+// unitNo is NOT required in the request body — the master unit is inferred from the
+// selected line numbers so that cross-child-unit selections work transparently.
 // Logic:
-//   1. Take the lowest planned lot for this job/unit (create one if none exists)
-//   2. Issue it with exactly the selected lines
-//   3. Any lines that were in the planned lot but NOT selected → carry forward to the next planned lot
+//   1. Find the child units of the selected lines and resolve them to a single master unit
+//   2. Take the lowest planned lot for this job/master-unit (create one if none exists)
+//   3. Issue it with exactly the selected lines
+//   4. Any lines that were in the planned lot but NOT selected → carry forward to the next planned lot
 async function issueSelectedLines(req, res) {
-  const { jobNo, unitNo, lineNos } = req.body;
+  const { jobNo, lineNos } = req.body;
   const userId = req.session.user.id;
-  if (!jobNo || !unitNo || !Array.isArray(lineNos) || lineNos.length === 0)
-    return res.status(400).json({ ok: false, error: "jobNo, unitNo, lineNos[] required" });
+  if (!jobNo || !Array.isArray(lineNos) || lineNos.length === 0)
+    return res.status(400).json({ ok: false, error: "jobNo, lineNos[] required" });
 
   try {
-    // Guard: detect a cross-unit selection before touching any lot data. The
-    // per-line resolution below (step 3) is scoped to (jobNo, unitNo), so a
-    // line belonging to a different unit than the one requested would
-    // otherwise just fail to match and be silently dropped — no error, no
-    // indication to the caller. Catch that here and reject with a per-unit
-    // breakdown instead of letting anything partially issue.
-    const { rows: unitBreakdown } = await pool.query(
-      `SELECT unit_no, COUNT(*)::int AS cnt FROM drawings
-       WHERE job_no=$1 AND line_no = ANY($2::text[])
-       GROUP BY unit_no`,
+    // 1. Find which child units the selected line numbers belong to
+    const { rows: lineUnitRows } = await pool.query(
+      `SELECT DISTINCT d.unit_no FROM drawings d WHERE d.job_no=$1 AND d.line_no = ANY($2::text[])`,
       [jobNo, lineNos]
     );
-    if (unitBreakdown.length > 1) {
-      const breakdown = unitBreakdown.map(r => `${r.cnt} ISO selected in Unit ${r.unit_no}`).join(', ');
-      return res.status(409).json({
-        ok: false,
-        error: `Selected lines span multiple units: ${breakdown}. Please issue lots separately for each unit.`,
-        unitBreakdown: unitBreakdown.map(r => ({ unitNo: r.unit_no, count: r.cnt }))
-      });
+    if (lineUnitRows.length === 0)
+      return res.status(400).json({ ok: false, error: "No matching drawings found for the selected lines" });
+
+    // 2. Resolve each child unit to its master unit (or itself if standalone)
+    const effectiveMasterUnits = new Set();
+    for (const { unit_no } of lineUnitRows) {
+      const { rows: muRows } = await pool.query(
+        `SELECT master_unit FROM master_units WHERE project_id=$1 AND child_unit=$2 LIMIT 1`,
+        [jobNo, unit_no]
+      );
+      effectiveMasterUnits.add(muRows[0]?.master_unit ?? unit_no);
     }
 
-    // 1. Find or create the lowest planned lot
+    // 3. All lines must resolve to the same master unit
+    if (effectiveMasterUnits.size > 1) {
+      return res.status(409).json({
+        ok: false,
+        error: "Selected lines span multiple unit groups. Each group must be issued in a separate lot.",
+      });
+    }
+    const unitNo = [...effectiveMasterUnits][0];  // the master unit (or standalone unit)
+
+    // 4. Get all child units for this master unit (for line resolution)
+    const { childUnits } = await getEffectiveUnits(jobNo, unitNo);
+
+    // 5. Find or create the lowest planned lot
     const { rows: planned } = await pool.query(
       `SELECT id, lot_number FROM lots WHERE job_no=$1 AND unit_no=$2 AND issued_at IS NULL ORDER BY lot_number ASC LIMIT 1`,
       [jobNo, unitNo]
@@ -439,27 +484,27 @@ async function issueSelectedLines(req, res) {
       lotId = nl[0].id;
     }
 
-    // 2. Lines currently planned in this lot (before we change anything)
+    // 6. Lines currently planned in this lot (before we change anything)
     const { rows: existingLines } = await pool.query(
       `SELECT drawing_id FROM lot_lines WHERE lot_id=$1`, [lotId]
     );
     const plannedDrawingIds = new Set(existingLines.map(r => r.drawing_id));
 
-    // 3. Resolve selected lineNos → drawing IDs
+    // 7. Resolve selected lineNos → drawing IDs (within the child units of this master unit group)
     const selectedDrawingIds = [];
     for (const lineNo of lineNos) {
       const { rows: drw } = await pool.query(
-        `SELECT id FROM drawings WHERE job_no=$1 AND unit_no=$2 AND line_no=$3 LIMIT 1`,
-        [jobNo, unitNo, lineNo]
+        `SELECT id FROM drawings WHERE job_no=$1 AND unit_no=ANY($2) AND line_no=$3 LIMIT 1`,
+        [jobNo, childUnits, lineNo]
       );
       if (drw[0]) selectedDrawingIds.push(drw[0].id);
     }
     const selectedSet = new Set(selectedDrawingIds);
 
-    // 4. Carry-forward = lines that were planned but are NOT in the selection
+    // 8. Carry-forward = lines that were planned but are NOT in the selection
     const carryForwardIds = [...plannedDrawingIds].filter(id => !selectedSet.has(id));
 
-    // 5. Remove selected lines from any OTHER planned lots they may belong to
+    // 9. Remove selected lines from any OTHER planned lots in this master unit group
     for (const drawingId of selectedDrawingIds) {
       await pool.query(
         `DELETE FROM lot_lines WHERE drawing_id=$1 AND lot_id != $2
@@ -468,7 +513,7 @@ async function issueSelectedLines(req, res) {
       );
     }
 
-    // 6. Replace this lot's lines with exactly the selection, snapshotting current file path
+    // 10. Replace this lot's lines with exactly the selection, snapshotting current file path
     await pool.query(`DELETE FROM lot_lines WHERE lot_id=$1`, [lotId]);
     for (const drawingId of selectedDrawingIds) {
       const { rows: drw } = await pool.query(
@@ -483,7 +528,7 @@ async function issueSelectedLines(req, res) {
       );
     }
 
-    // 7. Issue the lot
+    // 11. Issue the lot
     await pool.query(`UPDATE lots SET issued_at=NOW() WHERE id=$1`, [lotId]);
 
     // S3D lock feed — attach the lot no to every line actually issued in it.
@@ -500,7 +545,7 @@ async function issueSelectedLines(req, res) {
       }
     }
 
-    // 8. Carry-forward lines → next planned lot (find existing or create)
+    // 12. Carry-forward lines → next planned lot (find existing or create)
     if (carryForwardIds.length > 0) {
       const { rows: nextPlanned } = await pool.query(
         `SELECT id FROM lots WHERE job_no=$1 AND unit_no=$2 AND issued_at IS NULL ORDER BY lot_number ASC LIMIT 1`,
@@ -528,7 +573,7 @@ async function issueSelectedLines(req, res) {
       }
     }
 
-    // 9. Clean up any empty planned lots
+    // 13. Clean up any empty planned lots
     await pool.query(
       `DELETE FROM lots WHERE job_no=$1 AND unit_no=$2 AND issued_at IS NULL
        AND id NOT IN (SELECT DISTINCT lot_id FROM lot_lines)`,
@@ -747,7 +792,8 @@ async function exportLot(req, res) {
 }
 
 // GET /api/lots/status?jobNo=X&unitNo=Y&lotNumber=N
-// Returns live status of every line in a planned lot — visible to all logged-in users.
+// unitNo may be the child unit of a master group — the query resolves via master_units
+// so badges that embed child unit still find the lot correctly.
 async function getLotStatus(req, res) {
   const { jobNo, unitNo, lotNumber } = req.query;
   if (!jobNo || !unitNo || !lotNumber)
@@ -757,9 +803,13 @@ async function getLotStatus(req, res) {
     const { rows: lotRows } = await pool.query(
       `SELECT id, lot_number, created_by, created_at
        FROM lots
-       WHERE job_no=$1 AND unit_no=$2 AND lot_number=$3 AND issued_at IS NULL
+       WHERE job_no=$1 AND lot_number=$2 AND issued_at IS NULL
+         AND (
+           unit_no = $3
+           OR unit_no IN (SELECT master_unit FROM master_units WHERE project_id=$1 AND child_unit=$3)
+         )
        LIMIT 1`,
-      [jobNo, unitNo, parseInt(lotNumber)]
+      [jobNo, parseInt(lotNumber), unitNo]
     );
     if (!lotRows[0])
       return res.status(404).json({ ok: false, error: 'Lot not found or already issued' });
@@ -814,4 +864,127 @@ async function getLotStatus(req, res) {
   }
 }
 
-module.exports = { createLot, getPlannedLots, issueLot, assignLinesToLot, removeLineFromLot, getLots, getLotLines, issueSelectedLines, exportLot, getLotStatus };
+// GET /api/lots/issued-jobs  — per-job summary scoped to session user's assigned projects
+async function getIssuedJobsSummary(req, res) {
+  try {
+    const userId = req.session.user.id;
+
+    // Step 1: resolve user's assigned job numbers
+    const { rows: jobRows } = await pool.query(
+      `SELECT DISTINCT project_id FROM user_role_assignments WHERE user_id = $1`,
+      [userId]
+    );
+    const assignedJobs = jobRows.map(r => r.project_id);
+    if (assignedJobs.length === 0) return res.json({ ok: true, jobs: [] });
+
+    // Step 2: lot + line counts per job (no inch join to avoid fan-out)
+    const { rows: lotRows } = await pool.query(
+      `SELECT
+         l.job_no,
+         COUNT(DISTINCT l.id)::int AS lot_count,
+         COUNT(ll.drawing_id)::int AS line_count,
+         MAX(l.issued_at)          AS last_issued_at
+       FROM lots l
+       LEFT JOIN lot_lines ll ON ll.lot_id = l.id
+       WHERE l.issued_at IS NOT NULL AND l.job_no = ANY($1)
+       GROUP BY l.job_no
+       ORDER BY l.job_no`,
+      [assignedJobs]
+    );
+
+    // Step 3: inch totals per job
+    const { rows: inchRows } = await pool.query(
+      `SELECT
+         l.job_no,
+         COALESCE(SUM(inch.inch_dia),   0) AS total_inch_dia,
+         COALESCE(SUM(inch.inch_meter), 0) AS total_inch_meter
+       FROM lots l
+       JOIN lot_lines ll ON ll.lot_id = l.id
+       JOIN drawings d   ON d.id = ll.drawing_id
+       LEFT JOIN inch_data inch
+         ON inch.job_no = d.job_no AND inch.unit_no = d.unit_no AND inch.line_no = d.line_no
+       WHERE l.issued_at IS NOT NULL AND l.job_no = ANY($1)
+       GROUP BY l.job_no`,
+      [assignedJobs]
+    );
+
+    const inchByJob = {};
+    for (const r of inchRows) {
+      inchByJob[r.job_no] = { dia: Number(r.total_inch_dia), mtr: Number(r.total_inch_meter) };
+    }
+
+    res.json({
+      ok: true,
+      jobs: lotRows.map(r => ({
+        jobNo:          r.job_no,
+        lotCount:       r.lot_count,
+        lineCount:      r.line_count,
+        totalInchDia:   (inchByJob[r.job_no] || {}).dia   || 0,
+        totalInchMeter: (inchByJob[r.job_no] || {}).mtr   || 0,
+        lastIssuedAt:   r.last_issued_at,
+      })),
+    });
+  } catch (err) {
+    console.error('getIssuedJobsSummary error:', err.message, err.stack);
+    res.status(500).json({ ok: false, error: err.message || 'Failed' });
+  }
+}
+
+// GET /api/lots/issued-by-job?jobNo=X  — issued lots for one job, newest first
+async function getIssuedLotsByJob(req, res) {
+  const { jobNo } = req.query;
+  if (!jobNo) return res.status(400).json({ ok: false, error: 'jobNo required' });
+  try {
+    // Line counts
+    const { rows: lotRows } = await pool.query(
+      `SELECT
+         l.id, l.lot_number, l.unit_no, l.issued_at,
+         COUNT(ll.drawing_id)::int AS line_count
+       FROM lots l
+       LEFT JOIN lot_lines ll ON ll.lot_id = l.id
+       WHERE l.job_no = $1 AND l.issued_at IS NOT NULL
+       GROUP BY l.id
+       ORDER BY l.lot_number DESC`,
+      [jobNo]
+    );
+
+    // Inch totals per lot
+    const { rows: inchRows } = await pool.query(
+      `SELECT
+         l.id AS lot_id,
+         COALESCE(SUM(inch.inch_dia),   0) AS inch_dia,
+         COALESCE(SUM(inch.inch_meter), 0) AS inch_meter
+       FROM lots l
+       JOIN lot_lines ll ON ll.lot_id = l.id
+       JOIN drawings d   ON d.id = ll.drawing_id
+       LEFT JOIN inch_data inch
+         ON inch.job_no = d.job_no AND inch.unit_no = d.unit_no AND inch.line_no = d.line_no
+       WHERE l.job_no = $1 AND l.issued_at IS NOT NULL
+       GROUP BY l.id`,
+      [jobNo]
+    );
+
+    const inchByLot = {};
+    for (const r of inchRows) {
+      inchByLot[r.lot_id] = { dia: Number(r.inch_dia), mtr: Number(r.inch_meter) };
+    }
+
+    res.json({
+      ok: true,
+      lots: lotRows.map(r => ({
+        id:        r.id,
+        lotNumber: r.lot_number,
+        unitNo:    r.unit_no,
+        issuedAt:  r.issued_at,
+        lineCount: r.line_count,
+        inchDia:   (inchByLot[r.id] || {}).dia || 0,
+        inchMeter: (inchByLot[r.id] || {}).mtr || 0,
+      })),
+    });
+  } catch (err) {
+    console.error('getIssuedLotsByJob error:', err.message, err.stack);
+    res.status(500).json({ ok: false, error: err.message || 'Failed' });
+  }
+}
+
+module.exports = { initLotTables, createLot, getPlannedLots, issueLot, assignLinesToLot, removeLineFromLot, getLots, getLotLines, issueSelectedLines, exportLot, getLotStatus, getIssuedJobsSummary, getIssuedLotsByJob };

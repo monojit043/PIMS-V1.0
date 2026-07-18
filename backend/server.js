@@ -26,6 +26,15 @@ async function start() {
     process.exit(1);
   }
 
+  // Run all DDL before accepting connections to avoid deadlocks with incoming requests
+  try {
+    const { initLotTables } = require("./controllers/lotController");
+    await initLotTables();
+    console.log("✅ Lot tables ready");
+  } catch (err) {
+    console.error("⚠️  initLotTables error (non-fatal):", err.message);
+  }
+
   // Start batch upload scheduler (reads BATCH_CRON_SCHEDULE from .env, defaults to 6 AM daily)
   require("./jobs/scheduler");
 

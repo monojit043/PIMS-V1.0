@@ -4,7 +4,7 @@
 // ─── Shared ────────────────────────────────────────────────────────────────
 
 function _fmtDate(d) {
-  return d ? new Date(d).toLocaleString() : '—';
+  return d ? new Date(d).toLocaleString('en-GB') : '—';
 }
 
 function _fileLink(path, label) {

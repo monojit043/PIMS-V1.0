@@ -54,13 +54,6 @@
           <span class="sb-name">PIMS</span>
           <span class="sb-sub">SGL Console</span>
         </div>
-        <button class="notif-bell" id="notifBell" title="Notifications">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-          </svg>
-          <span class="notif-badge" id="notifBadge" style="display:none">0</span>
-        </button>
         <button class="sb-collapse-btn" id="sbCollapseBtn" aria-label="Collapse sidebar">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M15 18l-6-6 6-6" />
@@ -77,7 +70,7 @@
           </svg>
         </div>
         <div class="sb-user-info">
-          <span class="sb-user-name" id="userInfo">—</span>
+          <span class="sb-user-name loggedUser">—</span>
           <span class="sb-user-role">Senior Group Leader</span>
         </div>
         <div class="sb-user-dot"></div>
@@ -115,6 +108,21 @@
           </button>
         </div>
 
+        <div class="nav-group">
+          <button class="nav-group-btn" onclick="scrollToSection('master-units-section')">
+            <span class="nav-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                <circle cx="9" cy="12" r="3"/>
+                <circle cx="18" cy="6" r="3"/>
+                <circle cx="18" cy="18" r="3"/>
+                <line x1="12" y1="12" x2="15" y2="7"/>
+                <line x1="12" y1="12" x2="15" y2="17"/>
+              </svg>
+            </span>
+            <span class="nav-label">Master Units</span>
+          </button>
+        </div>
+
         <div class="sb-section-label" style="margin-top:1rem;">System</div>
 
         <div class="nav-group">
@@ -132,30 +140,92 @@
       </nav>
 
       <!-- Footer -->
-      <div class="sb-footer">
-        <button class="sb-footer-btn sb-logout" onclick="doLogout()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-            <polyline points="16 17 21 12 16 7"/>
-            <line x1="21" y1="12" x2="9" y2="12"/>
-          </svg>
-          <span>Sign Out</span>
-        </button>
-      </div>
+      <div class="sb-footer"></div>
 
     </aside>
 
     <!-- ═══ MAIN AREA ═══ -->
     <div class="main-area">
 
-      <!-- Top command bar -->
-      <header class="command-bar">
-        <div class="cb-breadcrumb">
-          <span class="cb-crumb-root">PIMS</span>
-          <svg class="cb-crumb-sep" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M9 18l6-6-6-6"/>
+      <!-- Top bar -->
+      <header class="topbar">
+        <div class="topbar-search">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
           </svg>
-          <span class="cb-crumb-current">SGL Console</span>
+          <input type="text" class="search-input" id="globalSearch" placeholder="Search employees, projects…" autocomplete="off" />
+          <span class="search-kbd">⌘ K</span>
+        </div>
+
+        <div class="topbar-actions">
+          <button class="topbar-btn notif-trigger" id="notifBell" title="Notifications">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+            <span class="notif-badge" id="notifBadge" style="display:none">0</span>
+          </button>
+
+          <button class="topbar-btn" id="themeToggle" title="Toggle theme">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+          </button>
+
+          <a class="topbar-btn" href="https://forms.gle/UjGuMiht51UcDdPW7" target="_blank" title="Feedback">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+          </a>
+
+          <div class="tu-wrap" id="tuWrap">
+            <div class="topbar-user" id="tuBtn">
+              <div class="topbar-avatar">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                  <circle cx="12" cy="7" r="4"/>
+                </svg>
+              </div>
+              <div class="topbar-user-text">
+                <span class="topbar-user-name loggedUser">Loading…</span>
+                <span class="topbar-user-role">Senior Group Leader</span>
+              </div>
+              <svg class="topbar-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </div>
+
+            <div class="tu-dropdown" id="tuDropdown">
+              <div class="tu-dd-header">
+                <div class="tu-dd-avatar">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                  </svg>
+                </div>
+                <div class="tu-dd-info">
+                  <div class="tu-dd-name loggedUser">Loading…</div>
+                  <div class="tu-dd-role">Senior Group Leader</div>
+                </div>
+              </div>
+              <div class="tu-dd-sep"></div>
+              <button class="tu-dd-item" id="changePasswordBtn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                Change Password
+              </button>
+              <button class="tu-dd-item tu-dd-signout" id="tuSignOutBtn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                  <polyline points="16 17 21 12 16 7"/>
+                  <line x1="21" y1="12" x2="9" y2="12"/>
+                </svg>
+                Sign Out
+              </button>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -201,6 +271,7 @@
                     <th>Process Checker</th>
                     <th>Material Checker</th>
                     <th>Stress Checker</th>
+                    <th>ISO Manager</th>
                     <th>GL</th>
                     <th>SGL</th>
                   </tr>
@@ -258,6 +329,33 @@
           <div class="loading" id="remove-loading">Processing…</div>
         </div>
 
+        <!-- Master Units Section -->
+        <div id="master-units-section" class="content-section">
+          <h2 class="section-title">Master Unit Setup</h2>
+          <p style="margin:0 0 20px;color:var(--text-muted,#64748b);font-size:13px;line-height:1.6;">
+            Group child units under a master unit for shared lot-number sequences.
+            When a master unit is defined, lots for all child units in the group are
+            numbered together under the master unit. Units with no mapping remain standalone.
+          </p>
+          <div id="mu-alert" style="margin-bottom:12px;"></div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Project</label>
+              <select id="muProjectSelect" class="form-select">
+                <option value="">Select Project</option>
+              </select>
+            </div>
+            <div class="form-group form-group-btn">
+              <button id="muLoadBtn" class="btn btn-primary" onclick="loadMasterUnitsForProject()">Load Units</button>
+            </div>
+          </div>
+
+          <div id="muSetupArea" style="display:none;">
+            <div id="muGrid"></div>
+          </div>
+        </div>
+
       </div><!-- /content-area -->
     </div><!-- /main-area -->
   </div><!-- /shell -->
@@ -295,6 +393,32 @@
       <h3>&#10003; Success</h3>
       <p id="successMessage"></p>
       <button onclick="closeSuccessModal()">OK</button>
+    </div>
+  </div>
+
+  <!-- Change Password Modal -->
+  <div class="cpw-modal-bg" id="cpwModalBg">
+    <div class="cpw-modal">
+      <div class="cpw-modal-header">
+        <span>Change Password</span>
+        <button class="cpw-close" id="cpwClose">&#x2715;</button>
+      </div>
+      <form id="cpwForm" class="cpw-form">
+        <label>Current Password
+          <input type="password" id="cpwCurrent" placeholder="Enter current password" autocomplete="current-password" />
+        </label>
+        <label>New Password
+          <input type="password" id="cpwNew" placeholder="Enter new password" autocomplete="new-password" />
+        </label>
+        <label>Confirm New Password
+          <input type="password" id="cpwConfirm" placeholder="Confirm new password" autocomplete="new-password" />
+        </label>
+        <div class="cpw-msg" id="cpwMsg"></div>
+        <div class="cpw-actions">
+          <button type="button" class="cpw-cancel" id="cpwCancel">Cancel</button>
+          <button type="submit" class="cpw-submit">Update Password</button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -339,10 +463,92 @@
       overlay.classList.remove('visible');
     }
 
-    async function doLogout() {
-      await fetch('/api/logout', { method: 'POST' }).catch(() => {});
-      window.location.href = '/index.html';
-    }
+    // User dropdown + logout + change password
+    (function () {
+      async function doLogout() {
+        try { await fetch('/api/logout', { method: 'POST' }); } catch (_) {}
+        window.location.href = '/index.html';
+      }
+      document.getElementById('tuSignOutBtn')?.addEventListener('click', doLogout);
+      document.getElementById('sbSignOutBtn')?.addEventListener('click', doLogout);
+
+      // Dropdown toggle (position: fixed anchored to button)
+      const tuWrap = document.getElementById('tuWrap');
+      const tuBtn  = document.getElementById('tuBtn');
+      const tuDd   = document.getElementById('tuDropdown');
+      if (tuBtn && tuDd) {
+        tuBtn.addEventListener('click', function (e) {
+          e.stopPropagation();
+          const isOpen = tuWrap.classList.toggle('open');
+          tuDd.classList.toggle('open', isOpen);
+          if (isOpen) {
+            const rect = tuBtn.getBoundingClientRect();
+            tuDd.style.top   = (rect.bottom + 8) + 'px';
+            tuDd.style.right = (window.innerWidth - rect.right) + 'px';
+          }
+        });
+        document.addEventListener('click', function () {
+          tuWrap.classList.remove('open');
+          tuDd.classList.remove('open');
+        });
+        tuDd.addEventListener('click', function (e) { e.stopPropagation(); });
+      }
+
+      // Change Password modal
+      const cpwBg     = document.getElementById('cpwModalBg');
+      const cpwClose  = document.getElementById('cpwClose');
+      const cpwCancel = document.getElementById('cpwCancel');
+      const cpwForm   = document.getElementById('cpwForm');
+      const cpwMsg    = document.getElementById('cpwMsg');
+      const cpwBtn    = document.getElementById('changePasswordBtn');
+
+      function openCpw() {
+        tuDd?.classList.remove('open');
+        tuWrap?.classList.remove('open');
+        cpwForm.reset();
+        cpwMsg.textContent = ''; cpwMsg.className = 'cpw-msg';
+        cpwBg.classList.add('open');
+      }
+      function closeCpw() { cpwBg.classList.remove('open'); }
+
+      cpwBtn?.addEventListener('click', openCpw);
+      cpwClose?.addEventListener('click', closeCpw);
+      cpwCancel?.addEventListener('click', closeCpw);
+      cpwBg?.addEventListener('click', function (e) { if (e.target === cpwBg) closeCpw(); });
+
+      cpwForm?.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const cur  = document.getElementById('cpwCurrent').value.trim();
+        const nw   = document.getElementById('cpwNew').value;
+        const conf = document.getElementById('cpwConfirm').value;
+        cpwMsg.textContent = ''; cpwMsg.className = 'cpw-msg';
+        if (!cur || !nw || !conf) {
+          cpwMsg.textContent = 'All fields are required.'; cpwMsg.className = 'cpw-msg err'; return;
+        }
+        if (nw !== conf) {
+          cpwMsg.textContent = 'New passwords do not match.'; cpwMsg.className = 'cpw-msg err'; return;
+        }
+        if (nw.length < 6) {
+          cpwMsg.textContent = 'Password must be at least 6 characters.'; cpwMsg.className = 'cpw-msg err'; return;
+        }
+        try {
+          const r = await fetch('/api/change-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ currentPassword: cur, newPassword: nw }),
+          });
+          const d = await r.json();
+          if (d.ok) {
+            cpwMsg.textContent = 'Password updated successfully.'; cpwMsg.className = 'cpw-msg ok';
+            setTimeout(closeCpw, 1500);
+          } else {
+            cpwMsg.textContent = d.message || 'Failed to update password.'; cpwMsg.className = 'cpw-msg err';
+          }
+        } catch (_) {
+          cpwMsg.textContent = 'Network error. Please try again.'; cpwMsg.className = 'cpw-msg err';
+        }
+      });
+    })();
   </script>
   <script src="js/notifications.js"></script>
 </body>

@@ -846,8 +846,6 @@ async function submitModellerResubmit() {
 // Open checker view (PC, MC, SC)
 function openCheckerView(taskData, role) {
   console.log('Opening checker view for:', role, taskData);
-  console.log('🔍 DEBUG - openCheckerView - scTagType:', taskData?.scTagType);
-  console.log('🔍 DEBUG - openCheckerView - sentForSupporting:', taskData?.sentForSupporting);
   currentPerformanceTask = taskData;
 
 
@@ -889,26 +887,6 @@ function showCheckerPerformanceView() {
   // Setup event listeners for the new view
   setupCheckerViewEventListeners();
   setupClickableHeaderTbody();
-  // --- FIX: Disable "Send for Supporting" if already sent ---
-  // --- FIX: Disable Send for Supporting if already sent ---
-  console.log('👀 DEBUG - showCheckerPerformanceView - scTagType check:', currentPerformanceTask?.scTagType);
-  if (currentPerformanceTask && currentPerformanceTask.scTagType === "Sent for Supporting Check") {
-    console.log('👀 DEBUG - Inside FIX block - disabling checkbox and button');
-    const chk = document.getElementById('supporting-check');
-    const btn = document.getElementById('send-for-supporting-btn');
-
-    if (chk) {
-      chk.disabled = true;
-      chk.checked = true;
-    }
-    if (btn) {
-      btn.disabled = true;
-      btn.textContent = "Sent for Supporting";
-      btn.style.backgroundColor = "#6c757d";
-    }
-  }
-
-
 
   // Load history data
   loadTaskHistory();
@@ -1121,9 +1099,6 @@ function createCheckerViewHTML() {
       </div>
       ` : ''}
 
-      <!-- ── Supporting Check ── -->
-      ${generateSupportingCheckSection(claimedRoles)}
-
       <!-- ── History + Comments (side by side) ── -->
       <div style="display:grid;grid-template-columns:1fr 340px;gap:14px;align-items:start;">
 
@@ -1204,47 +1179,6 @@ function createCheckerViewHTML() {
 
     </div>
   `;
-}
-
-function generateSupportingCheckSection(claimedRoles) {
-  // Show supporting check section ONLY if PC is claimed but SC is NOT claimed
-  // AND the user has not claimed both PC and SC together
-  const hasPC = claimedRoles.includes('PC');
-  const hasMC = claimedRoles.includes('MC');
-  const hasSC = claimedRoles.includes('SC');
-
-  // NEW RULE: Only show for PC holders who haven't claimed SC
-  // Don't show if:
-  // 1. Only MC is claimed (no PC)
-  // 2. Both PC and SC are claimed together
-  // 3. No PC is claimed at all
-  if (hasPC && !hasSC) {
-    // Check if already sent for supporting
-    const alreadySent = currentPerformanceTask &&
-      currentPerformanceTask.scTagType === "Sent for Supporting Check";
-
-    console.log('🔧 DEBUG - generateSupportingCheckSection called');
-    console.log('🔧 DEBUG - currentPerformanceTask:', currentPerformanceTask);
-    console.log('🔧 DEBUG - scTagType:', currentPerformanceTask?.scTagType);
-    console.log('🔧 DEBUG - sentForSupporting:', currentPerformanceTask?.sentForSupporting);
-    console.log('🔧 DEBUG - alreadySent:', alreadySent);
-
-    const checkboxAttr = alreadySent ? 'checked disabled' : '';
-    const buttonAttr = alreadySent ? 'disabled' : 'disabled';
-    const buttonText = alreadySent ? 'Sent for Supporting' : 'Send for Supporting Check';
-    const buttonStyle = alreadySent ? 'background-color: #6c757d;' : '';
-
-    return `
-            <div class="supporting-check-section" style="width: 100%; margin-bottom: 20px; padding: 15px; background-color: #e7f3ff; border-radius: 6px; border: 1px solid #b3d7ff; display: flex; align-items: center; gap: 15px;">
-                <label class="supporting-check-label" style="display: flex; align-items: center; gap: 8px; font-weight: bold; color: #0056b3;">
-                    <input type="checkbox" id="supporting-check" ${checkboxAttr}>
-                    ISO is good for supporting
-                </label>
-                <button id="send-for-supporting-btn" class="action-btn" ${buttonAttr} style="${buttonStyle}">${buttonText}</button>
-            </div>
-        `;
-  }
-  return '';
 }
 
 
@@ -1347,18 +1281,6 @@ function setupCheckerViewEventListeners() {
   commentTypeRadios.forEach((radio) => {
     radio.addEventListener("change", handleCommentTypeChange);
   });
-
-  // Supporting check checkbox
-  const supportingCheck = document.getElementById("supporting-check");
-  if (supportingCheck) {
-    supportingCheck.addEventListener("change", handleSupportingCheckChange);
-  }
-
-  // Send for supporting button
-  const sendSupportingBtn = document.getElementById("send-for-supporting-btn");
-  if (sendSupportingBtn) {
-    sendSupportingBtn.addEventListener("click", handleSendForSupporting);
-  }
 
   // Post comments button
   const postBtn = document.getElementById("post-comments-btn");
@@ -1517,53 +1439,6 @@ function handleCommentTypeChange(event) {
   }
 }
 
-function handleSupportingCheckChange(event) {
-  const sendBtn = document.getElementById("send-for-supporting-btn");
-  if (sendBtn) {
-    sendBtn.disabled = !event.target.checked;
-  }
-}
-
-async function handleSendForSupporting() {
-  try {
-    // Send notification to stress checkers
-    const response = await fetch("/api/send-for-supporting", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        jobNo: currentPerformanceTask.jobNo,
-        unitNo: currentPerformanceTask.unitNo,
-        lineNo: currentPerformanceTask.lineNo,
-      }),
-    });
-
-    const result = await response.json();
-    if (result.ok) {
-      alert("Sent for supporting check successfully");
-      // Disable the button and checkbox
-      document.getElementById("supporting-check").disabled = true;
-      document.getElementById("send-for-supporting-btn").disabled = true;
-      document.getElementById("send-for-supporting-btn").textContent = "Sent for Supporting";
-      document.getElementById("send-for-supporting-btn").style.backgroundColor = "#6c757d";
-      document.getElementById("supporting-check").checked = true;
-      // --- FIX: Remember this state so the checkbox stays disabled after refresh ---
-      if (currentPerformanceTask) {
-        currentPerformanceTask.scTagType = "Sent for Supporting Check";
-      }
-      console.log('✅ DEBUG - handleSendForSupporting - Updated currentPerformanceTask:', currentPerformanceTask);
-
-
-    } else {
-      alert("Failed to send for supporting check: " + result.error);
-    }
-  } catch (error) {
-    console.error("Error sending for supporting:", error);
-    alert("Error sending for supporting check");
-  }
-}
-
 async function handlePostComments() {
   const commentType = document.querySelector(
     'input[name="comment-type"]:checked'
@@ -1632,9 +1507,14 @@ async function handlePostComments() {
     }
   }
 
-  // Hold declaration — must complete before submit is sent to server
-  const holdData = await captureHoldDeclaration();
-  if (!holdData) return; // user cancelled
+  // Hold declaration only for "No Comments" — a minor hold flags a concern
+  // while letting the line proceed as if no comments were given. When a real
+  // comment is provided, it already communicates the concern.
+  let holdData = { holdType: null, holdDescription: null };
+  if (commentType.value === 'none') {
+    holdData = await captureHoldDeclaration();
+    if (!holdData) return;
+  }
   commentData.holdType        = holdData.holdType;
   commentData.holdDescription = holdData.holdDescription;
 
@@ -1958,7 +1838,7 @@ function formatDateTime(dateString) {
 
   try {
     const date = new Date(dateString);
-    return date.toLocaleString();
+    return date.toLocaleString('en-GB');
   } catch (error) {
     return dateString;
   }
@@ -2729,14 +2609,12 @@ async function handleGLPostComments() {
     isGL: true,
   };
 
-  // Hold declaration — captured once here; both the "none" callback path and
-  // the direct-submit path below pick it up from commentData.
-  const holdData = await captureHoldDeclaration();
-  if (!holdData) return;
-  commentData.holdType        = holdData.holdType;
-  commentData.holdDescription = holdData.holdDescription;
-
   if (commentType.value === "none") {
+    const holdData = await captureHoldDeclaration();
+    if (!holdData) return;
+    commentData.holdType        = holdData.holdType;
+    commentData.holdDescription = holdData.holdDescription;
+
     showNoCommentModal(async (finalApproval, sendToSGL) => {
       if (finalApproval) {
         commentData.commentType = "none_final"; // Final approval
@@ -3262,9 +3140,11 @@ async function handleSGLPostComments() {
     isSGL: true,
   };
 
-  // Hold declaration before any submit
-  const holdData = await captureHoldDeclaration();
-  if (!holdData) { postBtn.disabled = false; postBtn.textContent = origText; return; }
+  let holdData = { holdType: null, holdDescription: null };
+  if (commentType === 'none') {
+    holdData = await captureHoldDeclaration();
+    if (!holdData) { postBtn.disabled = false; postBtn.textContent = origText; return; }
+  }
   commentData.holdType        = holdData.holdType;
   commentData.holdDescription = holdData.holdDescription;
 
@@ -4430,18 +4310,22 @@ async function renderHoldsInline(lineNo, jobNo, unitNo, containerId) {
       const labelColor = cycle.isCurrent ? '#1e40af' : '#64748b';
       const labelBg    = cycle.isCurrent ? '#dbeafe'  : '#f1f5f9';
       const holds = cycle.holds.map(h => {
-        const tc = h.holdType === 'blocking' ? '#e53935' : '#f59e0b';
-        const tb = h.holdType === 'blocking' ? '#fef2f2' : '#fffbeb';
-        const removeBtn = h.canRemove
+        const isUnblocked = h.holdType === 'unblocked';
+        const tc = isUnblocked ? '#15803d' : (h.holdType === 'blocking' ? '#e53935' : '#f59e0b');
+        const tb = isUnblocked ? '#f0fdf4' : (h.holdType === 'blocking' ? '#fef2f2' : '#fffbeb');
+        const label = isUnblocked ? 'UNBLOCKED' : (h.holdType || '').toUpperCase();
+        const borderColor = isUnblocked ? '#bbf7d0' : '#e2e8f0';
+        // Remove button not applicable for unblock events or past-cycle holds
+        const removeBtn = (!isUnblocked && h.canRemove)
           ? `<button onclick="removeHoldEntry(${h.commentId},this)" style="padding:2px 8px;background:#fee2e2;color:#e53935;border:1px solid #fecaca;border-radius:4px;font-size:11px;font-weight:600;cursor:pointer;flex-shrink:0;">Remove</button>`
           : '';
-        return `<div style="padding:8px 10px;border:1px solid #e2e8f0;border-radius:5px;margin-bottom:6px;background:#fff;">
+        return `<div style="padding:8px 10px;border:1px solid ${borderColor};border-radius:5px;margin-bottom:6px;background:#fff;">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
             <div style="flex:1;">
               <div style="font-size:12px;font-weight:700;color:#334155;">${h.userName || h.userId}
-                <span style="font-weight:400;color:#64748b;">(${(h.roles||[]).join(', ')})</span></div>
+                <span style="font-weight:400;color:#64748b;">${(h.roles||[]).length ? '(' + h.roles.join(', ') + ')' : ''}</span></div>
               <div style="margin-top:3px;">
-                <span style="display:inline-block;padding:1px 7px;background:${tb};color:${tc};border-radius:9px;font-size:11px;font-weight:700;text-transform:uppercase;">${h.holdType}</span>
+                <span style="display:inline-block;padding:1px 7px;background:${tb};color:${tc};border-radius:9px;font-size:11px;font-weight:700;">${label}</span>
                 ${h.holdDescription ? `<span style="font-size:12px;color:#475569;margin-left:6px;">${h.holdDescription}</span>` : ''}
               </div>
               <div style="font-size:11px;color:#94a3b8;margin-top:2px;">${h.createdAt ? new Date(h.createdAt).toLocaleString() : ''}</div>

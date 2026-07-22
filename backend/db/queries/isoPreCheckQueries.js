@@ -1,6 +1,30 @@
 "use strict";
 const { pool } = require("../pool");
 
+// ── Special Items — checker-added, per-line ─────────────────────────────────
+// Self-migrating (same pattern as inch_data in inchController.js) rather than
+// living in iso_prechecks_schema.sql, which nothing actually runs — that file
+// caused a "relation does not exist" incident earlier because edits to it
+// never reach the live DB without a manual migrate.js run. This table heals
+// itself on every server start instead.
+//
+// "IPMCS" (a separate database on the same Postgres server, not yet built)
+// will eventually contribute a second source of special items per line —
+// this table only holds what checkers enter directly inside PIMS for now.
+pool.query(`
+  CREATE TABLE IF NOT EXISTS iso_special_items (
+    id          SERIAL PRIMARY KEY,
+    drawing_id  INTEGER NOT NULL REFERENCES drawings(id) ON DELETE CASCADE,
+    tag         VARCHAR(100),
+    description TEXT NOT NULL,
+    category    VARCHAR(100),
+    qty         NUMERIC,
+    added_by    VARCHAR(20),
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+  CREATE INDEX IF NOT EXISTS idx_iso_special_items_drawing ON iso_special_items(drawing_id);
+`).catch(console.error);
+
 // ── Read ──────────────────────────────────────────────────────────────────────
 
 async function getActiveSubmission(drawingId, revNo) {
@@ -185,6 +209,70 @@ async function upsertCheckResult(submissionId, checkCode, checkName, result, det
   );
 }
 
+// All BOM items for a submission — used by the "View All BOM Items" and
+// "View Items with Issues" buttons (as opposed to upsertCheckResult's
+// flagged_items, which is only the actionable subset).
+// filter: null/undefined for all items; "non_reportable" for items tagged
+// with the literal "Non-Reportable" item code S3D writes for BOM lines
+// deliberately excluded from procurement; "issues" for anything that isn't
+// a clean real item — real items missing tag/description, PLUS
+// Non-Reportable items (which always carry has_tag=false in storage, so
+// they fall out of this same condition without a separate OR clause).
+async function getBomItems(submissionId, filter) {
+  const conditions = ["submission_id = $1"];
+  if (filter === "non_reportable") {
+    conditions.push("item_code ILIKE 'non-reportable'");
+  } else if (filter === "issues") {
+    conditions.push("is_routing_ref = false AND (has_tag = false OR has_description = false)");
+  }
+
+  const { rows } = await pool.query(
+    `SELECT item_code, description, has_tag, has_description, is_routing_ref
+     FROM iso_bom_items
+     WHERE ${conditions.join(" AND ")}
+     ORDER BY id`,
+    [submissionId]
+  );
+  return rows;
+}
+
+// Resolve a drawing's id from job/unit/line — same lookup pattern used by
+// the GET /api/iso-prechecks route, duplicated here since special items are
+// keyed by drawing (the line), not by a specific pre-check submission/cycle.
+async function findDrawingId(jobNo, unitNo, lineNo) {
+  const { rows } = unitNo
+    ? await pool.query(
+        `SELECT id FROM drawings WHERE job_no=$1 AND unit_no=$2 AND line_no=$3 LIMIT 1`,
+        [jobNo, unitNo, lineNo]
+      )
+    : await pool.query(
+        `SELECT id FROM drawings WHERE job_no=$1 AND line_no=$2 LIMIT 1`,
+        [jobNo, lineNo]
+      );
+  return rows[0]?.id ?? null;
+}
+
+async function getSpecialItems(drawingId) {
+  const { rows } = await pool.query(
+    `SELECT id, tag, description, category, qty, added_by, created_at
+     FROM iso_special_items
+     WHERE drawing_id = $1
+     ORDER BY id`,
+    [drawingId]
+  );
+  return rows;
+}
+
+async function addSpecialItem({ drawingId, tag, description, category, qty, addedBy }) {
+  const { rows } = await pool.query(
+    `INSERT INTO iso_special_items (drawing_id, tag, description, category, qty, added_by)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     RETURNING id, tag, description, category, qty, added_by, created_at`,
+    [drawingId, tag || null, description, category || null, qty != null ? qty : null, addedBy || null]
+  );
+  return rows[0];
+}
+
 // Bulk insert BOM items extracted from the IDF -20/-21 block.
 // One call per submission; no ON CONFLICT needed (called once per cycle).
 async function bulkInsertBomItems(records) {
@@ -289,5 +377,9 @@ module.exports = {
   upsertCheckResult,
   bulkInsertWelds,
   bulkInsertBomItems,
+  getBomItems,
   insertPipeSchedule,
+  findDrawingId,
+  getSpecialItems,
+  addSpecialItem,
 };

@@ -586,6 +586,7 @@ async function _idfCheckBomData(submissionId, bomItems, nonReportableItems) {
       hasTag:      item.itemCode !== "",
       hasDesc:     item.description !== "",
       isRoutingRef: /^design pipe/i.test(item.description),
+      isNonReportable: /^non-reportable$/i.test(item.itemCode),
     })),
     ...nonReportableItems.map(item => ({
       itemCode:    item.itemCode,
@@ -593,6 +594,7 @@ async function _idfCheckBomData(submissionId, bomItems, nonReportableItems) {
       hasTag:      item.itemCode !== "" && !/^non-reportable$/i.test(item.itemCode),
       hasDesc:     item.description !== "",
       isRoutingRef: false,
+      isNonReportable: /^non-reportable$/i.test(item.itemCode),
     })),
   ];
 
@@ -603,16 +605,24 @@ async function _idfCheckBomData(submissionId, bomItems, nonReportableItems) {
     );
   }
 
-  const realItems    = allItems.filter(i => !i.isRoutingRef);
-  const flaggedItems = realItems.filter(i => !i.hasTag || !i.hasDesc);
+  const realItems = allItems.filter(i => !i.isRoutingRef);
   const routingCount = allItems.length - realItems.length;
+
+  // "Non-Reportable" is a tag S3D writes deliberately when a BOM line is
+  // intentionally excluded from procurement — it's expected to have no
+  // tag/description, so it's not an actionable data-entry gap. Keep it out
+  // of flaggedItems (which drives the inline table + modeller-action count);
+  // it's only reachable via the "View Non-Reportable Items" button.
+  const nonReportableTagged = realItems.filter(i => i.isNonReportable);
+  const actionableItems     = realItems.filter(i => !i.isNonReportable);
+  const flaggedItems        = actionableItems.filter(i => !i.hasTag || !i.hasDesc);
 
   let result, detail;
 
   if (allItems.length === 0) {
     result = "FAIL";
     detail = {
-      total_items: 0, real_items: 0, routing_refs: 0, flagged: 0,
+      total_items: 0, real_items: 0, routing_refs: 0, flagged: 0, non_reportable_count: 0,
       source: "IDF",
       note: "No BOM items found in IDF",
     };
@@ -623,10 +633,11 @@ async function _idfCheckBomData(submissionId, bomItems, nonReportableItems) {
       real_items:   0,
       routing_refs: routingCount,
       flagged:      0,
+      non_reportable_count: 0,
       source:       "IDF",
       note: "BOM contains only routing references — no procurement items found",
     };
-  } else if (flaggedItems.length > 0) {
+  } else if (flaggedItems.length > 0 || nonReportableTagged.length > 0) {
     result = "FLAG";
     detail = {
       total_items:   allItems.length,
@@ -640,7 +651,11 @@ async function _idfCheckBomData(submissionId, bomItems, nonReportableItems) {
              : !i.hasTag                 ? "missing_tag"
              :                             "missing_description",
       })),
+      non_reportable_count: nonReportableTagged.length,
       source: "IDF",
+      note: flaggedItems.length === 0
+        ? `${nonReportableTagged.length} Non-Reportable item(s) present — no modeller action required`
+        : undefined,
     };
   } else {
     result = "PASS";
@@ -649,6 +664,7 @@ async function _idfCheckBomData(submissionId, bomItems, nonReportableItems) {
       real_items:   realItems.length,
       routing_refs: routingCount,
       flagged:      0,
+      non_reportable_count: 0,
       source:       "IDF",
     };
   }

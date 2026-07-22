@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EIL Piping Division — Gateway</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=DM+Sans:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/gateway.css" />
+</head>
+<body>
+
+  <div class="bg-grid"></div>
+  <div class="bg-glow"></div>
+
+  <div class="layout" id="layout">
+
+    <!-- ══ SIDEBAR ═══════════════════════════════ -->
+    <aside class="sidebar" id="sidebar">
+
+      <div class="sb-logo">
+        <div class="logo-icon">
+          <svg width="24" height="24" viewBox="0 0 28 28" fill="none">
+            <rect x="2" y="2" width="10" height="10" rx="1" fill="var(--accent)"/>
+            <rect x="16" y="2" width="10" height="10" rx="1" fill="var(--accent)" opacity="0.5"/>
+            <rect x="2" y="16" width="10" height="10" rx="1" fill="var(--accent)" opacity="0.5"/>
+            <rect x="16" y="16" width="10" height="10" rx="1" fill="var(--accent)"/>
+          </svg>
+        </div>
+        <div class="logo-text">
+          <span class="logo-main">EIL</span>
+          <span class="logo-sub">Engineers India Limited</span>
+        </div>
+      </div>
+
+      <div class="sb-section">
+        <div class="sb-label">SYSTEMS</div>
+        <div class="sys-list">
+          <div class="sys-item" data-url="/user.html" data-name="PIMS" title="Launch PIMS">
+            <span class="sys-dot online"></span>
+            <span class="sys-code">PIMS</span>
+            <span class="sys-name">Piping Isometrics</span>
+            <span class="sys-tag live">LIVE</span>
+          </div>
+          <div class="sys-item" data-url="http://10.40.36.130:5500/login.html" data-name="MRCS" title="Launch MRCS">
+            <span class="sys-dot dev"></span>
+            <span class="sys-code">MRCS</span>
+            <span class="sys-name">Materials Reconciliation</span>
+            <span class="sys-tag dev">DEV</span>
+          </div>
+          <div class="sys-item" data-url="http://10.40.36.130:5500/login.html" data-name="SSMS" title="Launch SSMS">
+            <span class="sys-dot dev"></span>
+            <span class="sys-code">SSMS</span>
+            <span class="sys-name">Site Survey Mgmt</span>
+            <span class="sys-tag dev">DEV</span>
+          </div>
+          <div class="sys-item sys-item--add" title="Add another system">
+            <span class="sys-add-icon">+</span>
+            <span class="sys-name">Add Application</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="sb-section">
+        <div class="sb-label">NETWORK</div>
+        <div class="sb-info-row">
+          <span class="sb-info-key">SUBNET</span>
+          <span class="sb-info-val">10.40.36.x</span>
+        </div>
+        <div class="sb-info-row">
+          <span class="sb-info-key">PROTOCOL</span>
+          <span class="sb-info-val">HTTP / LAN</span>
+        </div>
+        <div class="sb-info-row">
+          <span class="sb-info-key">ACCESS</span>
+          <span class="sb-info-val">Internal Only</span>
+        </div>
+      </div>
+
+      <div class="sb-section">
+        <div class="sb-label">DIVISION</div>
+        <div class="sb-info-row">
+          <span class="sb-info-key">UNIT</span>
+          <span class="sb-info-val">EPC — Piping Eng.</span>
+        </div>
+        <div class="sb-info-row">
+          <span class="sb-info-key">PORTAL</span>
+          <span class="sb-info-val">v1.0</span>
+        </div>
+        <div class="sb-info-row">
+          <span class="sb-info-key">SYSTEMS</span>
+          <span class="sb-info-val" id="sysCount">3 Registered</span>
+        </div>
+      </div>
+
+      <div class="sb-section">
+        <div class="sb-label">SHORTCUTS</div>
+        <div class="shortcut-row">
+          <span class="kbd">1</span>
+          <span class="kbd">2</span>
+          <span class="kbd">3</span>
+          <span class="shortcut-desc">Quick launch app</span>
+        </div>
+        <div class="shortcut-row">
+          <span class="kbd">ESC</span>
+          <span class="shortcut-desc">Close overlay</span>
+        </div>
+      </div>
+
+      <div class="sb-foot">
+        <div class="sb-user-row">
+          <div class="sb-user-info">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style="color:var(--text-muted);flex-shrink:0;">
+              <circle cx="8" cy="5.5" r="3" stroke="currentColor" stroke-width="1.4"/>
+              <path d="M2 13.5c0-2.5 2.7-4 6-4s6 1.5 6 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+            </svg>
+            <span class="sb-username" id="sidebarUser">…</span>
+          </div>
+          <button class="logout-btn" id="logoutBtn" title="Sign out">
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+              <path d="M6 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3M11 11l3-3-3-3M14 8H6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>
+        <div class="sb-status">
+          <span class="status-dot"></span>
+          <span class="sb-status-text">SYSTEM ONLINE</span>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- Mobile sidebar backdrop -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+    <!-- ══ CONTENT ════════════════════════════════ -->
+    <div class="content">
+
+      <!-- Topbar -->
+      <header class="topbar">
+        <button class="icon-btn sidebar-toggle" id="sidebarToggle" title="Toggle sidebar">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </button>
+
+        <span class="portal-label">PIPING DIVISION — GATEWAY</span>
+
+        <div class="topbar-search" id="topbarSearch">
+          <svg class="search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <input type="text" id="globalSearchInput" placeholder="Search lines, line items, MDS documents…" autocomplete="off">
+          <div class="search-dropdown" id="searchDropdown">
+            <div class="search-cat">
+              <div class="search-cat-head">
+                <svg viewBox="0 0 16 16" fill="none"><path d="M2 8h12M2 4h8M2 12h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+                Lines
+              </div>
+              <div class="search-cat-empty">Not connected yet</div>
+            </div>
+            <div class="search-cat">
+              <div class="search-cat-head">
+                <svg viewBox="0 0 16 16" fill="none"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M5 6h6M5 8.5h6M5 11h3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+                Line Items
+              </div>
+              <div class="search-cat-empty">Not connected yet</div>
+            </div>
+            <div class="search-cat">
+              <div class="search-cat-head">
+                <svg viewBox="0 0 16 16" fill="none"><path d="M4 2h5l3 3v9H4V2z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M9 2v3h3" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+                MDS Documents
+              </div>
+              <div class="search-cat-empty">Not connected yet</div>
+            </div>
+            <div class="search-dropdown-foot">Global search — connected one data source at a time</div>
+          </div>
+        </div>
+
+        <div class="topbar-right">
+          <button class="icon-btn theme-toggle" id="themeToggle" title="Toggle light / dark">
+            <svg class="icon-moon" width="15" height="15" viewBox="0 0 16 16" fill="none">
+              <path d="M13.5 9.5A6 6 0 0 1 6.5 2.5a6 6 0 1 0 7 7z" fill="currentColor"/>
+            </svg>
+            <svg class="icon-sun" width="15" height="15" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.5"/>
+              <path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.42 1.42M11.18 11.18l1.42 1.42M3.4 12.6l1.42-1.42M11.18 4.82l1.42-1.42" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </button>
+          <div class="status-dot"></div>
+          <span class="status-text" id="clock">--:--:--</span>
+        </div>
+      </header>
+
+      <!-- Main -->
+      <main class="main">
+
+        <div class="hero-section">
+          <h1 class="hero-title">PROGRESS <span class="accent-word">SUMMARY</span></h1>
+          <p class="hero-sub">Project-wide KPIs — connected one at a time. Launch a system from the sidebar.</p>
+          <div class="hero-line"></div>
+        </div>
+
+        <!-- At-a-glance status strip — one chip per KPI card below, color-coded
+             against placeholder thresholds (see revealDemoData's STATUS_RULES
+             in gateway.js). Tune the thresholds once real targets are agreed;
+             this whole block can be deleted independently of the KPI cards. -->
+        <div class="status-strip" id="statusStrip">
+          <div class="status-chip" data-metric="iso-issued"><span class="status-chip-dot"></span><span class="status-chip-label">ISO Issued</span><span class="status-chip-value">—</span></div>
+          <div class="status-chip" data-metric="model-review"><span class="status-chip-dot"></span><span class="status-chip-label">Review Done</span><span class="status-chip-value">—</span></div>
+          <div class="status-chip" data-metric="line-modelling"><span class="status-chip-dot"></span><span class="status-chip-label">Modelled</span><span class="status-chip-value">—</span></div>
+          <div class="status-chip" data-metric="iso-worked"><span class="status-chip-dot"></span><span class="status-chip-label">ISO Worked</span><span class="status-chip-value">—</span></div>
+          <div class="status-chip" data-metric="ppms"><span class="status-chip-dot"></span><span class="status-chip-label">PPMS</span><span class="status-chip-value">—</span></div>
+          <div class="status-chip" data-metric="special-support"><span class="status-chip-dot"></span><span class="status-chip-label">Spec. Support</span><span class="status-chip-value">—</span></div>
+          <div class="status-chip" data-metric="gad"><span class="status-chip-dot"></span><span class="status-chip-label">GAD</span><span class="status-chip-value">—</span></div>
+          <div class="status-chip" data-metric="nozzle"><span class="status-chip-dot"></span><span class="status-chip-label">Nozzle Orient.</span><span class="status-chip-value">—</span></div>
+          <div class="status-chip" data-metric="clip-drawings"><span class="status-chip-dot"></span><span class="status-chip-label">Clip Drawings</span><span class="status-chip-value">—</span></div>
+          <div class="status-chip" data-metric="mds"><span class="status-chip-dot"></span><span class="status-chip-label">MDS</span><span class="status-chip-value">—</span></div>
+          <div class="status-chip" data-metric="vendor-drawings"><span class="status-chip-dot"></span><span class="status-chip-label">Vendor Dwgs</span><span class="status-chip-value">—</span></div>
+          <div class="status-chip" data-metric="mr-released"><span class="status-chip-dot"></span><span class="status-chip-label">MR Released</span><span class="status-chip-value">—</span></div>
+          <div class="status-chip" data-metric="dept-hold"><span class="status-chip-dot"></span><span class="status-chip-label">Dept. Holds</span><span class="status-chip-value">—</span></div>
+        </div>
+
+        <div class="kpi-mosaic">
+
+          <!-- ISO Issued / Total ISO — revision-wise bar chart -->
+          <div class="kpi-tile kpi-tile--bars span-4" id="kpi-iso-issued">
+            <div class="kpi-tile-head">
+              <span class="kpi-tile-label">ISO Issued / Total ISO</span>
+              <span class="kpi-tile-badge">REV-WISE</span>
+            </div>
+            <div class="kpi-barchart">
+              <div class="bar-col"><div class="bar pulse" style="height:34%"></div><span class="bar-col-label">Rev 0</span></div>
+              <div class="bar-col"><div class="bar pulse" style="height:50%"></div><span class="bar-col-label">Rev 1</span></div>
+              <div class="bar-col"><div class="bar pulse" style="height:40%"></div><span class="bar-col-label">Rev 2</span></div>
+              <div class="bar-col"><div class="bar pulse" style="height:26%"></div><span class="bar-col-label">Rev 3</span></div>
+              <div class="bar-col"><div class="bar pulse" style="height:18%"></div><span class="bar-col-label">Rev 4+</span></div>
+            </div>
+            <span class="kpi-caption" id="kpi-iso-issued-caption">Awaiting data feed…</span>
+          </div>
+
+          <!-- Model Review Status — milestone timeline (done / planned / to-plan) -->
+          <div class="kpi-tile kpi-tile--milestones span-4" id="kpi-model-review">
+            <div class="kpi-tile-head">
+              <span class="kpi-tile-label">Model Review Status</span>
+              <span class="kpi-tile-badge">13 STATES</span>
+            </div>
+            <div class="kpi-milestones">
+              <div class="kpi-milestone-bar">
+                <div class="kpi-milestone-seg done"></div>
+                <div class="kpi-milestone-seg planned"></div>
+                <div class="kpi-milestone-seg unplanned"></div>
+              </div>
+              <div class="kpi-milestone-row">
+                <span class="kpi-milestone-dot done"></span>
+                <div class="kpi-milestone-text">
+                  <span class="kpi-milestone-label"><span class="kpi-milestone-pct" id="kpi-mr-done-pct">—</span> Review done</span>
+                  <span class="kpi-milestone-dates" id="kpi-mr-done-dates">Awaiting data feed…</span>
+                </div>
+              </div>
+              <div class="kpi-milestone-row">
+                <span class="kpi-milestone-dot planned"></span>
+                <div class="kpi-milestone-text">
+                  <span class="kpi-milestone-label"><span class="kpi-milestone-pct" id="kpi-mr-planned-pct">—</span> Planned</span>
+                  <span class="kpi-milestone-dates" id="kpi-mr-planned-dates">Awaiting data feed…</span>
+                </div>
+              </div>
+              <div class="kpi-milestone-row">
+                <span class="kpi-milestone-dot unplanned"></span>
+                <div class="kpi-milestone-text">
+                  <span class="kpi-milestone-label"><span class="kpi-milestone-pct" id="kpi-mr-unplanned-pct">—</span> Still to be planned</span>
+                  <span class="kpi-milestone-dates" id="kpi-mr-unplanned-dates">Awaiting data feed…</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Line Modelling Status — bar chart by size range -->
+          <div class="kpi-tile kpi-tile--bars span-4" id="kpi-line-modelling">
+            <div class="kpi-tile-head">
+              <span class="kpi-tile-label">Line Modelling Status</span>
+              <span class="kpi-tile-badge">SIZE-WISE</span>
+            </div>
+            <div class="kpi-modelled-summary">
+              <span class="kpi-modelled-frac" id="kpi-lm-fraction">—</span>
+              <span class="kpi-modelled-sub">lines modelled</span>
+            </div>
+            <div class="kpi-bar-legend">
+              <span><i class="dot modelled"></i>Modelled</span>
+              <span><i class="dot remaining"></i>Remaining</span>
+            </div>
+            <div class="kpi-barchart">
+              <div class="bar-col">
+                <div class="bar-stack" style="height:38%">
+                  <div class="bar-remaining" style="height:0%"></div>
+                  <div class="bar-modelled pulse" style="height:100%"></div>
+                </div>
+                <span class="bar-col-label">&le;1.5&Prime;</span>
+              </div>
+              <div class="bar-col">
+                <div class="bar-stack" style="height:62%">
+                  <div class="bar-remaining" style="height:0%"></div>
+                  <div class="bar-modelled pulse" style="height:100%"></div>
+                </div>
+                <span class="bar-col-label">2&Prime;-6&Prime;</span>
+              </div>
+              <div class="bar-col">
+                <div class="bar-stack" style="height:44%">
+                  <div class="bar-remaining" style="height:0%"></div>
+                  <div class="bar-modelled pulse" style="height:100%"></div>
+                </div>
+                <span class="bar-col-label">8&Prime;-12&Prime;</span>
+              </div>
+              <div class="bar-col">
+                <div class="bar-stack" style="height:28%">
+                  <div class="bar-remaining" style="height:0%"></div>
+                  <div class="bar-modelled pulse" style="height:100%"></div>
+                </div>
+                <span class="bar-col-label">&ge;14&Prime;</span>
+              </div>
+            </div>
+            <span class="kpi-caption" id="kpi-line-modelling-caption">Awaiting data feed…</span>
+          </div>
+
+          <!-- ISO Worked On — weekly issued bars + cumulative achievement curve -->
+          <div class="kpi-tile kpi-tile--combo span-8" id="kpi-iso-worked">
+            <div class="kpi-tile-head">
+              <span class="kpi-tile-label">ISO Worked On</span>
+              <span class="kpi-tile-badge">TIMELINE</span>
+            </div>
+            <div class="kpi-combo-legend">
+              <span><i class="dot bars"></i>Weekly issued</span>
+              <span><i class="dot line"></i>Cumulative</span>
+            </div>
+            <div class="kpi-combo-chart">
+              <svg viewBox="0 0 460 150" preserveAspectRatio="none">
+                <g class="kpi-trend-grid">
+                  <line x1="0" y1="20" x2="460" y2="20"/>
+                  <line x1="0" y1="80" x2="460" y2="80"/>
+                  <line x1="0" y1="140" x2="460" y2="140"/>
+                </g>
+                <g id="kpi-iso-bars">
+                  <rect class="combo-bar pulse" x="11"  y="140" width="36" height="0"/>
+                  <rect class="combo-bar pulse" x="68"  y="140" width="36" height="0"/>
+                  <rect class="combo-bar pulse" x="126" y="140" width="36" height="0"/>
+                  <rect class="combo-bar pulse" x="183" y="140" width="36" height="0"/>
+                  <rect class="combo-bar pulse" x="241" y="140" width="36" height="0"/>
+                  <rect class="combo-bar pulse" x="298" y="140" width="36" height="0"/>
+                  <rect class="combo-bar pulse" x="356" y="140" width="36" height="0"/>
+                  <rect class="combo-bar pulse" x="413" y="140" width="36" height="0"/>
+                </g>
+                <g id="kpi-iso-bar-values"></g>
+                <polyline class="kpi-combo-line-track" points=""/>
+                <polyline class="kpi-combo-line-sweep" id="kpi-iso-cum-line" points=""/>
+                <g id="kpi-iso-cum-dots"></g>
+              </svg>
+              <div class="kpi-combo-labels">
+                <span>W1</span><span>W2</span><span>W3</span><span>W4</span>
+                <span>W5</span><span>W6</span><span>W7</span><span>W8</span>
+              </div>
+            </div>
+            <span class="kpi-caption" id="kpi-iso-worked-caption">Weekly ISO throughput · awaiting data feed…</span>
+          </div>
+
+          <!-- Progress from PPMS — gauge -->
+          <div class="kpi-tile kpi-tile--gauge-sm span-4" id="kpi-ppms-progress">
+            <div class="kpi-tile-head">
+              <span class="kpi-tile-label">Progress from PPMS</span>
+              <span class="kpi-tile-badge">EXTERNAL</span>
+            </div>
+            <div class="kpi-gauge-wrap sm">
+              <svg viewBox="0 0 100 100">
+                <circle class="kpi-ring-track" cx="50" cy="50" r="38" stroke-width="9"/>
+                <circle class="kpi-ring-sweep"  cx="50" cy="50" r="38" stroke-width="9" stroke-dasharray="22 216"/>
+              </svg>
+              <div class="kpi-gauge-value sm">—<small>completed</small></div>
+            </div>
+            <span class="kpi-caption" id="kpi-ppms-caption">Awaiting data feed…</span>
+          </div>
+
+          <!-- Small status gauges — flex row, so adding/removing cards never fights the 12-col grid math -->
+          <div class="kpi-row span-12">
+
+            <!-- Special Support Drawings Issued -->
+            <div class="kpi-tile kpi-tile--gauge-sm" id="kpi-special-support">
+              <div class="kpi-tile-head"><span class="kpi-tile-label">Special Support Drawings</span></div>
+              <div class="kpi-gauge-wrap sm">
+                <svg viewBox="0 0 100 100">
+                  <circle class="kpi-ring-track" cx="50" cy="50" r="36" stroke-width="8"/>
+                  <circle class="kpi-ring-sweep"  cx="50" cy="50" r="36" stroke-width="8" stroke-dasharray="20 206"/>
+                </svg>
+                <div class="kpi-gauge-value sm">—<small>issued</small></div>
+              </div>
+              <span class="kpi-caption" id="kpi-special-support-caption">Awaiting data feed…</span>
+            </div>
+
+            <!-- GAD Status -->
+            <div class="kpi-tile kpi-tile--gauge-sm" id="kpi-gad">
+              <div class="kpi-tile-head"><span class="kpi-tile-label">GAD Status</span></div>
+              <div class="kpi-gauge-wrap sm">
+                <svg viewBox="0 0 100 100">
+                  <circle class="kpi-ring-track" cx="50" cy="50" r="36" stroke-width="8"/>
+                  <circle class="kpi-ring-sweep"  cx="50" cy="50" r="36" stroke-width="8" stroke-dasharray="20 206"/>
+                </svg>
+                <div class="kpi-gauge-value sm">—<small>issued</small></div>
+              </div>
+              <span class="kpi-caption" id="kpi-gad-caption">Awaiting data feed…</span>
+            </div>
+
+            <!-- Nozzle Orientation Status -->
+            <div class="kpi-tile kpi-tile--gauge-sm" id="kpi-nozzle">
+              <div class="kpi-tile-head"><span class="kpi-tile-label">Nozzle Orientation Status</span></div>
+              <div class="kpi-gauge-wrap sm">
+                <svg viewBox="0 0 100 100">
+                  <circle class="kpi-ring-track" cx="50" cy="50" r="36" stroke-width="8"/>
+                  <circle class="kpi-ring-sweep"  cx="50" cy="50" r="36" stroke-width="8" stroke-dasharray="20 206"/>
+                </svg>
+                <div class="kpi-gauge-value sm">—<small>issued</small></div>
+              </div>
+              <span class="kpi-caption" id="kpi-nozzle-caption">Awaiting data feed…</span>
+            </div>
+
+            <!-- Clip Drawings Status -->
+            <div class="kpi-tile kpi-tile--gauge-sm" id="kpi-clip-drawings">
+              <div class="kpi-tile-head"><span class="kpi-tile-label">Clip Drawings Status</span></div>
+              <div class="kpi-gauge-wrap sm">
+                <svg viewBox="0 0 100 100">
+                  <circle class="kpi-ring-track" cx="50" cy="50" r="36" stroke-width="8"/>
+                  <circle class="kpi-ring-sweep"  cx="50" cy="50" r="36" stroke-width="8" stroke-dasharray="20 206"/>
+                </svg>
+                <div class="kpi-gauge-value sm">—</div>
+              </div>
+              <span class="kpi-caption" id="kpi-clip-drawings-caption">Awaiting data feed…</span>
+            </div>
+
+            <!-- MDS Availability -->
+            <div class="kpi-tile kpi-tile--gauge-sm" id="kpi-mds-availability">
+              <div class="kpi-tile-head"><span class="kpi-tile-label">MDS Availability</span></div>
+              <div class="kpi-gauge-wrap sm">
+                <svg viewBox="0 0 100 100">
+                  <circle class="kpi-ring-track" cx="50" cy="50" r="36" stroke-width="8"/>
+                  <circle class="kpi-ring-sweep"  cx="50" cy="50" r="36" stroke-width="8" stroke-dasharray="20 206"/>
+                </svg>
+                <div class="kpi-gauge-value sm">—</div>
+              </div>
+              <span class="kpi-caption" id="kpi-mds-availability-caption">Awaiting data feed…</span>
+            </div>
+
+            <!-- Vendor Drawings Availability -->
+            <div class="kpi-tile kpi-tile--gauge-sm" id="kpi-vendor-drawings">
+              <div class="kpi-tile-head"><span class="kpi-tile-label">Vendor Drawings Availability</span></div>
+              <div class="kpi-gauge-wrap sm">
+                <svg viewBox="0 0 100 100">
+                  <circle class="kpi-ring-track" cx="50" cy="50" r="36" stroke-width="8"/>
+                  <circle class="kpi-ring-sweep"  cx="50" cy="50" r="36" stroke-width="8" stroke-dasharray="20 206"/>
+                </svg>
+                <div class="kpi-gauge-value sm">—</div>
+              </div>
+              <span class="kpi-caption" id="kpi-vendor-drawings-caption">Awaiting data feed…</span>
+            </div>
+
+            <!-- MR Released -->
+            <div class="kpi-tile kpi-tile--gauge-sm" id="kpi-mr-released">
+              <div class="kpi-tile-head"><span class="kpi-tile-label">MR Released</span></div>
+              <div class="kpi-gauge-wrap sm">
+                <svg viewBox="0 0 100 100">
+                  <circle class="kpi-ring-track" cx="50" cy="50" r="36" stroke-width="8"/>
+                  <circle class="kpi-ring-sweep"  cx="50" cy="50" r="36" stroke-width="8" stroke-dasharray="20 206"/>
+                </svg>
+                <div class="kpi-gauge-value sm">—<small>released</small></div>
+              </div>
+              <span class="kpi-caption" id="kpi-mr-released-caption">Awaiting data feed…</span>
+            </div>
+
+          </div>
+
+          <!-- Other Departments Hold — wide horizontal skeleton bars -->
+          <div class="kpi-tile kpi-tile--hbars span-12" id="kpi-dept-hold">
+            <div class="kpi-tile-head">
+              <span class="kpi-tile-label">Other Departments Hold</span>
+              <span class="kpi-tile-badge">AWAITING FIELD</span>
+            </div>
+            <div class="kpi-hbars">
+              <div class="kpi-hbar-row"><div class="kpi-hbar-track"><div class="kpi-hbar-fill"></div></div></div>
+              <div class="kpi-hbar-row"><div class="kpi-hbar-track"><div class="kpi-hbar-fill"></div></div></div>
+              <div class="kpi-hbar-row"><div class="kpi-hbar-track"><div class="kpi-hbar-fill"></div></div></div>
+              <div class="kpi-hbar-row"><div class="kpi-hbar-track"><div class="kpi-hbar-fill"></div></div></div>
+            </div>
+            <span class="kpi-caption" id="kpi-dept-hold-caption">Awaiting data feed…</span>
+          </div>
+
+        </div>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- Launch overlay -->
+  <div class="launch-overlay" id="launchOverlay">
+    <div class="launch-modal">
+      <div class="launch-spinner"></div>
+      <p class="launch-msg" id="launchMsg">Connecting…</p>
+    </div>
+  </div>
+
+  <script src="js/gateway.js"></script>
+</body>
+</html>

@@ -850,6 +850,9 @@
             </div>
           </div>
 
+          <!-- ISO Pre-Checks panel — populated by loadCrpIsoPreChecks() on panel open -->
+          <div id="glrp-iso-precheck-panel" style="margin-bottom:1rem;"></div>
+
           <!-- Blocking Hold — independent of Approve / Send to SGL / comment, always available -->
           <div style="display:flex;justify-content:flex-end;margin-bottom:0.6rem;">
             <button type="button" onclick="glrpDeclareBlockingHold()"
@@ -989,6 +992,9 @@
               </div>
             </div>
           </div>
+
+          <!-- ISO Pre-Checks panel — populated by loadCrpIsoPreChecks() on panel open -->
+          <div id="sglrp-iso-precheck-panel" style="margin-bottom:1rem;"></div>
 
           <!-- Blocking Hold — independent of Approve / comment, always available -->
           <div style="display:flex;justify-content:flex-end;margin-bottom:0.6rem;">
@@ -2899,6 +2905,10 @@
         .catch(function() {
           histBody.innerHTML = '<tr><td colspan="5" class="no-data">Failed to load history</td></tr>';
         });
+
+      // Load ISO pre-check results (fire-and-forget, never throws) — GL has
+      // its own panel container, separate from the Checker one
+      if (typeof loadCrpIsoPreChecks === 'function') loadCrpIsoPreChecks(task, 'glrp-iso-precheck-panel');
     }
 
     function closeGLReviewPanel() {
@@ -3176,6 +3186,10 @@
           }
         })
         .catch(function() { histBody.innerHTML = '<tr><td colspan="5" class="no-data">Failed to load</td></tr>'; });
+
+      // Load ISO pre-check results (fire-and-forget, never throws) — SGL has
+      // its own panel container, separate from the Checker/GL ones
+      if (typeof loadCrpIsoPreChecks === 'function') loadCrpIsoPreChecks(task, 'sglrp-iso-precheck-panel');
     }
 
     function closeSGLReviewPanel() {
@@ -5366,21 +5380,76 @@
         '.crp-ipc-cycle{font-size:11.5px;color:#64748b;font-weight:500;}',
         '.crp-ipc-sts{font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:5px;letter-spacing:.04em;}',
         '.crp-ipc-welds{font-size:11.5px;color:#64748b;margin-left:auto;}',
-        '.crp-ipc-row{display:flex;align-items:flex-start;gap:10px;padding:9px 16px;border-bottom:1px solid #f1f5f9;}',
+        '.crp-ipc-summary{display:flex;gap:8px;padding:9px 16px;background:#fafbfc;border-bottom:1px solid #f1f5f9;flex-wrap:wrap;}',
+        '.crp-ipc-sum-chip{font-size:11px;font-weight:700;padding:3px 10px;border-radius:100px;}',
+        '.crp-ipc-row{display:flex;align-items:flex-start;gap:10px;padding:10px 16px;border-bottom:1px solid #f1f5f9;border-left:3px solid transparent;transition:background .12s;}',
         '.crp-ipc-row:last-child{border-bottom:none;}',
-        '.crp-ipc-badge{flex-shrink:0;font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:5px;min-width:50px;text-align:center;letter-spacing:.04em;margin-top:1px;}',
+        '.crp-ipc-row:hover{background:#fafbfc;}',
+        '.crp-ipc-row--collapsed{padding:6px 16px;align-items:center;}',
+        '.crp-ipc-icon{flex-shrink:0;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-top:1px;}',
+        '.crp-ipc-icon svg{width:12px;height:12px;}',
+        '.crp-ipc-row--collapsed .crp-ipc-icon{width:16px;height:16px;margin-top:0;}',
+        '.crp-ipc-row--collapsed .crp-ipc-icon svg{width:9px;height:9px;}',
         '.crp-ipc-info{flex:1;min-width:0;}',
+        '.crp-ipc-info--inline{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;}',
+        '.crp-ipc-name-row{display:flex;align-items:center;gap:8px;}',
         '.crp-ipc-name{font-size:12.5px;font-weight:600;color:#1e293b;}',
+        '.crp-ipc-status-label{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;}',
         '.crp-ipc-detail{margin-top:3px;}',
+        '.crp-ipc-detail-inline{font-size:11.5px;color:#64748b;}',
+        '.crp-ipc-row--clickable{cursor:pointer;}',
         '.crp-ipc-msg{padding:12px 16px;font-size:12.5px;color:#94a3b8;}',
         '.crp-ipc-err{padding:12px 16px;font-size:12.5px;color:#dc2626;}',
+        '.crp-ipc-columns{display:flex;flex-wrap:wrap;}',
+        '.crp-ipc-col{flex:1 1 280px;min-width:280px;display:flex;flex-direction:column;}',
+        '.crp-ipc-col-left{border-right:1px solid #e2e8f0;}',
+        '.crp-ipc-col-header{padding:7px 16px;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;background:#fafbfc;border-bottom:1px solid #f1f5f9;}',
+        '.crp-bom-btn-row{margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;}',
+        '.crp-bom-view-btn{font-size:11px;font-weight:600;color:#2563eb;background:#eff6ff;border:1px solid #bfdbfe;padding:3px 10px;border-radius:6px;cursor:pointer;}',
+        '.crp-bom-view-btn:hover{background:#dbeafe;}',
+        '.crp-bom-view-btn--muted{color:#475569;background:#f1f5f9;border-color:#e2e8f0;}',
+        '.crp-bom-view-btn--muted:hover{background:#e2e8f0;}',
+        '.crp-bom-modal-bg{display:none;position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:2000;align-items:center;justify-content:center;}',
+        '.crp-bom-modal-bg.open{display:flex;}',
+        '.crp-bom-modal{background:#fff;border-radius:12px;width:600px;max-width:92vw;max-height:80vh;box-shadow:0 20px 60px rgba(0,0,0,.25);overflow:hidden;display:flex;flex-direction:column;}',
+        '.crp-bom-modal-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid #e2e8f0;font-size:13.5px;font-weight:700;color:#1e293b;flex-shrink:0;}',
+        '.crp-bom-modal-close{background:none;border:none;cursor:pointer;font-size:16px;color:#94a3b8;line-height:1;padding:4px 6px;border-radius:6px;}',
+        '.crp-bom-modal-close:hover{background:#f1f5f9;color:#1e293b;}',
+        '.crp-bom-modal-body{overflow:auto;flex:1;min-height:0;}',
+        '.crp-si-section{padding:14px 18px;border-bottom:1px solid #f1f5f9;}',
+        '.crp-si-section:last-child{border-bottom:none;}',
+        '.crp-si-section-title{font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;}',
+        '.crp-si-ipcms-note{font-size:12px;color:#94a3b8;font-style:italic;}',
+        '.crp-si-table{width:100%;border-collapse:collapse;font-size:12.5px;}',
+        '.crp-si-table th{padding:6px 8px;text-align:left;color:#475569;font-size:11px;border-bottom:1px solid #e2e8f0;}',
+        '.crp-si-table td{padding:6px 8px;border-bottom:1px solid #f1f5f9;}',
+        '.crp-si-form{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;}',
+        '.crp-si-form label{display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:500;color:#475569;}',
+        '.crp-si-form label.crp-si-full{grid-column:1 / -1;}',
+        '.crp-si-form input{padding:7px 10px;border:1px solid #e2e8f0;border-radius:6px;font-family:inherit;font-size:12.5px;color:#1e293b;outline:none;}',
+        '.crp-si-form input:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.12);}',
+        '.crp-si-add-btn{grid-column:1 / -1;justify-self:start;margin-top:2px;padding:7px 16px;border-radius:8px;border:none;background:#2563eb;color:#fff;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer;}',
+        '.crp-si-add-btn:hover{background:#1d4ed8;}',
+        '.crp-si-msg{font-size:11.5px;min-height:14px;margin-top:6px;}',
+        '.crp-si-msg.ok{color:#059669;}',
+        '.crp-si-msg.err{color:#dc2626;}',
       ].join('');
       document.head.appendChild(_st);
     }
 
-    window.loadCrpIsoPreChecks = async function (task) {
-      var panel = document.getElementById('crp-iso-precheck-panel');
+    // Set by loadCrpIsoPreChecks, read by showSpecialItemsModal — special
+    // items are keyed by line (job/unit/line), not by a submission id, so
+    // the modal needs this even though it opens independently of the fetch
+    // that populated the rest of the panel.
+    var _currentTask = null;
+
+    // panelId defaults to the Checker review panel's container; GL's review
+    // panel (openGLReviewPanel) passes 'glrp-iso-precheck-panel' instead —
+    // it's a separate DOM tree from the Checker panel, not a shared one.
+    window.loadCrpIsoPreChecks = async function (task, panelId) {
+      var panel = document.getElementById(panelId || 'crp-iso-precheck-panel');
       if (!panel || !task) return;
+      _currentTask = task;
 
       panel.innerHTML = '<div class="crp-ipc-card"><div class="crp-ipc-msg">Loading pre-check results…</div></div>';
 
@@ -5449,13 +5518,84 @@
       } else if (!checks.length) {
         body = '<div class="crp-ipc-msg">No check results available.</div>';
       } else {
-        body = checks.map(_buildRow).join('');
+        // Left pane = sequential pass/fail gate checks. Right pane = data
+        // *about* the line's model content (BOM plus the still-unintegrated
+        // Clash/Special-Items sections) — grouped separately since they read
+        // more like a reference summary than a gate you pass or fail.
+        var MODEL_DATA_CODES = ['BOM_DATA_COMPLETE'];
+        var leftChecks  = checks.filter(function (c) { return MODEL_DATA_CODES.indexOf(c.check_code) === -1; });
+        var rightChecks = checks.filter(function (c) { return MODEL_DATA_CODES.indexOf(c.check_code) !== -1; });
+
+        var leftHtml  = leftChecks.map(function (c) { return _buildRow(c, sub.id); }).join('') ||
+          '<div class="crp-ipc-msg">No checks</div>';
+        var rightHtml = rightChecks.map(function (c) { return _buildRow(c, sub.id); }).join('') +
+          _buildPlaceholderSection('Clash in Model', 'No clash data available yet — not yet integrated') +
+          '<div class="crp-ipc-row crp-ipc-row--collapsed crp-ipc-row--clickable" style="border-left-color:#cbd5e1;" onclick="showSpecialItemsModal()">' +
+            '<span class="crp-ipc-icon" style="background:#f1f5f9;color:#94a3b8;">' + _ICONS.INFO + '</span>' +
+            '<div class="crp-ipc-info crp-ipc-info--inline">' +
+              '<span class="crp-ipc-name">Special Items</span>' +
+              '<span class="crp-ipc-detail-inline">Click to view or add special items for this line</span>' +
+            '</div>' +
+          '</div>';
+
+        body = _buildSummary(checks) +
+          '<div class="crp-ipc-columns">' +
+            '<div class="crp-ipc-col crp-ipc-col-left">' +
+              '<div class="crp-ipc-col-header">Checks</div>' + leftHtml +
+            '</div>' +
+            '<div class="crp-ipc-col">' +
+              '<div class="crp-ipc-col-header">Model Data</div>' + rightHtml +
+            '</div>' +
+          '</div>';
       }
 
       return '<div class="crp-ipc-card">' + header + body + '</div>';
     }
 
-    function _buildRow(check) {
+    // Clickable placeholder row for sections with no data source integrated
+    // yet (Clash in Model, Special Items) — deliberately neutral gray, not a
+    // pass/fail color, so it doesn't read as an error. Opens a "Coming Soon"
+    // modal on click/tap instead of just sitting there inert.
+    function _buildPlaceholderSection(name, note) {
+      var onclick = 'showComingSoon(' + JSON.stringify(name) + ',' + JSON.stringify(note) + ')';
+      return '<div class="crp-ipc-row crp-ipc-row--collapsed crp-ipc-row--clickable" style="border-left-color:#cbd5e1;" onclick="' + _esc(onclick) + '">' +
+        '<span class="crp-ipc-icon" style="background:#f1f5f9;color:#94a3b8;">' + _ICONS.INFO + '</span>' +
+        '<div class="crp-ipc-info crp-ipc-info--inline">' +
+          '<span class="crp-ipc-name">' + _esc(name) + '</span>' +
+          '<span class="crp-ipc-detail-inline" style="font-style:italic;">' + _esc(note) + '</span>' +
+        '</div>' +
+      '</div>';
+    }
+
+    function _buildSummary(checks) {
+      var counts = { PASS: 0, FLAG: 0, FAIL: 0, ERROR: 0 };
+      checks.forEach(function (c) {
+        if (counts[c.result] != null) counts[c.result]++; else counts.ERROR++;
+      });
+      var chipCfg = {
+        PASS:  { label: 'Passed',  tc: '#16a34a', bg: '#dcfce7' },
+        FLAG:  { label: 'Flagged', tc: '#d97706', bg: '#fef3c7' },
+        FAIL:  { label: 'Failed',  tc: '#dc2626', bg: '#fee2e2' },
+        ERROR: { label: 'Error',   tc: '#7c3aed', bg: '#ede9fe' },
+      };
+      var parts = ['PASS', 'FLAG', 'FAIL', 'ERROR'].filter(function (k) { return counts[k] > 0; })
+        .map(function (k) {
+          return '<span class="crp-ipc-sum-chip" style="color:' + chipCfg[k].tc + ';background:' + chipCfg[k].bg + ';">' +
+            counts[k] + ' ' + chipCfg[k].label + '</span>';
+        });
+      return parts.length ? '<div class="crp-ipc-summary">' + parts.join('') + '</div>' : '';
+    }
+
+    // Small circular status icons for each row — compact checklist look
+    var _ICONS = {
+      PASS:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>',
+      FLAG:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>',
+      FAIL:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+      ERROR: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+      INFO:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
+    };
+
+    function _buildRow(check, submissionId) {
       var cfgMap = {
         PASS:  { label: 'PASS',  tc: '#16a34a', bg: '#dcfce7' },
         FAIL:  { label: 'FAIL',  tc: '#dc2626', bg: '#fee2e2' },
@@ -5588,46 +5728,57 @@
           }
           break;
         case 'BOM_DATA_COMPLETE':
+          // No inline table here — both "real gap" and "Non-Reportable" items
+          // are reachable via buttons below instead, so this check row stays
+          // compact regardless of how many items need a look.
+          var totalIssues = (d.flagged || 0) + (d.non_reportable_count || 0);
           if (check.result === 'FAIL') {
             detail = '<span style="font-size:11.5px;color:#dc2626;">' + _esc(d.note || 'No BOM items found in IDF') + '</span>';
           } else if (check.result === 'FLAG') {
-            var flaggedItems = d.flagged_items || [];
-            if (flaggedItems.length > 0) {
-              var bomRows = flaggedItems.map(function(item) {
-                var tagCell  = item.item_code  ? _esc(item.item_code)  : '<span style="color:#9ca3af;font-style:italic;">blank</span>';
-                var descCell = item.description ? _esc(item.description) : '<span style="color:#9ca3af;font-style:italic;">blank</span>';
-                var issueLabel = item.issue === 'missing_tag'                ? 'Tag missing'
-                               : item.issue === 'missing_description'        ? 'Description missing'
-                               : 'Tag &amp; description missing';
-                return '<tr>' +
-                  '<td style="padding:2px 8px;border:1px solid #fcd34d;">' + tagCell + '</td>' +
-                  '<td style="padding:2px 8px;border:1px solid #fcd34d;">' + descCell + '</td>' +
-                  '<td style="padding:2px 8px;border:1px solid #fcd34d;color:#dc2626;">' + issueLabel + '</td>' +
-                '</tr>';
-              }).join('');
-              detail = '<div>' +
-                '<span style="font-size:11.5px;color:#d97706;">' + (d.flagged || flaggedItems.length) + ' item(s) missing tag or description — modeller action required</span>' +
-                '<table style="margin-top:4px;border-collapse:collapse;font-size:11px;width:100%;max-width:600px;">' +
-                  '<thead><tr>' +
-                    '<th style="padding:2px 8px;border:1px solid #fcd34d;background:#fef3c7;color:#92400e;text-align:left;font-weight:600;">Tag</th>' +
-                    '<th style="padding:2px 8px;border:1px solid #fcd34d;background:#fef3c7;color:#92400e;text-align:left;font-weight:600;">Description</th>' +
-                    '<th style="padding:2px 8px;border:1px solid #fcd34d;background:#fef3c7;color:#92400e;text-align:left;font-weight:600;">Issue</th>' +
-                  '</tr></thead>' +
-                  '<tbody>' + bomRows + '</tbody>' +
-                '</table></div>';
+            if (d.real_items === 0) {
+              detail = '<span style="font-size:11.5px;color:#d97706;">' + _esc(d.note || 'BOM contains only routing references') + '</span>';
+            } else if (totalIssues > 0) {
+              detail = '<span style="font-size:11.5px;color:#d97706;">' + totalIssues + ' item' + (totalIssues === 1 ? '' : 's') + ' need review</span>';
             } else {
               detail = '<span style="font-size:11.5px;color:#d97706;">' + _esc(d.note || 'BOM issue detected') + '</span>';
             }
           } else if (check.result === 'PASS') {
             detail = '<span style="font-size:11.5px;color:#16a34a;">' + (d.real_items || d.total_items || 0) + ' BOM item(s) — all have tag and description</span>';
           }
+          if (d.total_items > 0) {
+            detail += '<div class="crp-bom-btn-row">' +
+              '<button type="button" class="crp-bom-view-btn" onclick="viewBomItems(' + submissionId + ', null, \'All BOM Items\')">View All BOM Items (' + d.total_items + ')</button>' +
+              (totalIssues > 0
+                ? '<button type="button" class="crp-bom-view-btn crp-bom-view-btn--muted" onclick="viewBomItems(' + submissionId + ', \'issues\', \'Items with Issues\')">View Items with Issues (' + totalIssues + ')</button>'
+                : '') +
+              '</div>';
+          }
           break;
       }
 
-      return '<div class="crp-ipc-row">' +
-        '<span class="crp-ipc-badge" style="background:' + cfg.bg + ';color:' + cfg.tc + ';">' + cfg.label + '</span>' +
+      var icon = _ICONS[check.result] || _ICONS.ERROR;
+      var name = _esc(check.check_name || check.check_code);
+
+      // PASS rows collapse to a single compact line — name + detail inline,
+      // no separate status label (the green icon already says "pass").
+      // FLAG/FAIL/ERROR stay expanded since those need attention.
+      if (check.result === 'PASS') {
+        return '<div class="crp-ipc-row crp-ipc-row--collapsed" style="border-left-color:' + cfg.tc + ';">' +
+          '<span class="crp-ipc-icon" style="background:' + cfg.bg + ';color:' + cfg.tc + ';">' + icon + '</span>' +
+          '<div class="crp-ipc-info crp-ipc-info--inline">' +
+            '<span class="crp-ipc-name">' + name + '</span>' +
+            (detail ? '<span class="crp-ipc-detail-inline">' + detail + '</span>' : '') +
+          '</div>' +
+        '</div>';
+      }
+
+      return '<div class="crp-ipc-row" style="border-left-color:' + cfg.tc + ';">' +
+        '<span class="crp-ipc-icon" style="background:' + cfg.bg + ';color:' + cfg.tc + ';">' + icon + '</span>' +
         '<div class="crp-ipc-info">' +
-          '<div class="crp-ipc-name">' + _esc(check.check_name || check.check_code) + '</div>' +
+          '<div class="crp-ipc-name-row">' +
+            '<span class="crp-ipc-name">' + name + '</span>' +
+            '<span class="crp-ipc-status-label" style="color:' + cfg.tc + ';">' + cfg.label + '</span>' +
+          '</div>' +
           (detail ? '<div class="crp-ipc-detail">' + detail + '</div>' : '') +
         '</div>' +
       '</div>';
@@ -5641,6 +5792,295 @@
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
     }
+
+    // BOM items modal — shared by "View All BOM Items" and "View Non-Reportable
+    // Items" buttons on the BOM Data check row. filter is null (all items) or
+    // "non_reportable" (items S3D tagged as deliberately excluded from
+    // procurement — expected to be missing tag/description, so they're shown
+    // as a neutral badge here rather than a red "missing" warning).
+    function _ensureBomModal() {
+      var modal = document.getElementById('crp-bom-modal');
+      if (modal) return modal;
+      modal = document.createElement('div');
+      modal.id = 'crp-bom-modal';
+      modal.className = 'crp-bom-modal-bg';
+      modal.innerHTML =
+        '<div class="crp-bom-modal">' +
+          '<div class="crp-bom-modal-header">' +
+            '<span id="crp-bom-modal-title">BOM Items</span>' +
+            '<button type="button" class="crp-bom-modal-close" id="crp-bom-modal-close">&#x2715;</button>' +
+          '</div>' +
+          '<div class="crp-bom-modal-body" id="crp-bom-modal-body"></div>' +
+        '</div>';
+      document.body.appendChild(modal);
+      modal.addEventListener('click', function (e) { if (e.target === modal) modal.classList.remove('open'); });
+      document.getElementById('crp-bom-modal-close').addEventListener('click', function () {
+        modal.classList.remove('open');
+      });
+      return modal;
+    }
+
+    // Only the "View All BOM Items" view (filter=null) shows the IPMCS side
+    // panel — "Items with Issues" stays single-column since that's a
+    // PIMS-only concern (data-entry gaps), not a cross-system comparison.
+    function _ipmcsSidePanelHtml() {
+      return '<div style="flex:1;min-width:0;padding:0 0 0 16px;">' +
+        '<div class="crp-si-section-title" style="padding-top:12px;">IPMCS Considered Items</div>' +
+        '<div class="crp-si-ipcms-note">Not connected yet — IPMCS is a separate database, integration planned for later.</div>' +
+      '</div>';
+    }
+
+    window.viewBomItems = async function (submissionId, filter, title) {
+      var modal    = _ensureBomModal();
+      var modalEl  = modal.querySelector('.crp-bom-modal');
+      var bodyEl   = document.getElementById('crp-bom-modal-body');
+      var showIpmcs = !filter;
+      modalEl.style.width = showIpmcs ? '820px' : '600px';
+      document.getElementById('crp-bom-modal-title').textContent = title || 'BOM Items';
+      bodyEl.innerHTML = '<div style="padding:20px;text-align:center;color:#94a3b8;">Loading…</div>';
+      modal.classList.add('open');
+
+      try {
+        var url = '/api/iso-prechecks/bom-items?submissionId=' + encodeURIComponent(submissionId);
+        if (filter) url += '&filter=' + encodeURIComponent(filter);
+        var resp = await fetch(url, { credentials: 'same-origin' });
+        var data = await resp.json();
+
+        if (!data.ok || !data.items || !data.items.length) {
+          var emptyHtml = '<div style="padding:20px;text-align:center;color:#94a3b8;">No items found.</div>';
+          bodyEl.innerHTML = showIpmcs
+            ? '<div style="display:flex;"><div style="flex:1.3;min-width:0;border-right:1px solid #e2e8f0;">' + emptyHtml + '</div>' + _ipmcsSidePanelHtml() + '</div>'
+            : emptyHtml;
+          return;
+        }
+
+        var rows = data.items.map(function (item, i) {
+          var tag  = item.item_code   ? _esc(item.item_code)   : '<span style="color:#9ca3af;font-style:italic;">blank</span>';
+          var desc = item.description ? _esc(item.description) : '<span style="color:#9ca3af;font-style:italic;">blank</span>';
+          var statusLabel, statusColor, statusBg;
+          if (/^non-reportable$/i.test(item.item_code || '')) {
+            statusLabel = 'Non-Reportable'; statusColor = '#64748b'; statusBg = '#f1f5f9';
+          } else if (item.is_routing_ref) {
+            statusLabel = 'Routing ref'; statusColor = '#64748b'; statusBg = '#f1f5f9';
+          } else if (!item.has_tag && !item.has_description) {
+            statusLabel = 'Missing tag & description'; statusColor = '#dc2626'; statusBg = '#fee2e2';
+          } else if (!item.has_tag) {
+            statusLabel = 'Missing tag'; statusColor = '#dc2626'; statusBg = '#fee2e2';
+          } else if (!item.has_description) {
+            statusLabel = 'Missing description'; statusColor = '#dc2626'; statusBg = '#fee2e2';
+          } else {
+            statusLabel = 'OK'; statusColor = '#16a34a'; statusBg = '#dcfce7';
+          }
+          return '<tr>' +
+            '<td style="padding:5px 10px;border-bottom:1px solid #f1f5f9;color:#94a3b8;">' + (i + 1) + '</td>' +
+            '<td style="padding:5px 10px;border-bottom:1px solid #f1f5f9;">' + tag + '</td>' +
+            '<td style="padding:5px 10px;border-bottom:1px solid #f1f5f9;">' + desc + '</td>' +
+            '<td style="padding:5px 10px;border-bottom:1px solid #f1f5f9;"><span style="font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:5px;background:' + statusBg + ';color:' + statusColor + ';">' + statusLabel + '</span></td>' +
+          '</tr>';
+        }).join('');
+
+        var tableHtml =
+          '<div style="padding:8px 16px;font-size:11.5px;color:#64748b;">' + data.items.length + ' item(s)</div>' +
+          '<table style="width:100%;border-collapse:collapse;font-size:12.5px;">' +
+            '<thead><tr style="position:sticky;top:0;background:#f8fafc;">' +
+              '<th style="padding:6px 10px;text-align:left;color:#475569;font-size:11px;border-bottom:1px solid #e2e8f0;">#</th>' +
+              '<th style="padding:6px 10px;text-align:left;color:#475569;font-size:11px;border-bottom:1px solid #e2e8f0;">Tag</th>' +
+              '<th style="padding:6px 10px;text-align:left;color:#475569;font-size:11px;border-bottom:1px solid #e2e8f0;">Description</th>' +
+              '<th style="padding:6px 10px;text-align:left;color:#475569;font-size:11px;border-bottom:1px solid #e2e8f0;">Status</th>' +
+            '</tr></thead>' +
+            '<tbody>' + rows + '</tbody>' +
+          '</table>';
+
+        bodyEl.innerHTML = showIpmcs
+          ? '<div style="display:flex;"><div style="flex:1.3;min-width:0;border-right:1px solid #e2e8f0;">' +
+              '<div class="crp-si-section-title" style="padding:12px 16px 0;">BOM Items (PIMS)</div>' + tableHtml +
+            '</div>' + _ipmcsSidePanelHtml() + '</div>'
+          : tableHtml;
+      } catch (err) {
+        var errHtml = '<div style="padding:20px;text-align:center;color:#dc2626;">Failed to load BOM items.</div>';
+        bodyEl.innerHTML = showIpmcs
+          ? '<div style="display:flex;"><div style="flex:1.3;min-width:0;border-right:1px solid #e2e8f0;">' + errHtml + '</div>' + _ipmcsSidePanelHtml() + '</div>'
+          : errHtml;
+      }
+    };
+
+    // "Coming Soon" modal — opened by clicking a not-yet-integrated Model
+    // Data placeholder row (Clash in Model, Special Items). Reuses the same
+    // modal chrome classes as the BOM items modal for visual consistency.
+    function _ensureComingSoonModal() {
+      var modal = document.getElementById('crp-soon-modal');
+      if (modal) return modal;
+      modal = document.createElement('div');
+      modal.id = 'crp-soon-modal';
+      modal.className = 'crp-bom-modal-bg';
+      modal.innerHTML =
+        '<div class="crp-bom-modal" style="width:380px;">' +
+          '<div class="crp-bom-modal-header">' +
+            '<span id="crp-soon-modal-title">Coming Soon</span>' +
+            '<button type="button" class="crp-bom-modal-close" id="crp-soon-modal-close">&#x2715;</button>' +
+          '</div>' +
+          '<div class="crp-bom-modal-body" id="crp-soon-modal-body" style="padding:28px 24px;text-align:center;"></div>' +
+        '</div>';
+      document.body.appendChild(modal);
+      modal.addEventListener('click', function (e) { if (e.target === modal) modal.classList.remove('open'); });
+      document.getElementById('crp-soon-modal-close').addEventListener('click', function () {
+        modal.classList.remove('open');
+      });
+      return modal;
+    }
+
+    window.showComingSoon = function (name, note) {
+      var modal = _ensureComingSoonModal();
+      document.getElementById('crp-soon-modal-title').textContent = name;
+      document.getElementById('crp-soon-modal-body').innerHTML =
+        '<div style="font-size:34px;margin-bottom:10px;">🚧</div>' +
+        '<div style="font-size:14px;font-weight:700;color:#1e293b;margin-bottom:6px;">Coming Soon</div>' +
+        '<div style="font-size:12.5px;color:#64748b;line-height:1.5;">' + _esc(note || 'This feature is not available yet.') + '</div>';
+      modal.classList.add('open');
+    };
+
+    // Special Items modal — lists checker-added items for the current line
+    // (_currentTask, set by loadCrpIsoPreChecks) and, for checker roles only,
+    // a form to add more. The "From IPMCS" section is a static note for now —
+    // that's a separate database on the same Postgres server that isn't
+    // built yet; see project memory for the plan.
+    function _ensureSpecialItemsModal() {
+      var modal = document.getElementById('crp-si-modal');
+      if (modal) return modal;
+      modal = document.createElement('div');
+      modal.id = 'crp-si-modal';
+      modal.className = 'crp-bom-modal-bg';
+      modal.innerHTML =
+        '<div class="crp-bom-modal" style="width:520px;">' +
+          '<div class="crp-bom-modal-header">' +
+            '<span id="crp-si-modal-title">Special Items</span>' +
+            '<button type="button" class="crp-bom-modal-close" id="crp-si-modal-close">&#x2715;</button>' +
+          '</div>' +
+          '<div class="crp-bom-modal-body">' +
+            '<div class="crp-si-section">' +
+              '<div class="crp-si-section-title">From IPMCS</div>' +
+              '<div class="crp-si-ipcms-note">Not connected yet — IPMCS is a separate database, integration planned for later.</div>' +
+            '</div>' +
+            '<div class="crp-si-section">' +
+              '<div class="crp-si-section-title">Added in PIMS</div>' +
+              '<div id="crp-si-list"><div style="padding:8px 0;color:#94a3b8;font-size:12px;">Loading…</div></div>' +
+              '<div id="crp-si-form-wrap"></div>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(modal);
+      modal.addEventListener('click', function (e) { if (e.target === modal) modal.classList.remove('open'); });
+      document.getElementById('crp-si-modal-close').addEventListener('click', function () {
+        modal.classList.remove('open');
+      });
+      return modal;
+    }
+
+    async function _loadSpecialItems() {
+      var listEl = document.getElementById('crp-si-list');
+      if (!_currentTask) { listEl.innerHTML = '<div style="color:#dc2626;font-size:12px;">No line context available.</div>'; return; }
+
+      try {
+        var url = '/api/iso-prechecks/special-items?jobNo=' + encodeURIComponent(_currentTask.jobNo || '') +
+          '&unitNo=' + encodeURIComponent(_currentTask.unitNo || '') +
+          '&lineNo=' + encodeURIComponent(_currentTask.lineNo || '');
+        var resp = await fetch(url, { credentials: 'same-origin' });
+        var data = await resp.json();
+
+        if (!data.ok) {
+          listEl.innerHTML = '<div style="color:#dc2626;font-size:12px;">Failed to load special items.</div>';
+          return;
+        }
+
+        if (!data.items.length) {
+          listEl.innerHTML = '<div style="padding:8px 0;color:#94a3b8;font-size:12px;">No special items added yet for this line.</div>';
+        } else {
+          var rows = data.items.map(function (it) {
+            var qtyStr = it.qty != null ? Number(it.qty).toLocaleString() : '—';
+            var when = it.created_at ? new Date(it.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+            return '<tr>' +
+              '<td>' + _esc(it.tag || '—') + '</td>' +
+              '<td>' + _esc(it.description) + '</td>' +
+              '<td>' + _esc(it.category || '—') + '</td>' +
+              '<td>' + qtyStr + '</td>' +
+              '<td style="color:#94a3b8;">' + _esc(it.added_by || '—') + (when ? ' · ' + when : '') + '</td>' +
+            '</tr>';
+          }).join('');
+          listEl.innerHTML =
+            '<table class="crp-si-table">' +
+              '<thead><tr><th>Tag</th><th>Description</th><th>Category</th><th>Qty</th><th>Added</th></tr></thead>' +
+              '<tbody>' + rows + '</tbody>' +
+            '</table>';
+        }
+      } catch (err) {
+        listEl.innerHTML = '<div style="color:#dc2626;font-size:12px;">Failed to load special items.</div>';
+      }
+    }
+
+    async function _renderSpecialItemsForm() {
+      var wrap = document.getElementById('crp-si-form-wrap');
+      try {
+        var me = await fetch('/api/me', { credentials: 'same-origin' }).then(function (r) { return r.json(); });
+        var isChecker = me && (me.isHod || (me.roles || []).some(function (r) {
+          return ['Process Checker', 'Material Checker', 'Stress Checker'].indexOf(r) > -1;
+        }));
+        if (!isChecker) { wrap.innerHTML = ''; return; }
+      } catch (err) {
+        wrap.innerHTML = '';
+        return;
+      }
+
+      wrap.innerHTML =
+        '<form id="crp-si-add-form" class="crp-si-form">' +
+          '<label>Tag<input type="text" id="crp-si-tag" placeholder="Optional" /></label>' +
+          '<label>Category<input type="text" id="crp-si-category" placeholder="Optional" /></label>' +
+          '<label class="crp-si-full">Description<input type="text" id="crp-si-description" placeholder="Required" /></label>' +
+          '<label>Qty<input type="number" id="crp-si-qty" placeholder="Optional" step="any" /></label>' +
+          '<button type="submit" class="crp-si-add-btn">+ Add Special Item</button>' +
+          '<div class="crp-si-msg crp-si-full" id="crp-si-msg"></div>' +
+        '</form>';
+
+      document.getElementById('crp-si-add-form').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        var msgEl = document.getElementById('crp-si-msg');
+        var description = document.getElementById('crp-si-description').value.trim();
+        if (!description) {
+          msgEl.textContent = 'Description is required.'; msgEl.className = 'crp-si-msg err crp-si-full'; return;
+        }
+        var body = {
+          jobNo: _currentTask.jobNo, unitNo: _currentTask.unitNo, lineNo: _currentTask.lineNo,
+          tag: document.getElementById('crp-si-tag').value.trim(),
+          category: document.getElementById('crp-si-category').value.trim(),
+          description: description,
+          qty: document.getElementById('crp-si-qty').value,
+        };
+        try {
+          var resp = await fetch('/api/iso-prechecks/special-items', {
+            method: 'POST', credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+          var data = await resp.json();
+          if (resp.ok && data.ok) {
+            msgEl.textContent = 'Added.'; msgEl.className = 'crp-si-msg ok crp-si-full';
+            document.getElementById('crp-si-add-form').reset();
+            await _loadSpecialItems();
+          } else {
+            msgEl.textContent = data.error || 'Failed to add.'; msgEl.className = 'crp-si-msg err crp-si-full';
+          }
+        } catch (err) {
+          msgEl.textContent = 'Network error.'; msgEl.className = 'crp-si-msg err crp-si-full';
+        }
+      });
+    }
+
+    window.showSpecialItemsModal = async function () {
+      var modal = _ensureSpecialItemsModal();
+      document.getElementById('crp-si-modal-title').textContent =
+        'Special Items' + (_currentTask && _currentTask.lineNo ? ' — ' + _currentTask.lineNo : '');
+      modal.classList.add('open');
+      await Promise.all([_loadSpecialItems(), _renderSpecialItemsForm()]);
+    };
   })();
   </script>
 
